@@ -43,13 +43,14 @@ defmodule Axiom.Types do
     @moduledoc """
     An Axiom function definition.
     """
-    defstruct [:name, :param_types, :return_type, :body, :post_condition]
+    defstruct [:name, :param_types, :return_type, :body, :pre_condition, :post_condition]
 
     @type t :: %__MODULE__{
             name: String.t(),
             param_types: [Axiom.Types.axiom_type()],
             return_type: Axiom.Types.axiom_type(),
             body: [Axiom.Types.token()],
+            pre_condition: [Axiom.Types.token()] | nil,
             post_condition: [Axiom.Types.token()] | nil
           }
   end

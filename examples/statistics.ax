@@ -1,0 +1,28 @@
+# Basic statistics — mean and sum-of-squares
+#
+# Showcases REDUCE, RANGE, SORT, and multiple function definitions.
+
+DEF mean : [int] -> int
+  DUP SUM SWAP LEN DIV
+END
+
+DEF sum_of_squares : [int] -> int
+  0 { SQ ADD } REDUCE
+  POST DUP 0 GTE
+END
+
+DEF median : [int] -> int
+  SORT DUP LEN 2 DIV
+  # stack: [midpoint, sorted_list]
+  # drop midpoint elements from the front, then take head
+  { TAIL } TIMES
+  HEAD
+END
+
+[ 10 4 7 2 9 1 8 3 6 5 ]
+
+DUP mean
+SWAP DUP sum_of_squares
+SWAP median
+
+# Output: 5 (mean), 385 (sum of squares), 6 (median)

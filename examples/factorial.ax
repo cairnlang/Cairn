@@ -1,0 +1,14 @@
+# Factorial — using RANGE and REDUCE
+#
+# RANGE generates [1..N], REDUCE folds with MUL.
+# PRE rejects negative input. POST guarantees positive output.
+
+DEF factorial : int -> int
+  PRE { DUP 0 GTE }
+  RANGE 1 { MUL } REDUCE
+  POST DUP 0 GT
+END
+
+10 factorial
+
+# Result: 3628800

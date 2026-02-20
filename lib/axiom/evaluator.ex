@@ -33,6 +33,14 @@ defmodule Axiom.Evaluator do
   defp run([{:float_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
   defp run([{:bool_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
 
+  # APPLY — pop a block from the stack and execute it inline
+  defp run([{:op, :apply, _} | rest], [{:block, block_tokens, block_env} | stack], env) do
+    # Merge the block's captured env with current env (current wins on conflict)
+    merged_env = Map.merge(block_env, env)
+    {stack, _} = run(block_tokens, stack, merged_env)
+    run(rest, stack, env)
+  end
+
   # Operators — delegate to Runtime
   defp run([{:op, op, _} | rest], stack, env), do: run(rest, Runtime.execute(op, stack), env)
 
@@ -184,10 +192,15 @@ defmodule Axiom.Evaluator do
   """
   def eval_function_call(%Axiom.Types.Function{} = func, stack, env) do
     {args, rest} = pop_args(stack, length(func.param_types))
+
+    if func.pre_condition do
+      check_pre(func, args, env)
+    end
+
     result_stack = eval_tokens(func.body, args, env)
 
     if func.post_condition do
-      check_contract(func, result_stack, env)
+      check_post(func, result_stack, env)
     end
 
     result_stack ++ rest
@@ -203,7 +216,28 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "stack underflow: need #{n} args, have #{length(stack)}"
   end
 
-  defp check_contract(func, result_stack, env) do
+  defp check_pre(func, args, env) do
+    check_stack = eval_tokens(func.pre_condition, args, env)
+
+    case check_stack do
+      [true | _] ->
+        :ok
+
+      [false | _] ->
+        raise Axiom.ContractError,
+          message: "PRE condition failed for #{func.name}",
+          function_name: func.name,
+          stack: args
+
+      other ->
+        raise Axiom.ContractError,
+          message: "PRE condition for #{func.name} did not return bool, got: #{inspect(other)}",
+          function_name: func.name,
+          stack: args
+    end
+  end
+
+  defp check_post(func, result_stack, env) do
     check_stack = eval_tokens(func.post_condition, result_stack, env)
 
     case check_stack do

@@ -42,6 +42,10 @@ defmodule Axiom.Runtime do
   def execute(:over, [a, b | rest]), do: [b, a, b | rest]
   def execute(:rot, [a, b, c | rest]), do: [c, a, b | rest]
 
+  # Math — binary
+  def execute(:min, [a, b | rest]) when is_number(a) and is_number(b), do: [Kernel.min(b, a) | rest]
+  def execute(:max, [a, b | rest]) when is_number(a) and is_number(b), do: [Kernel.max(b, a) | rest]
+
   # List operations — basic
   def execute(:len, [list | rest]) when is_list(list), do: [length(list) | rest]
   def execute(:head, [[h | _] | rest]), do: [h | rest]
@@ -49,6 +53,18 @@ defmodule Axiom.Runtime do
   def execute(:cons, [list, elem | rest]) when is_list(list), do: [[elem | list] | rest]
   def execute(:concat, [b, a | rest]) when is_list(a) and is_list(b), do: [a ++ b | rest]
   def execute(:sum, [list | rest]) when is_list(list), do: [Enum.sum(list) | rest]
+  def execute(:sort, [list | rest]) when is_list(list), do: [Enum.sort(list) | rest]
+  def execute(:reverse, [list | rest]) when is_list(list), do: [Enum.reverse(list) | rest]
+
+  # RANGE: N RANGE -> [1, 2, ..., N]
+  def execute(:range, [0 | rest]), do: [[] | rest]
+  def execute(:range, [n | rest]) when is_integer(n) and n > 0, do: [Enum.to_list(1..n) | rest]
+
+  # PRINT: non-destructive — prints top of stack, leaves it there
+  def execute(:print, [a | rest]) do
+    IO.inspect(a, label: "ax")
+    [a | rest]
+  end
 
   # List operations — higher-order (take a block from the stack)
   # Blocks are {:block, tokens, env} — they capture the environment at creation.
@@ -73,6 +89,23 @@ defmodule Axiom.Runtime do
       end)
 
     [mapped | rest]
+  end
+
+  # REDUCE: [list] initial { block } REDUCE
+  # Block receives [element, accumulator] on stack, must leave new accumulator
+  def execute(:reduce, [{:block, block_tokens, env}, init, list | rest]) when is_list(list) do
+    result =
+      Enum.reduce(list, init, fn elem, acc ->
+        result = Axiom.Evaluator.eval_tokens(block_tokens, [elem, acc], env)
+        hd(result)
+      end)
+
+    [result | rest]
+  end
+
+  # Also support: list initial { block } REDUCE (block on top)
+  def execute(:reduce, [list, {:block, _, _} = block, init | rest]) when is_list(list) do
+    execute(:reduce, [block, init, list | rest])
   end
 
   # Also support: list { block } FILTER (block on top)

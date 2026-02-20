@@ -7,9 +7,11 @@ defmodule Axiom.Lexer do
 
   @operators ~w(ADD SUB MUL DIV MOD EQ NEQ GT LT GTE LTE AND OR NOT
                 DUP DROP SWAP OVER ROT
-                FILTER MAP SUM LEN HEAD TAIL CONS CONCAT
+                FILTER MAP REDUCE SUM LEN HEAD TAIL CONS CONCAT
+                SORT REVERSE MIN MAX
                 SQ ABS NEG
-                TIMES WHILE)
+                TIMES WHILE APPLY
+                RANGE PRINT)
 
   @type_names ~w(int float bool)
 
@@ -59,6 +61,7 @@ defmodule Axiom.Lexer do
   defp classify("DEF"), do: {:ok, {:fn_def, "DEF"}}
   defp classify("END"), do: {:ok, {:fn_end, "END"}}
   defp classify("POST"), do: {:ok, {:post, "POST"}}
+  defp classify("PRE"), do: {:ok, {:pre, "PRE"}}
   defp classify("IF"), do: {:ok, {:if_kw, "IF"}}
   defp classify("ELSE"), do: {:ok, {:else_kw, "ELSE"}}
   defp classify("T"), do: {:ok, {:bool_lit, true}}

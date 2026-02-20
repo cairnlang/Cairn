@@ -400,4 +400,144 @@ defmodule AxiomTest do
       assert Axiom.eval("5 { DUP 0 GT } { 1 SUB } WHILE") == [0]
     end
   end
+
+  # ── New operators ──
+
+  describe "RANGE" do
+    test "basic range" do
+      assert Axiom.eval("5 RANGE") == [[1, 2, 3, 4, 5]]
+    end
+
+    test "range 1" do
+      assert Axiom.eval("1 RANGE") == [[1]]
+    end
+
+    test "range 0" do
+      assert Axiom.eval("0 RANGE") == [[]]
+    end
+
+    test "range with filter" do
+      # Generate 1..10, keep evens
+      assert Axiom.eval("10 RANGE { 2 MOD 0 EQ } FILTER") == [[2, 4, 6, 8, 10]]
+    end
+  end
+
+  describe "SORT and REVERSE" do
+    test "sort" do
+      assert Axiom.eval("[ 3 1 4 1 5 9 2 6 ] SORT") == [[1, 1, 2, 3, 4, 5, 6, 9]]
+    end
+
+    test "reverse" do
+      assert Axiom.eval("[ 1 2 3 ] REVERSE") == [[3, 2, 1]]
+    end
+
+    test "sort then reverse = descending" do
+      assert Axiom.eval("[ 3 1 2 ] SORT REVERSE") == [[3, 2, 1]]
+    end
+  end
+
+  describe "MIN and MAX" do
+    test "min" do
+      assert Axiom.eval("3 7 MIN") == [3]
+      assert Axiom.eval("7 3 MIN") == [3]
+    end
+
+    test "max" do
+      assert Axiom.eval("3 7 MAX") == [7]
+      assert Axiom.eval("7 3 MAX") == [7]
+    end
+  end
+
+  describe "PRINT" do
+    test "print is non-destructive" do
+      # PRINT should leave the value on the stack
+      assert Axiom.eval("42 PRINT") == [42]
+    end
+
+    test "print in a pipeline" do
+      assert Axiom.eval("3 4 ADD PRINT 2 MUL") == [14]
+    end
+  end
+
+  describe "APPLY" do
+    test "basic apply" do
+      assert Axiom.eval("5 { DUP ADD } APPLY") == [10]
+    end
+
+    test "apply with function from env" do
+      source = "DEF sq : int -> int DUP MUL END 5 { sq } APPLY"
+      assert Axiom.eval(source) == [25]
+    end
+
+    test "apply composes" do
+      # Store a block, then apply it
+      assert Axiom.eval("3 { DUP MUL } APPLY { DUP ADD } APPLY") == [18]
+    end
+  end
+
+  describe "REDUCE" do
+    test "sum via reduce" do
+      assert Axiom.eval("[ 1 2 3 4 5 ] 0 { ADD } REDUCE") == [15]
+    end
+
+    test "product via reduce" do
+      assert Axiom.eval("[ 1 2 3 4 5 ] 1 { MUL } REDUCE") == [120]
+    end
+
+    test "max via reduce" do
+      assert Axiom.eval("[ 3 7 2 9 1 ] 0 { MAX } REDUCE") == [9]
+    end
+
+    test "reduce with user-defined function" do
+      # add_sq: square the element (top), then add to accumulator (second)
+      source = """
+      DEF add_sq : int int -> int
+        SQ ADD
+      END
+      [ 1 2 3 ] 0 { add_sq } REDUCE
+      """
+      # 0 + 1² + 2² + 3² = 14
+      assert Axiom.eval(source) == [14]
+    end
+
+    test "reduce empty list returns initial" do
+      assert Axiom.eval("[ ] 42 { ADD } REDUCE") == [42]
+    end
+  end
+
+  describe "PRE conditions" do
+    test "PRE passing" do
+      source = "DEF pos_double : int -> int PRE { DUP 0 GT } DUP ADD END 5 pos_double"
+      assert Axiom.eval(source) == [10]
+    end
+
+    test "PRE failing" do
+      source = "DEF pos_double : int -> int PRE { DUP 0 GT } DUP ADD END -3 pos_double"
+      assert_raise Axiom.ContractError, ~r/PRE/, fn -> Axiom.eval(source) end
+    end
+
+    test "PRE and POST together" do
+      source = """
+      DEF safe_double : int -> int
+        PRE { DUP 0 GTE }
+        DUP ADD
+        POST DUP 0 GTE
+      END
+      5 safe_double
+      """
+      assert Axiom.eval(source) == [10]
+    end
+
+    test "PRE and POST together — PRE fails" do
+      source = """
+      DEF safe_double : int -> int
+        PRE { DUP 0 GTE }
+        DUP ADD
+        POST DUP 0 GTE
+      END
+      -1 safe_double
+      """
+      assert_raise Axiom.ContractError, ~r/PRE/, fn -> Axiom.eval(source) end
+    end
+  end
 end

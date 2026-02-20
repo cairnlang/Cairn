@@ -35,7 +35,7 @@ T F             # bool
 
 ```
 # Arithmetic (binary: pop 2, push 1)
-ADD SUB MUL DIV MOD
+ADD SUB MUL DIV MOD MIN MAX
 
 # Arithmetic (unary: pop 1, push 1)
 SQ ABS NEG
@@ -50,13 +50,19 @@ AND OR NOT
 DUP DROP SWAP OVER ROT
 
 # List operations
-SUM LEN HEAD TAIL CONS CONCAT
+SUM LEN HEAD TAIL CONS CONCAT SORT REVERSE RANGE
 
 # Higher-order (take a block and a list)
-FILTER MAP
+FILTER MAP REDUCE
 
 # Iteration
 TIMES WHILE
+
+# Blocks
+APPLY                          # execute a block from the stack
+
+# I/O
+PRINT                          # non-destructive debug output
 ```
 
 ### Control Flow
@@ -83,13 +89,35 @@ END
 
 5 double    # [10]
 
-# POST contracts — checked at runtime on every call
-DEF safe_div : int int -> int
-  DIV
-  POST DUP 0 GTE
+# PRE contracts — checked before the body runs
+# POST contracts — checked after the body runs
+DEF safe_sqrt : int -> int
+  PRE { DUP 0 GTE }     # reject negative input
+  SQ
+  POST DUP 0 GTE        # output is non-negative
 END
 
 # Violating a contract raises Axiom.ContractError
+```
+
+### Higher-Order Operations
+
+```
+# FILTER — keep elements where block returns true
+[ 1 2 3 4 5 ] { 2 MOD 1 EQ } FILTER     # [1, 3, 5]
+
+# MAP — apply block to each element
+[ 1 2 3 ] { SQ } MAP                      # [1, 4, 9]
+
+# REDUCE — fold a list with an accumulator
+[ 1 2 3 4 5 ] 0 { ADD } REDUCE            # 15
+[ 1 2 3 4 5 ] 1 { MUL } REDUCE            # 120 (factorial)
+
+# APPLY — execute a block from the stack
+5 { DUP ADD } APPLY                        # 10
+
+# RANGE — generate [1..N]
+5 RANGE                                    # [1, 2, 3, 4, 5]
 ```
 
 ### Comments
@@ -113,6 +141,18 @@ DEF step : int -> int
 END
 
 27 { DUP 1 GT } { step } WHILE    # => 1
+```
+
+### Factorial
+
+```
+DEF factorial : int -> int
+  PRE { DUP 0 GTE }
+  RANGE 1 { MUL } REDUCE
+  POST DUP 0 GT
+END
+
+10 factorial    # => 3628800
 ```
 
 ### Fibonacci
@@ -147,6 +187,22 @@ END
 [ 1 2 3 4 5 ] sum_sq_odds    # => 35
 ```
 
+### Statistics
+
+```
+DEF mean : [int] -> int
+  DUP SUM SWAP LEN DIV
+END
+
+DEF sum_of_squares : [int] -> int
+  0 { SQ ADD } REDUCE
+END
+
+[ 10 4 7 2 9 1 8 3 6 5 ]
+DUP mean              # => 5
+SWAP sum_of_squares   # => 385
+```
+
 ## Architecture
 
 ```
@@ -160,7 +216,7 @@ END
                                         │
                                   Axiom.Runtime (operator implementations)
                                         │
-                                  Contract checker (POST assertions)
+                                  Contract checker (PRE/POST assertions)
                                         │
                                      result
 ```
@@ -169,7 +225,7 @@ Runs on the BEAM via Elixir. The content-addressed DAG (ETS-backed) is in place 
 
 ## Roadmap
 
-- **v0.0.1** (current): Interpreter, contracts, REPL, TIMES/WHILE loops
+- **v0.0.1** (current): Interpreter, PRE/POST contracts, REPL, TIMES/WHILE loops, FILTER/MAP/REDUCE
 - **v0.1.0**: Constraint solver / declarative mode
 - **v0.2.0**: Tensor, embedding, and distribution primitives
 - **v0.3.0**: Multi-agent collaboration via OTP

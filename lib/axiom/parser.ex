@@ -43,13 +43,14 @@ defmodule Axiom.Parser do
     with {:ok, name, rest} <- expect_ident(tokens),
          {:ok, _colon, rest} <- expect(:colon, rest),
          {:ok, param_types, return_type, rest} <- parse_type_signature(rest),
-         {:ok, post_condition, body, rest} <- parse_body(rest) do
+         {:ok, pre_condition, post_condition, body, rest} <- parse_body(rest) do
       {:ok,
        %Function{
          name: name,
          param_types: param_types,
          return_type: return_type,
          body: body,
+         pre_condition: pre_condition,
          post_condition: post_condition
        }, rest}
     end
@@ -120,11 +121,72 @@ defmodule Axiom.Parser do
     end
   end
 
-  # Collects body tokens until END, splitting on POST if present.
+  # Collects body tokens until END, splitting on PRE/POST if present.
   # Tracks IF nesting depth so inner IF...END blocks don't close the function.
-  # Syntax: body... [POST condition...] END
+  # Syntax: [PRE cond] body [POST cond] END
+  defp parse_body([{:pre, _, _} | rest]) do
+    # PRE comes first — collect until body starts
+    collect_pre(rest, [], 0)
+  end
+
   defp parse_body(tokens) do
-    collect_body(tokens, [], nil, 0)
+    case collect_body(tokens, [], nil, 0) do
+      {:ok, post, body, rest} -> {:ok, nil, post, body, rest}
+      {:error, _} = err -> err
+    end
+  end
+
+  # Collect PRE condition tokens until we hit the body.
+  # PRE ends at the first token that isn't part of it — but since PRE
+  # and body use the same token types, we need a delimiter.
+  # Solution: PRE runs until we see POST, END, or a non-PRE section.
+  # Simplest: PRE ends at ENDPRE... no. Let's use the same strategy as POST:
+  # PRE is everything between PRE keyword and the body. We know the body
+  # starts when PRE "ends" — but how?
+  #
+  # Pragmatic: PRE { cond_block } body POST cond END
+  # If PRE is followed by a block { ... }, that's the pre condition.
+  # Otherwise, collect tokens until we see a body-starting construct.
+  #
+  # Actually simplest: require PRE to use a block.
+  # PRE { condition } body POST condition END
+  defp collect_pre([{:block_open, _, _} | _] = tokens, _acc, _depth) do
+    # Collect the block tokens for PRE condition
+    {block_tokens, remaining} = collect_block_tokens(tokens)
+    # Now parse the rest as normal body (which may have POST)
+    case collect_body(remaining, [], nil, 0) do
+      {:ok, post, body, rest} -> {:ok, block_tokens, post, body, rest}
+      {:error, _} = err -> err
+    end
+  end
+
+  defp collect_pre(tokens, _acc, _depth) do
+    {:error, "PRE must be followed by a block { ... }, got: #{inspect(hd(tokens))}"}
+  end
+
+  # Collect a { ... } block, returning the inner tokens and the remaining tokens
+  defp collect_block_tokens([{:block_open, _, _} | rest]) do
+    do_collect_block(rest, 0, [])
+  end
+
+  defp do_collect_block([{:block_close, _, _} | rest], 0, acc) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp do_collect_block([{:block_open, _, _} = t | rest], depth, acc) do
+    do_collect_block(rest, depth + 1, [t | acc])
+  end
+
+  defp do_collect_block([{:block_close, _, _} = t | rest], depth, acc) when depth > 0 do
+    do_collect_block(rest, depth - 1, [t | acc])
+  end
+
+  defp do_collect_block([t | rest], depth, acc) do
+    do_collect_block(rest, depth, [t | acc])
+  end
+
+  defp do_collect_block([], _depth, _acc) do
+    raise Axiom.RuntimeError, "unmatched { in PRE condition"
   end
 
   defp collect_body([], _body_acc, _post_acc, _depth) do
@@ -157,6 +219,7 @@ defmodule Axiom.Parser do
     collect_body(rest, [token | body_acc], post_acc, depth)
   end
 
+  # When called without PRE, wrap result to include nil pre_condition
   defp collect_post([], _body, _post_acc, _depth) do
     {:error, "expected END after POST condition, got end of input"}
   end

@@ -260,16 +260,19 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 - [x] Stack-based interpreter (deferred EAF codegen to future version)
 - [x] `Axiom.eval("3 4 ADD")` returns `[7]`
 - [x] Blocks `{ }` as closures that capture environment
-- [x] FILTER/MAP with blocks, functions calling other functions through blocks
+- [x] FILTER/MAP/REDUCE with blocks, functions calling other functions through blocks
 - [x] TIMES and WHILE loop operators
+- [x] APPLY — execute a block from the stack
+- [x] RANGE, SORT, REVERSE, MIN, MAX, PRINT
 - [x] Recursion (works naturally — functions can call themselves)
 - [x] Tests: arithmetic, stack ops, list ops, higher-order, iteration
 
 ### M3: Contracts (it checks itself) — DONE
+- [x] `PRE` condition parsing (block-based, before body)
 - [x] `POST` condition parsing (comes after body, before END)
 - [x] Contract checking at runtime in evaluator
 - [x] `Axiom.ContractError` on violation
-- [x] Tests: passing contracts, failing contracts
+- [x] Tests: passing contracts, failing contracts, PRE+POST combined
 
 ### M4: REPL (you can touch it) — DONE
 - [x] `Axiom.REPL.start/0` with `ax>` prompt
@@ -283,10 +286,10 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 - [x] Error messages with source locations (word positions)
 - [x] `mix axiom.run` task for running `.ax` files
 - [x] `#` line comments
-- [x] Examples: collatz.ax, sum_sq_odds.ax, fibonacci.ax, gcd.ax
+- [x] Examples: collatz.ax, sum_sq_odds.ax, fibonacci.ax, gcd.ax, factorial.ax, statistics.ax
 - [x] README with language reference and examples
 
-**58 tests passing.**
+**81 tests passing.**
 
 ---
 
@@ -306,6 +309,7 @@ T F             # bool
 
 # Arithmetic
 ADD SUB MUL DIV MOD     # binary, pop 2, push 1
+MIN MAX                 # binary, pop 2, push 1
 SQ ABS NEG              # unary, pop 1, push 1
 
 # Comparison
@@ -318,14 +322,21 @@ AND OR NOT
 DUP DROP SWAP OVER ROT
 
 # List operations
-SUM LEN HEAD TAIL CONS CONCAT
+SUM LEN HEAD TAIL CONS CONCAT SORT REVERSE
+N RANGE                      # generate [1..N]
 
 # Higher-order (take a block and a list)
-FILTER MAP
+FILTER MAP REDUCE
+
+# Blocks
+APPLY                        # execute a block from the stack
 
 # Iteration
-N { block } TIMES           # repeat block N times
-{ cond } { body } WHILE     # loop while cond pushes true
+N { block } TIMES            # repeat block N times
+{ cond } { body } WHILE      # loop while cond pushes true
+
+# I/O
+PRINT                        # non-destructive debug output
 
 # Control flow
 IF ... END                   # pops bool, executes body if T
@@ -333,8 +344,9 @@ IF ... ELSE ... END           # pops bool, branches
 
 # Function definition
 DEF name : type -> type
+  PRE { condition }          # optional, checked before body
   body
-  POST condition             # optional, checked at runtime
+  POST condition             # optional, checked after body
 END
 
 # Type annotations

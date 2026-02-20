@@ -247,50 +247,62 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 
 ## Milestone Breakdown
 
-### M1: Lexer + Parser + DAG (foundation)
-- [ ] `mix new axiom` project setup
-- [ ] Lexer handles all token types
-- [ ] Parser builds DAG nodes from expressions
-- [ ] Parser handles function definitions
-- [ ] DAG store with ETS, content hashing, put/get
-- [ ] Tests for all of the above
+### M1: Lexer + Parser + DAG (foundation) — DONE
+- [x] `mix new axiom` project setup
+- [x] Lexer handles all token types (including `{ }` blocks, `#` comments)
+- [x] Parser builds expressions and function definitions
+- [x] Parser handles nested IF/ELSE/END inside function bodies
+- [x] DAG store with ETS, content hashing, put/get
+- [x] Tests for all of the above
 
-### M2: Codegen + Runtime (it runs)
-- [ ] `Axiom.Runtime` module with all v0.0.1 operators
-- [ ] Codegen emits Erlang Abstract Format for expressions
-- [ ] Codegen emits Erlang Abstract Format for function definitions
-- [ ] `:compile.forms/1` integration — produce loadable BEAM modules
-- [ ] `Axiom.eval("3 4 ADD")` returns `[7]`
-- [ ] Tests: arithmetic, stack ops, list ops
+### M2: Runtime + Evaluator (it runs) — DONE
+- [x] `Axiom.Runtime` module with all operators
+- [x] Stack-based interpreter (deferred EAF codegen to future version)
+- [x] `Axiom.eval("3 4 ADD")` returns `[7]`
+- [x] Blocks `{ }` as closures that capture environment
+- [x] FILTER/MAP with blocks, functions calling other functions through blocks
+- [x] TIMES and WHILE loop operators
+- [x] Recursion (works naturally — functions can call themselves)
+- [x] Tests: arithmetic, stack ops, list ops, higher-order, iteration
 
-### M3: Contracts (it checks itself)
-- [ ] `POST` condition parsing
-- [ ] Contract wrapping in codegen
-- [ ] `Axiom.ContractError` on violation
-- [ ] Tests: passing contracts, failing contracts
+### M3: Contracts (it checks itself) — DONE
+- [x] `POST` condition parsing (comes after body, before END)
+- [x] Contract checking at runtime in evaluator
+- [x] `Axiom.ContractError` on violation
+- [x] Tests: passing contracts, failing contracts
 
-### M4: REPL (you can touch it)
-- [ ] `Axiom.REPL.start/0`
-- [ ] Expression evaluation loop
-- [ ] Function definition persistence within session
-- [ ] Error display (stack underflow, type mismatch, contract violation)
+### M4: REPL (you can touch it) — DONE
+- [x] `Axiom.REPL.start/0` with `ax>` prompt
+- [x] Expression evaluation loop with stack display
+- [x] Function definition persistence within session
+- [x] Error display (stack underflow, undefined function, contract violation)
+- [x] `stack`, `clear`, `env` commands
 
-### M5: Integration + polish
-- [ ] End-to-end test: multi-function program with contracts
-- [ ] Error messages with source locations
-- [ ] `mix axiom.run` task for running `.ax` files
-- [ ] Minimal README with examples
+### M5: Integration + polish — DONE
+- [x] End-to-end tests: multi-function programs, Collatz, nested control flow
+- [x] Error messages with source locations (word positions)
+- [x] `mix axiom.run` task for running `.ax` files
+- [x] `#` line comments
+- [x] Examples: collatz.ax, sum_sq_odds.ax, fibonacci.ax, gcd.ax
+- [x] README with language reference and examples
+
+**58 tests passing.**
 
 ---
 
 ## Syntax Reference (v0.0.1)
 
 ```
+# Comments
+# this is a comment
+42 # inline comment
+
 # Literals
 42              # int
 3.14            # float
 T F             # bool
-[1 2 3]         # list
+[ 1 2 3 ]       # list
+{ DUP ADD }     # block (closure)
 
 # Arithmetic
 ADD SUB MUL DIV MOD     # binary, pop 2, push 1
@@ -306,34 +318,41 @@ AND OR NOT
 DUP DROP SWAP OVER ROT
 
 # List operations
-FILTER MAP SUM LEN HEAD TAIL CONS CONCAT
+SUM LEN HEAD TAIL CONS CONCAT
+
+# Higher-order (take a block and a list)
+FILTER MAP
+
+# Iteration
+N { block } TIMES           # repeat block N times
+{ cond } { body } WHILE     # loop while cond pushes true
 
 # Control flow
-IF ... END               # pops bool, executes body if T
-IF ... ELSE ... END       # pops bool, branches
+IF ... END                   # pops bool, executes body if T
+IF ... ELSE ... END           # pops bool, branches
 
 # Function definition
 DEF name : type -> type
-  [POST condition]
   body
+  POST condition             # optional, checked at runtime
 END
 
 # Type annotations
-int float bool [int] [float]    # list types in brackets
+int float bool [int] [float]
 ```
 
 ---
 
 ## Design Decisions and Rationale
 
-**Why transpile to Erlang Abstract Format instead of generating Elixir AST?**
-Erlang Abstract Format is stable, well-documented, and closer to the BEAM. Elixir's AST is a moving target tied to compiler internals. Going straight to Erlang AF means we depend on OTP, not on Elixir's compiler version.
+**Why an interpreter instead of Erlang Abstract Format codegen?**
+Pragmatic choice — getting `Axiom.eval("3 4 ADD")` working fast mattered more than the compilation target. The interpreter maps 1:1 to Axiom's postfix semantics. EAF codegen is planned for a future version when performance becomes relevant.
 
 **Why ETS for the DAG?**
 It's concurrent-read by default, available in any BEAM process, and fast. When we add multi-agent support later, multiple processes can read the DAG simultaneously without coordination. Writes go through a single process (the DAG server) to maintain consistency.
 
-**Why an explicit stack instead of compiling to native Erlang variables?**
-Simpler codegen. The stack model maps 1:1 to Axiom's postfix semantics. Optimizing to direct variable bindings is a v0.1.0 concern — get it correct first, then get it fast.
+**Why blocks capture the environment (closures)?**
+Without closures, `{ sq } MAP` fails when `sq` is a user-defined function — the block wouldn't know about it. Blocks close over the environment at creation time, making higher-order programming with user-defined functions natural.
 
 **Why not Gleam/LFE instead of Elixir?**
 Elixir has the richest tooling (Mix, IEx, ExUnit, Hex), the largest BEAM ecosystem, and metaprogramming capabilities we'll want for the REPL and future macro system. If the project matures, core runtime components could be rewritten in Erlang for fewer dependencies.

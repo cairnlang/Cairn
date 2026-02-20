@@ -345,4 +345,59 @@ defmodule AxiomTest do
       assert Axiom.eval(source) == [165]
     end
   end
+
+  # ── Iteration ──
+
+  describe "TIMES" do
+    test "basic repeat" do
+      # Start with 1, double it 4 times: 1 -> 2 -> 4 -> 8 -> 16
+      assert Axiom.eval("1 4 { DUP ADD } TIMES") == [16]
+    end
+
+    test "zero times does nothing" do
+      assert Axiom.eval("42 0 { DUP ADD } TIMES") == [42]
+    end
+
+    test "with named function" do
+      source = """
+      DEF step : int -> int
+        DUP 2 MOD 0 EQ IF 2 DIV ELSE 3 MUL 1 ADD END
+        POST DUP 0 GT
+      END
+      27 111 { step } TIMES
+      """
+      assert Axiom.eval(source) == [1]
+    end
+
+    test "block on top of count" do
+      assert Axiom.eval("2 3 { DUP MUL } TIMES") == [256]
+    end
+  end
+
+  describe "WHILE" do
+    test "basic while loop" do
+      # Start with 1, double while less than 100
+      assert Axiom.eval("1 { DUP 100 LT } { DUP ADD } WHILE") == [128]
+    end
+
+    test "while with immediate false" do
+      # Condition is false immediately — body never runs
+      assert Axiom.eval("200 { DUP 100 LT } { DUP ADD } WHILE") == [200]
+    end
+
+    test "Collatz until 1" do
+      source = """
+      DEF step : int -> int
+        DUP 2 MOD 0 EQ IF 2 DIV ELSE 3 MUL 1 ADD END
+      END
+      27 { DUP 1 GT } { step } WHILE
+      """
+      assert Axiom.eval(source) == [1]
+    end
+
+    test "countdown" do
+      # 5 -> 4 -> 3 -> 2 -> 1 -> 0, stop when not > 0
+      assert Axiom.eval("5 { DUP 0 GT } { 1 SUB } WHILE") == [0]
+    end
+  end
 end

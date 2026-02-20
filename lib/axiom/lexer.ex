@@ -8,7 +8,8 @@ defmodule Axiom.Lexer do
   @operators ~w(ADD SUB MUL DIV MOD EQ NEQ GT LT GTE LTE AND OR NOT
                 DUP DROP SWAP OVER ROT
                 FILTER MAP SUM LEN HEAD TAIL CONS CONCAT
-                SQ ABS NEG)
+                SQ ABS NEG
+                TIMES WHILE)
 
   @type_names ~w(int float bool)
 

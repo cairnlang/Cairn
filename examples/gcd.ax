@@ -1,0 +1,13 @@
+# Greatest Common Divisor — Euclidean algorithm
+#
+# Stack: [b, a]. While b != 0, replace (a, b) with (b, a mod b).
+# Uses WHILE to loop until the remainder is zero.
+
+DEF gcd : int int -> int
+  { DUP 0 NEQ }    # condition: b != 0
+  { SWAP OVER MOD } # body: (a, b) -> (b, a mod b)
+  WHILE
+  DROP              # drop the zero, result is on top
+END
+
+48 18 gcd    # gcd(48, 18) = 6

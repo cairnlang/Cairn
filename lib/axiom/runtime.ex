@@ -84,10 +84,50 @@ defmodule Axiom.Runtime do
     execute(:map, [block, list | rest])
   end
 
+  # Iteration — TIMES: N { block } TIMES — run block N times
+  def execute(:times, [{:block, _block_tokens, _env}, 0 | rest]) do
+    rest
+  end
+
+  def execute(:times, [{:block, block_tokens, env}, n | rest]) when is_integer(n) and n > 0 do
+    Enum.reduce(1..n, rest, fn _, stack ->
+      Axiom.Evaluator.eval_tokens(block_tokens, stack, env)
+    end)
+  end
+
+  # Also support: { block } N TIMES (count on top)
+  def execute(:times, [n, {:block, _, _} = block | rest]) when is_integer(n) do
+    execute(:times, [block, n | rest])
+  end
+
+  # Iteration — WHILE: { cond } { body } WHILE
+  # Order: cond block first (bottom), body block second (top).
+  # Evaluates cond block; if it pushes true, pops it, runs body, repeats.
+  def execute(:while, [{:block, body_tokens, body_env}, {:block, cond_tokens, cond_env} | rest]) do
+    run_while(cond_tokens, cond_env, body_tokens, body_env, rest)
+  end
+
   # Error cases
   def execute(op, stack) do
     raise Axiom.RuntimeError,
           "cannot apply #{op} to stack: #{inspect(Enum.take(stack, 3))}... (#{length(stack)} elements)"
+  end
+
+  defp run_while(cond_tokens, cond_env, body_tokens, body_env, stack) do
+    check_stack = Axiom.Evaluator.eval_tokens(cond_tokens, stack, cond_env)
+
+    case check_stack do
+      [true | rest_after_check] ->
+        new_stack = Axiom.Evaluator.eval_tokens(body_tokens, rest_after_check, body_env)
+        run_while(cond_tokens, cond_env, body_tokens, body_env, new_stack)
+
+      [false | rest_after_check] ->
+        rest_after_check
+
+      other ->
+        raise Axiom.RuntimeError,
+              "WHILE condition must return bool, got: #{inspect(hd(other))}"
+    end
   end
 end
 

@@ -1,0 +1,12 @@
+# Fibonacci — compute the Nth fibonacci number
+#
+# Stack trick: keep two values [b, a] on the stack.
+# Each step: SWAP the pair, OVER copies the new top,
+# ADD combines them. After N steps, the result is on top.
+#
+# 0 1 -> 1 0 -> 1 1 -> 1 1 -> 2 1 -> 2 2 -> 3 2 ...
+
+# Start: a=0, b=1. Iterate 20 times. Drop the spare.
+0 1 20 { SWAP OVER ADD } TIMES SWAP DROP
+
+# Result: 10946

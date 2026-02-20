@@ -1,0 +1,12 @@
+# Sum of squared odd numbers
+# Defines a reusable function with a contract,
+# then applies it to a list.
+
+DEF sum_sq_odds : [int] -> int
+  { 2 MOD 1 EQ } FILTER   # keep odds
+  { SQ } MAP               # square each
+  SUM                      # sum them
+  POST DUP 0 GTE           # result is never negative
+END
+
+[ 1 2 3 4 5 6 7 8 9 10 ] sum_sq_odds

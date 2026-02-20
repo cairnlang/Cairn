@@ -1,0 +1,13 @@
+# Collatz sequence — 10 steps from 27
+# Each step: if even, divide by 2; if odd, 3n+1
+# Contract: every value stays positive
+
+DEF step : int -> int
+  DUP 2 MOD 0 EQ
+  IF 2 DIV
+  ELSE 3 MUL 1 ADD
+  END
+  POST DUP 0 GT
+END
+
+27 step step step step step step step step step step

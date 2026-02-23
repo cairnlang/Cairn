@@ -9,7 +9,7 @@ A working end-to-end pipeline: **parse Axiom source -> build DAG -> compile to B
 ## What's IN v0.0.1
 
 1. **Postfix imperative subset only** — no constraint solver, no declarative mode. Those are the hard, interesting parts, but they depend on having a working runtime first.
-2. **Basic types:** `int`, `float`, `bool`, `list` (homogeneous).
+2. **Basic types:** `int`, `float`, `bool`, `string`, `list` (homogeneous).
 3. **Content-addressed DAG as the IR** — every AST node gets a hash. Stored in ETS.
 4. **Compilation to BEAM** — transpile the DAG into Erlang Abstract Format, then use `:compile.forms/1` to produce `.beam` modules.
 5. **Simple contracts** — `POST` conditions only, checked at runtime (no synthesis, just assertion).
@@ -104,6 +104,7 @@ Turns source text into a flat list of tokens. Axiom's postfix syntax makes this 
 :int_lit       # 42, -7
 :float_lit     # 3.14
 :bool_lit      # T, F
+:str_lit       # "hello world"
 :list_open     # [
 :list_close    # ]
 :op            # ADD, SUB, MUL, DIV, MOD, EQ, NEQ, GT, LT, GTE, LTE
@@ -111,6 +112,7 @@ Turns source text into a flat list of tokens. Axiom's postfix syntax makes this 
                # DUP, DROP, SWAP, OVER, ROT
                # FILTER, MAP, SUM, LEN, HEAD, TAIL, CONS, CONCAT
                # SQ, ABS, NEG
+               # SAY
 :ident         # short semantic tags: uid, ptot, etc.
 :fn_def        # DEF
 :fn_end        # END
@@ -286,10 +288,11 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 - [x] Error messages with source locations (word positions)
 - [x] `mix axiom.run` task for running `.ax` files
 - [x] `#` line comments
-- [x] Examples: collatz.ax, sum_sq_odds.ax, fibonacci.ax, gcd.ax, factorial.ax, statistics.ax
+- [x] Examples: collatz.ax, sum_sq_odds.ax, fibonacci.ax, gcd.ax, factorial.ax, statistics.ax, hello_world.ax
 - [x] README with language reference and examples
+- [x] String literals (`"hello world"`) and SAY operator
 
-**81 tests passing.**
+**90 tests passing.**
 
 ---
 
@@ -304,6 +307,7 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 42              # int
 3.14            # float
 T F             # bool
+"hello world"   # string
 [ 1 2 3 ]       # list
 { DUP ADD }     # block (closure)
 
@@ -336,7 +340,8 @@ N { block } TIMES            # repeat block N times
 { cond } { body } WHILE      # loop while cond pushes true
 
 # I/O
-PRINT                        # non-destructive debug output
+PRINT                        # non-destructive debug output (with label)
+SAY                          # non-destructive clean output (IO.puts)
 
 # Control flow
 IF ... END                   # pops bool, executes body if T

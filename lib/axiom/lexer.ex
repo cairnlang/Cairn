@@ -11,7 +11,7 @@ defmodule Axiom.Lexer do
                 SORT REVERSE MIN MAX
                 SQ ABS NEG
                 TIMES WHILE APPLY
-                RANGE PRINT)
+                RANGE PRINT SAY)
 
   @type_names ~w(int float bool)
 
@@ -22,22 +22,29 @@ defmodule Axiom.Lexer do
   def tokenize(source) do
     source
     |> strip_comments()
-    |> String.trim()
-    |> String.split(~r/\s+/)
+    |> scan_words()
     |> Enum.reject(&(&1 == ""))
     |> tokenize_words([], 0)
   end
 
+  # Strip # comments, but not inside quoted strings
   defp strip_comments(source) do
     source
     |> String.split("\n")
-    |> Enum.map(fn line ->
-      case String.split(line, "#", parts: 2) do
-        [before, _comment] -> before
-        [line] -> line
-      end
-    end)
+    |> Enum.map(fn line -> strip_line_comment(line, false, []) end)
     |> Enum.join("\n")
+  end
+
+  defp strip_line_comment(<<>>, _in_str, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
+  defp strip_line_comment(<<?", rest::binary>>, false, acc), do: strip_line_comment(rest, true, [?" | acc])
+  defp strip_line_comment(<<?", rest::binary>>, true, acc), do: strip_line_comment(rest, false, [?" | acc])
+  defp strip_line_comment(<<?#, _::binary>>, false, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
+  defp strip_line_comment(<<c, rest::binary>>, in_str, acc), do: strip_line_comment(rest, in_str, [c | acc])
+
+  # Scan words respecting quoted strings — "hello world" stays as one token
+  defp scan_words(source) do
+    Regex.scan(~r/"[^"]*"|[^\s]+/, source)
+    |> Enum.map(fn [match] -> match end)
   end
 
   defp tokenize_words([], acc, _pos), do: {:ok, Enum.reverse(acc)}
@@ -69,6 +76,10 @@ defmodule Axiom.Lexer do
 
   defp classify(word) do
     cond do
+      # String literal: "..."
+      String.starts_with?(word, "\"") and String.ends_with?(word, "\"") ->
+        {:ok, {:str_lit, String.slice(word, 1..-2)}}
+
       word in @operators ->
         {:ok, {:op, String.to_atom(String.downcase(word))}}
 

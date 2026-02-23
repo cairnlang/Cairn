@@ -505,6 +505,45 @@ defmodule AxiomTest do
     end
   end
 
+  describe "strings" do
+    test "lexer tokenizes string literals" do
+      assert {:ok, [{:str_lit, "hello", 0}]} = Axiom.Lexer.tokenize("\"hello\"")
+    end
+
+    test "lexer tokenizes multi-word strings" do
+      assert {:ok, [{:str_lit, "hello world", 0}]} = Axiom.Lexer.tokenize("\"hello world\"")
+    end
+
+    test "string literal pushes onto stack" do
+      assert Axiom.eval("\"hello\"") == ["hello"]
+    end
+
+    test "string with other values" do
+      assert Axiom.eval("42 \"hello\"") == ["hello", 42]
+    end
+
+    test "SAY is non-destructive" do
+      assert Axiom.eval("\"hello\" SAY") == ["hello"]
+    end
+
+    test "SAY with non-string" do
+      assert Axiom.eval("42 SAY") == [42]
+    end
+
+    test "comments inside strings are preserved" do
+      assert Axiom.eval("\"hello # world\"") == ["hello # world"]
+    end
+
+    test "string EQ" do
+      assert Axiom.eval("\"a\" \"a\" EQ") == [true]
+      assert Axiom.eval("\"a\" \"b\" EQ") == [false]
+    end
+
+    test "CONCAT with strings" do
+      assert Axiom.eval("\"hello \" \"world\" CONCAT") == ["hello world"]
+    end
+  end
+
   describe "PRE conditions" do
     test "PRE passing" do
       source = "DEF pos_double : int -> int PRE { DUP 0 GT } DUP ADD END 5 pos_double"

@@ -32,6 +32,7 @@ defmodule Axiom.Evaluator do
   defp run([{:int_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
   defp run([{:float_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
   defp run([{:bool_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
+  defp run([{:str_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
 
   # APPLY — pop a block from the stack and execute it inline
   defp run([{:op, :apply, _} | rest], [{:block, block_tokens, block_env} | stack], env) do

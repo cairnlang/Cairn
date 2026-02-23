@@ -52,6 +52,7 @@ defmodule Axiom.Runtime do
   def execute(:tail, [[_ | t] | rest]), do: [t | rest]
   def execute(:cons, [list, elem | rest]) when is_list(list), do: [[elem | list] | rest]
   def execute(:concat, [b, a | rest]) when is_list(a) and is_list(b), do: [a ++ b | rest]
+  def execute(:concat, [b, a | rest]) when is_binary(a) and is_binary(b), do: [a <> b | rest]
   def execute(:sum, [list | rest]) when is_list(list), do: [Enum.sum(list) | rest]
   def execute(:sort, [list | rest]) when is_list(list), do: [Enum.sort(list) | rest]
   def execute(:reverse, [list | rest]) when is_list(list), do: [Enum.reverse(list) | rest]
@@ -63,6 +64,17 @@ defmodule Axiom.Runtime do
   # PRINT: non-destructive — prints top of stack, leaves it there
   def execute(:print, [a | rest]) do
     IO.inspect(a, label: "ax")
+    [a | rest]
+  end
+
+  # SAY: non-destructive — prints value cleanly (IO.puts for strings, IO.inspect otherwise)
+  def execute(:say, [a | rest]) when is_binary(a) do
+    IO.puts(a)
+    [a | rest]
+  end
+
+  def execute(:say, [a | rest]) do
+    IO.puts(inspect(a))
     [a | rest]
   end
 

@@ -1,0 +1,11 @@
+# Hello World — string literals and SAY
+#
+# Demonstrates basic string support.
+
+"Hello, World!" SAY DROP
+
+# String concatenation
+"Hello, " "Axiom!" CONCAT SAY DROP
+
+# Mix strings and numbers
+42 "The answer is:" SAY DROP SAY DROP

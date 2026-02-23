@@ -27,6 +27,7 @@ mix test
 42              # int
 3.14            # float
 T F             # bool
+"hello world"   # string
 [ 1 2 3 ]       # list
 { DUP ADD }     # block (closure)
 ```
@@ -61,8 +62,12 @@ TIMES WHILE
 # Blocks
 APPLY                          # execute a block from the stack
 
+# String operations
+CONCAT                         # concatenate two strings (or two lists)
+
 # I/O
-PRINT                          # non-destructive debug output
+PRINT                          # non-destructive debug output (with label)
+SAY                            # non-destructive clean output (IO.puts)
 ```
 
 ### Control Flow
@@ -128,6 +133,12 @@ END
 ```
 
 ## Examples
+
+### Hello World
+
+```
+"Hello, World!" SAY DROP
+```
 
 ### Collatz Sequence
 

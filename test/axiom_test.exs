@@ -676,4 +676,80 @@ defmodule AxiomTest do
       assert_raise Axiom.ContractError, ~r/PRE/, fn -> Axiom.eval(source) end
     end
   end
+
+  # ── Type checking ──
+
+  describe "type checking" do
+    test "int to int function passes" do
+      source = "DEF double : int -> int DUP ADD END 5 double"
+      assert Axiom.eval(source) == [10]
+    end
+
+    test "str to str function passes" do
+      source = "DEF echo : str -> str END \"hello\" echo"
+      assert Axiom.eval(source) == ["hello"]
+    end
+
+    test "any accepts all types" do
+      source = "DEF id : any -> any END"
+      assert Axiom.eval(source <> " 42 id") == [42]
+      assert Axiom.eval(source <> " \"hello\" id") == ["hello"]
+      assert Axiom.eval(source <> " T id") == [true]
+    end
+
+    test "string to int function raises type error" do
+      source = "DEF double : int -> int DUP ADD END \"hello\" double"
+      assert_raise Axiom.RuntimeError, ~r/type error.*expected int/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "int to str function raises type error" do
+      source = "DEF greet : str -> str END 42 greet"
+      assert_raise Axiom.RuntimeError, ~r/type error.*expected str/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "void function that leaves values raises type error" do
+      source = "DEF bad_void : int -> void END 5 bad_void"
+      assert_raise Axiom.RuntimeError, ~r/declared -> void/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "void function that cleans up works" do
+      source = "DEF said : any -> void SAY DROP END 42 said"
+      assert Axiom.eval(source) == []
+    end
+
+    test "list to [int] function works" do
+      source = "DEF sum_list : [int] -> int SUM END [ 1 2 3 ] sum_list"
+      assert Axiom.eval(source) == [6]
+    end
+
+    test "type check happens before PRE" do
+      source = """
+      DEF pos_double : int -> int
+        PRE { DUP 0 GT }
+        DUP ADD
+      END
+      "hello" pos_double
+      """
+      # Should raise type error, not contract error
+      assert_raise Axiom.RuntimeError, ~r/type error/, fn -> Axiom.eval(source) end
+    end
+
+    test "bool to int function raises type error" do
+      source = "DEF double : int -> int DUP ADD END T double"
+      assert_raise Axiom.RuntimeError, ~r/type error.*expected int/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "str type in lexer" do
+      assert {:ok, [{:type, :str, 0}]} = Axiom.Lexer.tokenize("str")
+      assert {:ok, [{:type, {:list, :str}, 0}]} = Axiom.Lexer.tokenize("[str]")
+    end
+  end
 end

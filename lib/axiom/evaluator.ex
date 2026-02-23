@@ -33,6 +33,7 @@ defmodule Axiom.Evaluator do
   defp run([{:float_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
   defp run([{:bool_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
   defp run([{:str_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
+  defp run([{:list_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
 
   # APPLY — pop a block from the stack and execute it inline
   defp run([{:op, :apply, _} | rest], [{:block, block_tokens, block_env} | stack], env) do
@@ -194,6 +195,9 @@ defmodule Axiom.Evaluator do
   def eval_function_call(%Axiom.Types.Function{} = func, stack, env) do
     {args, rest} = pop_args(stack, length(func.param_types))
 
+    # Check arg types against declared param_types
+    check_arg_types(func, args)
+
     if func.pre_condition do
       check_pre(func, args, env)
     end
@@ -202,6 +206,12 @@ defmodule Axiom.Evaluator do
 
     if func.post_condition do
       check_post(func, result_stack, env)
+    end
+
+    # If return type is void, enforce empty result
+    if func.return_type == :void and result_stack != [] do
+      raise Axiom.RuntimeError,
+        "type error in '#{func.name}': declared -> void but left #{length(result_stack)} value(s) on stack"
     end
 
     result_stack ++ rest
@@ -216,6 +226,28 @@ defmodule Axiom.Evaluator do
   defp pop_args(stack, n) do
     raise Axiom.RuntimeError, "stack underflow: need #{n} args, have #{length(stack)}"
   end
+
+  defp check_arg_types(func, args) do
+    func.param_types
+    |> Enum.zip(args)
+    |> Enum.each(fn {type, value} ->
+      unless matches_type?(value, type) do
+        raise Axiom.RuntimeError,
+          "type error in '#{func.name}': expected #{format_type(type)}, got #{inspect(value)}"
+      end
+    end)
+  end
+
+  defp matches_type?(_, :any), do: true
+  defp matches_type?(v, :int) when is_integer(v), do: true
+  defp matches_type?(v, :float) when is_float(v), do: true
+  defp matches_type?(v, :bool) when is_boolean(v), do: true
+  defp matches_type?(v, :str) when is_binary(v), do: true
+  defp matches_type?(v, {:list, _}) when is_list(v), do: true
+  defp matches_type?(_, _), do: false
+
+  defp format_type({:list, inner}), do: "[#{inner}]"
+  defp format_type(type), do: to_string(type)
 
   defp check_pre(func, args, env) do
     check_stack = eval_tokens(func.pre_condition, args, env)

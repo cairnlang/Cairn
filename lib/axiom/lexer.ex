@@ -13,9 +13,9 @@ defmodule Axiom.Lexer do
                 TIMES WHILE APPLY
                 RANGE PRINT SAY
                 ARGV READ_FILE WRITE_FILE READ_LINE
-                WORDS LINES)
+                WORDS LINES CONTAINS)
 
-  @type_names ~w(int float bool any void)
+  @type_names ~w(int float bool any void str)
 
   @doc """
   Tokenizes a source string into a list of `{type, value, position}` tuples.
@@ -75,6 +75,7 @@ defmodule Axiom.Lexer do
   defp classify("ELSE"), do: {:ok, {:else_kw, "ELSE"}}
   defp classify("T"), do: {:ok, {:bool_lit, true}}
   defp classify("F"), do: {:ok, {:bool_lit, false}}
+  defp classify("[]"), do: {:ok, {:list_lit, []}}
 
   defp classify(word) do
     cond do

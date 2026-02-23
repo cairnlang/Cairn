@@ -54,6 +54,9 @@ defmodule Axiom.Runtime do
   def execute(:cons, [list, elem | rest]) when is_list(list), do: [[elem | list] | rest]
   def execute(:concat, [b, a | rest]) when is_list(a) and is_list(b), do: [a ++ b | rest]
   def execute(:concat, [b, a | rest]) when is_binary(a) and is_binary(b), do: [a <> b | rest]
+
+  # CONTAINS: pop string, pop substring, push boolean
+  def execute(:contains, [sub, str | rest]) when is_binary(str) and is_binary(sub), do: [String.contains?(str, sub) | rest]
   def execute(:sum, [list | rest]) when is_list(list), do: [Enum.sum(list) | rest]
   def execute(:sort, [list | rest]) when is_list(list), do: [Enum.sort(list) | rest]
   def execute(:reverse, [list | rest]) when is_list(list), do: [Enum.reverse(list) | rest]

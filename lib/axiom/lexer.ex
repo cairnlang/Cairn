@@ -15,7 +15,7 @@ defmodule Axiom.Lexer do
                 ARGV READ_FILE WRITE_FILE READ_LINE
                 WORDS LINES)
 
-  @type_names ~w(int float bool)
+  @type_names ~w(int float bool any void)
 
   @doc """
   Tokenizes a source string into a list of `{type, value, position}` tuples.

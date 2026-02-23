@@ -1,3 +1,6 @@
 # cat.ax — print contents of a file
 # Usage: mix axiom.run examples/cat.ax <filename>
-ARGV HEAD READ_FILE SAY DROP
+
+DEF said : any -> void SAY DROP END
+
+ARGV HEAD READ_FILE said

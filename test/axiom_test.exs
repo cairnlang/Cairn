@@ -609,6 +609,38 @@ defmodule AxiomTest do
     end
   end
 
+  describe "any and void types" do
+    test "any parses as a type in function signatures" do
+      {:ok, tokens} = Axiom.Lexer.tokenize("DEF id : any -> any DUP DROP END")
+      {:ok, [func]} = Axiom.Parser.parse(tokens)
+      assert func.param_types == [:any]
+      assert func.return_type == :any
+    end
+
+    test "void parses as a return type" do
+      {:ok, tokens} = Axiom.Lexer.tokenize("DEF said : any -> void SAY DROP END")
+      {:ok, [func]} = Axiom.Parser.parse(tokens)
+      assert func.param_types == [:any]
+      assert func.return_type == :void
+    end
+
+    test "[any] works as a list type" do
+      {:ok, [{:type, {:list, :any}, 0}]} = Axiom.Lexer.tokenize("[any]")
+    end
+
+    test "any -> void function works end-to-end" do
+      source = "DEF said : any -> void SAY DROP END 42 said"
+      assert Axiom.eval(source) == []
+    end
+
+    test "any -> any function works with different types" do
+      source = "DEF id : any -> any END"
+      assert Axiom.eval(source <> " 42 id") == [42]
+      assert Axiom.eval(source <> " \"hello\" id") == ["hello"]
+      assert Axiom.eval(source <> " T id") == [true]
+    end
+  end
+
   describe "PRE conditions" do
     test "PRE passing" do
       source = "DEF pos_double : int -> int PRE { DUP 0 GT } DUP ADD END 5 pos_double"

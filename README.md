@@ -235,9 +235,9 @@ ARGV HEAD READ_FILE SAY DROP
 # Usage: mix axiom.run examples/wc.ax <filename>
 # Prints: lines  words  chars
 ARGV HEAD READ_FILE
-DUP LINES LEN
-SWAP DUP WORDS LEN
-SWAP LEN
+DUP LINES LEN SAY DROP
+DUP WORDS LEN SAY DROP
+LEN SAY DROP
 ```
 
 ### Statistics

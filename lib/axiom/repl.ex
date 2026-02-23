@@ -47,7 +47,8 @@ defmodule Axiom.REPL do
             |> Enum.each(fn name ->
               func = Map.get(env, name)
               types = Enum.map(func.param_types, &inspect/1) |> Enum.join(" ")
-              IO.puts("  #{name} : #{types} -> #{inspect(func.return_type)}")
+              returns = Enum.map(func.return_types, &inspect/1) |> Enum.join(" ")
+              IO.puts("  #{name} : #{types} -> #{returns}")
             end)
 
             loop(stack, env)

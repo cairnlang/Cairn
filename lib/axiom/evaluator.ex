@@ -208,11 +208,7 @@ defmodule Axiom.Evaluator do
       check_post(func, result_stack, env)
     end
 
-    # If return type is void, enforce empty result
-    if func.return_type == :void and result_stack != [] do
-      raise Axiom.RuntimeError,
-        "type error in '#{func.name}': declared -> void but left #{length(result_stack)} value(s) on stack"
-    end
+    check_return_types(func, result_stack)
 
     result_stack ++ rest
   end
@@ -269,6 +265,35 @@ defmodule Axiom.Evaluator do
           stack: args
     end
   end
+
+  defp check_return_types(%{return_types: [:void]} = func, result_stack) do
+    if result_stack != [] do
+      raise Axiom.RuntimeError,
+        "type error in '#{func.name}': declared -> void but left #{length(result_stack)} value(s) on stack"
+    end
+  end
+
+  defp check_return_types(func, result_stack) do
+    expected = length(func.return_types)
+    actual = length(result_stack)
+
+    if actual != expected do
+      raise Axiom.RuntimeError,
+        "type error in '#{func.name}': declared -> #{format_return_types(func.return_types)} " <>
+          "(#{expected} value(s)) but got #{actual}"
+    end
+
+    func.return_types
+    |> Enum.zip(result_stack)
+    |> Enum.each(fn {type, value} ->
+      unless matches_type?(value, type) do
+        raise Axiom.RuntimeError,
+          "type error in '#{func.name}': expected return type #{format_type(type)}, got #{inspect(value)}"
+      end
+    end)
+  end
+
+  defp format_return_types(types), do: Enum.map_join(types, " ", &format_type/1)
 
   defp check_post(func, result_stack, env) do
     check_stack = eval_tokens(func.post_condition, result_stack, env)

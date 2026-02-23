@@ -82,7 +82,7 @@ defmodule AxiomTest do
       {:ok, [func]} = Axiom.Parser.parse(tokens)
       assert %Axiom.Types.Function{name: "double"} = func
       assert func.param_types == [:int]
-      assert func.return_type == :int
+      assert func.return_types == [:int]
       assert length(func.body) == 2
       assert func.post_condition == nil
     end
@@ -614,14 +614,14 @@ defmodule AxiomTest do
       {:ok, tokens} = Axiom.Lexer.tokenize("DEF id : any -> any DUP DROP END")
       {:ok, [func]} = Axiom.Parser.parse(tokens)
       assert func.param_types == [:any]
-      assert func.return_type == :any
+      assert func.return_types == [:any]
     end
 
     test "void parses as a return type" do
       {:ok, tokens} = Axiom.Lexer.tokenize("DEF said : any -> void SAY DROP END")
       {:ok, [func]} = Axiom.Parser.parse(tokens)
       assert func.param_types == [:any]
-      assert func.return_type == :void
+      assert func.return_types == [:void]
     end
 
     test "[any] works as a list type" do
@@ -750,6 +750,62 @@ defmodule AxiomTest do
     test "str type in lexer" do
       assert {:ok, [{:type, :str, 0}]} = Axiom.Lexer.tokenize("str")
       assert {:ok, [{:type, {:list, :str}, 0}]} = Axiom.Lexer.tokenize("[str]")
+    end
+
+    test "return type mismatch raises type error" do
+      source = "DEF bad : int -> int \"oops\" SWAP DROP END 5 bad"
+      assert_raise Axiom.RuntimeError, ~r/expected return type int/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "return arity mismatch — too few" do
+      source = "DEF bad : int -> int DROP END 5 bad"
+      assert_raise Axiom.RuntimeError, ~r/1 value.*but got 0/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "return arity mismatch — too many" do
+      source = "DEF bad : int -> int DUP END 5 bad"
+      assert_raise Axiom.RuntimeError, ~r/1 value.*but got 2/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test ":any return accepts any single value" do
+      source = "DEF id : any -> any END"
+      assert Axiom.eval(source <> " 42 id") == [42]
+      assert Axiom.eval(source <> " \"hello\" id") == ["hello"]
+    end
+
+    test "multi-return parsing" do
+      {:ok, tokens} = Axiom.Lexer.tokenize("DEF divmod : int int -> int int DUP ROT SWAP MOD SWAP ROT DIV SWAP END")
+      {:ok, [func]} = Axiom.Parser.parse(tokens)
+      assert func.return_types == [:int, :int]
+      assert func.param_types == [:int, :int]
+    end
+
+    test "multi-return enforcement — correct values pass" do
+      source = "DEF dup2 : int -> int int DUP END 5 dup2"
+      assert Axiom.eval(source) == [5, 5]
+    end
+
+    test "multi-return enforcement — wrong count fails" do
+      source = "DEF bad : int int -> int int DROP END 3 4 bad"
+      assert_raise Axiom.RuntimeError, ~r/2 value.*but got 1/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "multi-return type order matters" do
+      # Signature says -> str int, but body leaves [int, str] on stack
+      source = "DEF bad_order : int str -> str int END \"hello\" 42 bad_order"
+      # Body is empty so result_stack is [42, "hello"], zip with [:str, :int]
+      # first check: expected str, got 42 — fails
+      assert_raise Axiom.RuntimeError, ~r/expected return type str/, fn ->
+        Axiom.eval(source)
+      end
     end
   end
 end

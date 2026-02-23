@@ -42,13 +42,13 @@ defmodule Axiom.Parser do
   defp parse_function(tokens) do
     with {:ok, name, rest} <- expect_ident(tokens),
          {:ok, _colon, rest} <- expect(:colon, rest),
-         {:ok, param_types, return_type, rest} <- parse_type_signature(rest),
+         {:ok, param_types, return_types, rest} <- parse_type_signature(rest),
          {:ok, pre_condition, post_condition, body, rest} <- parse_body(rest) do
       {:ok,
        %Function{
          name: name,
          param_types: param_types,
-         return_type: return_type,
+         return_types: return_types,
          body: body,
          pre_condition: pre_condition,
          post_condition: post_condition
@@ -74,12 +74,12 @@ defmodule Axiom.Parser do
     {type_tokens, rest} = collect_type_tokens(tokens, [])
 
     case split_on_last_arrow(type_tokens) do
-      {:ok, param_types, return_type} ->
-        {:ok, param_types, return_type, rest}
+      {:ok, param_types, return_types} ->
+        {:ok, param_types, return_types, rest}
 
       :error ->
         case type_tokens do
-          [{:type, t, _}] -> {:ok, [], t, rest}
+          [{:type, t, _}] -> {:ok, [], [t], rest}
           _ -> {:error, "invalid type signature"}
         end
     end
@@ -115,8 +115,17 @@ defmodule Axiom.Parser do
           |> Enum.map(fn {:type, val, _} -> val end)
 
         case after_arrow do
-          [{:type, return_type, _}] -> {:ok, param_types, return_type}
-          _ -> :error
+          [] ->
+            :error
+
+          types ->
+            return_types =
+              Enum.map(types, fn
+                {:type, val, _} -> val
+                other -> throw({:bad_return_type, other})
+              end)
+
+            {:ok, param_types, return_types}
         end
     end
   end

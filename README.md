@@ -64,6 +64,9 @@ APPLY                          # execute a block from the stack
 
 # String operations
 CONCAT                         # concatenate two strings (or two lists)
+WORDS                          # split string into words (on whitespace)
+LINES                          # split string into lines
+LEN                            # also works on strings (character count)
 
 # I/O
 PRINT                          # non-destructive debug output (with label)
@@ -224,6 +227,17 @@ END
 ```
 # Usage: mix axiom.run examples/cat.ax <filename>
 ARGV HEAD READ_FILE SAY DROP
+```
+
+### Word Count
+
+```
+# Usage: mix axiom.run examples/wc.ax <filename>
+# Prints: lines  words  chars
+ARGV HEAD READ_FILE
+DUP LINES LEN
+SWAP DUP WORDS LEN
+SWAP LEN
 ```
 
 ### Statistics

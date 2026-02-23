@@ -48,6 +48,7 @@ defmodule Axiom.Runtime do
 
   # List operations — basic
   def execute(:len, [list | rest]) when is_list(list), do: [length(list) | rest]
+  def execute(:len, [s | rest]) when is_binary(s), do: [String.length(s) | rest]
   def execute(:head, [[h | _] | rest]), do: [h | rest]
   def execute(:tail, [[_ | t] | rest]), do: [t | rest]
   def execute(:cons, [list, elem | rest]) when is_list(list), do: [[elem | list] | rest]
@@ -151,6 +152,12 @@ defmodule Axiom.Runtime do
   def execute(:while, [{:block, body_tokens, body_env}, {:block, cond_tokens, cond_env} | rest]) do
     run_while(cond_tokens, cond_env, body_tokens, body_env, rest)
   end
+
+  # WORDS: split string on whitespace, push list of words
+  def execute(:words, [s | rest]) when is_binary(s), do: [String.split(s) | rest]
+
+  # LINES: split string into lines
+  def execute(:lines, [s | rest]) when is_binary(s), do: [String.split(s, "\n", trim: true) | rest]
 
   # ARGV: push command-line args list (stored in process dictionary by mix task)
   def execute(:argv, stack), do: [Process.get(:axiom_argv, []) | stack]

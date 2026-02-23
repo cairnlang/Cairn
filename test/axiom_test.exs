@@ -542,6 +542,24 @@ defmodule AxiomTest do
     test "CONCAT with strings" do
       assert Axiom.eval("\"hello \" \"world\" CONCAT") == ["hello world"]
     end
+
+    test "LEN on strings" do
+      assert Axiom.eval("\"hello\" LEN") == [5]
+      assert Axiom.eval("\"\" LEN") == [0]
+    end
+
+    test "WORDS splits on whitespace" do
+      assert Axiom.eval("\"hello world\" WORDS") == [["hello", "world"]]
+      assert Axiom.eval("\"  spaced   out  \" WORDS") == [["spaced", "out"]]
+    end
+
+    test "LINES splits on newlines" do
+      assert Axiom.eval("\"a\nb\nc\" LINES") == [["a", "b", "c"]]
+    end
+
+    test "WORDS LEN counts words" do
+      assert Axiom.eval("\"one two three\" WORDS LEN") == [3]
+    end
   end
 
   describe "IO" do

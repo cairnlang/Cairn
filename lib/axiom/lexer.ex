@@ -12,7 +12,8 @@ defmodule Axiom.Lexer do
                 SQ ABS NEG
                 TIMES WHILE APPLY
                 RANGE PRINT SAY
-                ARGV READ_FILE WRITE_FILE READ_LINE)
+                ARGV READ_FILE WRITE_FILE READ_LINE
+                WORDS LINES)
 
   @type_names ~w(int float bool)
 

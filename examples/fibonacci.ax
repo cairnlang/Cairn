@@ -7,6 +7,6 @@
 # 0 1 -> 1 0 -> 1 1 -> 1 1 -> 2 1 -> 2 2 -> 3 2 ...
 
 # Start: a=0, b=1. Iterate 20 times. Drop the spare.
-0 1 20 { SWAP OVER ADD } TIMES SWAP DROP
+0 1 20 { SWAP OVER ADD } TIMES SWAP DROP SAY DROP
 
 # Result: 10946

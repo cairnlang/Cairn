@@ -11,4 +11,4 @@ DEF step : int -> int
   POST DUP 0 GT
 END
 
-27 { DUP 1 GT } { step } WHILE
+27 { DUP 1 GT } { step } WHILE SAY DROP

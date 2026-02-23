@@ -16,14 +16,12 @@ defmodule Mix.Tasks.Axiom.Run do
   @impl Mix.Task
   def run(args) do
     case args do
-      [path] ->
+      [path | argv] ->
+        Process.put(:axiom_argv, argv)
         run_file(path)
 
       [] ->
-        Mix.shell().error("Usage: mix axiom.run <file.ax>")
-
-      _ ->
-        Mix.shell().error("Usage: mix axiom.run <file.ax>")
+        Mix.shell().error("Usage: mix axiom.run <file.ax> [args...]")
     end
   end
 

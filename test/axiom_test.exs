@@ -544,6 +544,53 @@ defmodule AxiomTest do
     end
   end
 
+  describe "IO" do
+    test "ARGV returns empty list by default" do
+      Process.delete(:axiom_argv)
+      assert Axiom.eval("ARGV") == [[]]
+    end
+
+    test "ARGV returns what was set via Process.put" do
+      Process.put(:axiom_argv, ["foo", "bar"])
+      assert Axiom.eval("ARGV") == [["foo", "bar"]]
+      Process.delete(:axiom_argv)
+    end
+
+    test "ARGV HEAD gets first arg" do
+      Process.put(:axiom_argv, ["hello", "world"])
+      assert Axiom.eval("ARGV HEAD") == ["hello"]
+      Process.delete(:axiom_argv)
+    end
+
+    test "READ_FILE reads a temp file" do
+      path = Path.join(System.tmp_dir!(), "axiom_test_read_#{:rand.uniform(100_000)}.txt")
+      File.write!(path, "hello from file")
+
+      try do
+        assert Axiom.eval("\"#{path}\" READ_FILE") == ["hello from file"]
+      after
+        File.rm(path)
+      end
+    end
+
+    test "WRITE_FILE writes to a file" do
+      path = Path.join(System.tmp_dir!(), "axiom_test_write_#{:rand.uniform(100_000)}.txt")
+
+      try do
+        assert Axiom.eval("\"test content\" \"#{path}\" WRITE_FILE") == []
+        assert File.read!(path) == "test content"
+      after
+        File.rm(path)
+      end
+    end
+
+    test "READ_FILE with bad path raises RuntimeError" do
+      assert_raise Axiom.RuntimeError, ~r/cannot read/, fn ->
+        Axiom.eval("\"/no/such/file/ever\" READ_FILE")
+      end
+    end
+  end
+
   describe "PRE conditions" do
     test "PRE passing" do
       source = "DEF pos_double : int -> int PRE { DUP 0 GT } DUP ADD END 5 pos_double"

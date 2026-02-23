@@ -11,7 +11,8 @@ defmodule Axiom.Lexer do
                 SORT REVERSE MIN MAX
                 SQ ABS NEG
                 TIMES WHILE APPLY
-                RANGE PRINT SAY)
+                RANGE PRINT SAY
+                ARGV READ_FILE WRITE_FILE READ_LINE)
 
   @type_names ~w(int float bool)
 

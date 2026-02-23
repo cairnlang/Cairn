@@ -152,6 +152,31 @@ defmodule Axiom.Runtime do
     run_while(cond_tokens, cond_env, body_tokens, body_env, rest)
   end
 
+  # ARGV: push command-line args list (stored in process dictionary by mix task)
+  def execute(:argv, stack), do: [Process.get(:axiom_argv, []) | stack]
+
+  # READ_FILE: pop filename, push file contents
+  def execute(:read_file, [path | rest]) when is_binary(path) do
+    case File.read(path) do
+      {:ok, contents} -> [contents | rest]
+      {:error, reason} -> raise Axiom.RuntimeError, "cannot read '#{path}': #{reason}"
+    end
+  end
+
+  # WRITE_FILE: pop contents and filename, write to file
+  def execute(:write_file, [path, contents | rest]) when is_binary(path) and is_binary(contents) do
+    case File.write(path, contents) do
+      :ok -> rest
+      {:error, reason} -> raise Axiom.RuntimeError, "cannot write '#{path}': #{reason}"
+    end
+  end
+
+  # READ_LINE: read one line from stdin, push trimmed string
+  def execute(:read_line, stack) do
+    line = IO.gets("") |> String.trim_trailing("\n")
+    [line | stack]
+  end
+
   # Error cases
   def execute(op, stack) do
     raise Axiom.RuntimeError,

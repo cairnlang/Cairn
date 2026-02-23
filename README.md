@@ -68,6 +68,10 @@ CONCAT                         # concatenate two strings (or two lists)
 # I/O
 PRINT                          # non-destructive debug output (with label)
 SAY                            # non-destructive clean output (IO.puts)
+ARGV                           # push command-line args as a list of strings
+READ_FILE                      # pop filename, push file contents
+WRITE_FILE                     # pop contents and filename, write to file
+READ_LINE                      # read one line from stdin
 ```
 
 ### Control Flow
@@ -130,6 +134,23 @@ END
 ```
 # This is a comment
 42 # inline comment
+```
+
+### File I/O and Arguments
+
+```
+# Read command-line arguments
+ARGV HEAD SAY DROP             # print the first argument
+
+# cat — print a file's contents
+ARGV HEAD READ_FILE SAY DROP
+# Usage: mix axiom.run examples/cat.ax somefile.txt
+
+# Write to a file
+"hello" "out.txt" WRITE_FILE
+
+# Read a line from stdin
+READ_LINE SAY DROP
 ```
 
 ## Examples
@@ -196,6 +217,13 @@ DEF sum_sq_odds : [int] -> int
 END
 
 [ 1 2 3 4 5 ] sum_sq_odds    # => 35
+```
+
+### Cat (File I/O)
+
+```
+# Usage: mix axiom.run examples/cat.ax <filename>
+ARGV HEAD READ_FILE SAY DROP
 ```
 
 ### Statistics

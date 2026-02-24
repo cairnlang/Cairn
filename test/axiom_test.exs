@@ -293,11 +293,11 @@ defmodule AxiomTest do
     end
 
     test "stack underflow raises error" do
-      assert_raise Axiom.RuntimeError, fn -> Axiom.eval("ADD") end
+      assert_raise Axiom.StaticError, fn -> Axiom.eval("ADD") end
     end
 
     test "undefined function raises error" do
-      assert_raise Axiom.RuntimeError, fn -> Axiom.eval("5 nope") end
+      assert_raise Axiom.StaticError, fn -> Axiom.eval("5 nope") end
     end
 
     test "division by zero raises error" do
@@ -326,7 +326,7 @@ defmodule AxiomTest do
     end
 
     test "error messages include position" do
-      assert_raise Axiom.RuntimeError, ~r/at word 2/, fn ->
+      assert_raise Axiom.StaticError, ~r/at word 2/, fn ->
         Axiom.eval("5 nope")
       end
     end
@@ -699,21 +699,21 @@ defmodule AxiomTest do
 
     test "string to int function raises type error" do
       source = "DEF double : int -> int DUP ADD END \"hello\" double"
-      assert_raise Axiom.RuntimeError, ~r/type error.*expected int/, fn ->
+      assert_raise Axiom.StaticError, ~r/expected int.*got str/, fn ->
         Axiom.eval(source)
       end
     end
 
     test "int to str function raises type error" do
       source = "DEF greet : str -> str END 42 greet"
-      assert_raise Axiom.RuntimeError, ~r/type error.*expected str/, fn ->
+      assert_raise Axiom.StaticError, ~r/expected str.*got int/, fn ->
         Axiom.eval(source)
       end
     end
 
     test "void function that leaves values raises type error" do
       source = "DEF bad_void : int -> void END 5 bad_void"
-      assert_raise Axiom.RuntimeError, ~r/declared -> void/, fn ->
+      assert_raise Axiom.StaticError, ~r/declared -> void/, fn ->
         Axiom.eval(source)
       end
     end
@@ -736,13 +736,13 @@ defmodule AxiomTest do
       END
       "hello" pos_double
       """
-      # Should raise type error, not contract error
-      assert_raise Axiom.RuntimeError, ~r/type error/, fn -> Axiom.eval(source) end
+      # Should raise static type error, not contract error
+      assert_raise Axiom.StaticError, ~r/expected int.*got str/, fn -> Axiom.eval(source) end
     end
 
     test "bool to int function raises type error" do
       source = "DEF double : int -> int DUP ADD END T double"
-      assert_raise Axiom.RuntimeError, ~r/type error.*expected int/, fn ->
+      assert_raise Axiom.StaticError, ~r/expected int.*got bool/, fn ->
         Axiom.eval(source)
       end
     end
@@ -754,21 +754,21 @@ defmodule AxiomTest do
 
     test "return type mismatch raises type error" do
       source = "DEF bad : int -> int \"oops\" SWAP DROP END 5 bad"
-      assert_raise Axiom.RuntimeError, ~r/expected return type int/, fn ->
+      assert_raise Axiom.StaticError, ~r/return type mismatch.*expected int.*got str/, fn ->
         Axiom.eval(source)
       end
     end
 
     test "return arity mismatch — too few" do
       source = "DEF bad : int -> int DROP END 5 bad"
-      assert_raise Axiom.RuntimeError, ~r/1 value.*but got 0/, fn ->
+      assert_raise Axiom.StaticError, ~r/1 return value.*but body produces 0/, fn ->
         Axiom.eval(source)
       end
     end
 
     test "return arity mismatch — too many" do
       source = "DEF bad : int -> int DUP END 5 bad"
-      assert_raise Axiom.RuntimeError, ~r/1 value.*but got 2/, fn ->
+      assert_raise Axiom.StaticError, ~r/1 return value.*but body produces 2/, fn ->
         Axiom.eval(source)
       end
     end
@@ -793,7 +793,7 @@ defmodule AxiomTest do
 
     test "multi-return enforcement — wrong count fails" do
       source = "DEF bad : int int -> int int DROP END 3 4 bad"
-      assert_raise Axiom.RuntimeError, ~r/2 value.*but got 1/, fn ->
+      assert_raise Axiom.StaticError, ~r/2 return value.*but body produces 1/, fn ->
         Axiom.eval(source)
       end
     end
@@ -801,9 +801,9 @@ defmodule AxiomTest do
     test "multi-return type order matters" do
       # Signature says -> str int, but body leaves [int, str] on stack
       source = "DEF bad_order : int str -> str int END \"hello\" 42 bad_order"
-      # Body is empty so result_stack is [42, "hello"], zip with [:str, :int]
-      # first check: expected str, got 42 — fails
-      assert_raise Axiom.RuntimeError, ~r/expected return type str/, fn ->
+      # Body is empty so result_stack is [int, str], expected [str, int]
+      # first check: expected str, got int — fails
+      assert_raise Axiom.StaticError, ~r/return type mismatch.*expected str.*got int/, fn ->
         Axiom.eval(source)
       end
     end

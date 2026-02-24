@@ -1,0 +1,775 @@
+defmodule Axiom.Checker do
+  @moduledoc """
+  Static type checker for Axiom.
+
+  Walks parsed items (function definitions and expression token streams)
+  with a symbolic stack, catching type errors before evaluation.
+  """
+
+  alias Axiom.Checker.{Error, Stack, Effects, Unify}
+
+  @doc """
+  Checks a list of parsed items for static type errors.
+
+  Returns `:ok` if no errors are found, or `{:error, errors}` with a list
+  of `Axiom.Checker.Error` structs.
+
+  The `env` parameter provides previously-defined function signatures
+  for cross-expression checking (e.g., in the REPL).
+  """
+  @spec check([Axiom.Types.Function.t() | {:expr, [Axiom.Types.token()]}], map()) ::
+          :ok | {:error, [Error.t()]}
+  def check(items, env \\ %{}) do
+    state = %{
+      stack: Stack.new(),
+      env: build_type_env(env),
+      errors: [],
+      next_tvar: 0
+    }
+
+    state = Enum.reduce(items, state, &check_item/2)
+
+    case state.errors do
+      [] -> :ok
+      errors -> {:error, Enum.reverse(errors)}
+    end
+  end
+
+  # Build a type environment from the runtime env (function name -> signature)
+  defp build_type_env(env) do
+    Map.new(env, fn {name, func} ->
+      {name, %{param_types: func.param_types, return_types: func.return_types}}
+    end)
+  end
+
+  defp check_item(%Axiom.Types.Function{} = func, state) do
+    # Register function in type env
+    state = put_in(state.env[func.name], %{
+      param_types: func.param_types,
+      return_types: func.return_types
+    })
+
+    # Check function body: start with param types on stack
+    # param_types[0] is on top (matches runtime's Enum.split behavior)
+    body_stack =
+      func.param_types
+      |> Enum.reverse()
+      |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
+
+    body_state = %{state | stack: body_stack}
+    body_state = check_tokens(func.body, body_state)
+
+    # Check return types
+    body_state = check_return_shape(func, body_state)
+
+    # Check PRE condition if present
+    body_state =
+      if func.pre_condition do
+        pre_stack =
+          func.param_types
+          |> Enum.reverse()
+          |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
+
+        pre_state = %{body_state | stack: pre_stack}
+        pre_state = check_tokens(func.pre_condition, pre_state)
+        %{pre_state | stack: body_state.stack}
+      else
+        body_state
+      end
+
+    # Check POST condition if present
+    body_state =
+      if func.post_condition do
+        post_stack =
+          if func.return_types == [:void] do
+            Stack.new()
+          else
+            func.return_types
+            |> Enum.reverse()
+            |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
+          end
+
+        post_state = %{body_state | stack: post_stack}
+        post_state = check_tokens(func.post_condition, post_state)
+        %{post_state | stack: body_state.stack}
+      else
+        body_state
+      end
+
+    # Restore stack for next item (function defs don't affect expression stack)
+    %{body_state | stack: state.stack}
+  end
+
+  defp check_item({:expr, tokens}, state) do
+    check_tokens(tokens, state)
+  end
+
+  # Check return shape of a function body
+  defp check_return_shape(%{return_types: [:void]} = func, state) do
+    depth = Stack.depth(state.stack)
+
+    if depth != 0 do
+      add_error(state, nil,
+        "function '#{func.name}' declared -> void but body leaves #{depth} value(s) on stack")
+    else
+      state
+    end
+  end
+
+  defp check_return_shape(func, state) do
+    expected = length(func.return_types)
+    actual = Stack.depth(state.stack)
+
+    cond do
+      actual != expected ->
+        add_error(state, nil,
+          "function '#{func.name}' declared #{expected} return value(s) but body produces #{actual}")
+
+      true ->
+        # Check types match
+        {types, _} = Stack.pop_n(state.stack, expected)
+
+        types
+        |> Enum.zip(func.return_types)
+        |> Enum.reduce(state, fn {actual_type, expected_type}, st ->
+          case Unify.unify(actual_type, expected_type) do
+            {:ok, _} -> st
+            :error ->
+              add_error(st, nil,
+                "function '#{func.name}' return type mismatch: expected #{format_type(expected_type)}, got #{format_type(actual_type)}")
+          end
+        end)
+    end
+  end
+
+  # --- Token walking ---
+
+  defp check_tokens(tokens, state) do
+    walk(tokens, state)
+  end
+
+  defp walk([], state), do: state
+
+  # Literals
+  defp walk([{:int_lit, _, _} | rest], state) do
+    walk(rest, %{state | stack: Stack.push(state.stack, :int)})
+  end
+
+  defp walk([{:float_lit, _, _} | rest], state) do
+    walk(rest, %{state | stack: Stack.push(state.stack, :float)})
+  end
+
+  defp walk([{:bool_lit, _, _} | rest], state) do
+    walk(rest, %{state | stack: Stack.push(state.stack, :bool)})
+  end
+
+  defp walk([{:str_lit, _, _} | rest], state) do
+    walk(rest, %{state | stack: Stack.push(state.stack, :str)})
+  end
+
+  defp walk([{:list_lit, _, _} | rest], state) do
+    # Empty list literal []
+    {tvar, state} = fresh_tvar(state)
+    walk(rest, %{state | stack: Stack.push(state.stack, {:list, tvar})})
+  end
+
+  # List construction: [ ... ]
+  defp walk([{:list_open, _, _} | rest], state) do
+    {elem_tokens, remaining} = collect_list_elements(rest, [], 0)
+    {elem_type, state} = infer_list_element_type(elem_tokens, state)
+    walk(remaining, %{state | stack: Stack.push(state.stack, {:list, elem_type})})
+  end
+
+  # Block literals: { ... }
+  defp walk([{:block_open, _, _} | rest], state) do
+    {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    walk(remaining, %{state | stack: Stack.push(state.stack, {:block, block_tokens})})
+  end
+
+  # IF/ELSE/END
+  defp walk([{:if_kw, _, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, cond_type, stack_after_pop} ->
+        state = %{state | stack: stack_after_pop}
+
+        state =
+          case Unify.unify(cond_type, :bool) do
+            {:ok, _} -> state
+            :error -> add_error(state, pos, "IF condition must be bool, got #{format_type(cond_type)}")
+          end
+
+        {then_tokens, else_tokens, remaining} = split_if_branches(rest)
+
+        then_state = walk(then_tokens, state)
+
+        case else_tokens do
+          nil ->
+            # IF without ELSE: stack must not change depth
+            then_depth = Stack.depth(then_state.stack)
+            pre_depth = Stack.depth(state.stack)
+
+            state =
+              if then_depth != pre_depth do
+                add_error(state, pos,
+                  "IF-without-ELSE changes stack depth (before: #{pre_depth}, after: #{then_depth})")
+              else
+                state
+              end
+
+            # Use best-effort: merge errors, use original stack shape
+            # (since we don't know which branch runs, must be neutral)
+            walk(remaining, %{state | errors: then_state.errors})
+
+          else_toks ->
+            else_state = walk(else_toks, state)
+
+            then_depth = Stack.depth(then_state.stack)
+            else_depth = Stack.depth(else_state.stack)
+
+            merged_errors = merge_error_lists(then_state.errors, else_state.errors)
+
+            if then_depth != else_depth do
+              state = %{state | errors: merged_errors}
+
+              state =
+                add_error(state, pos,
+                  "IF/ELSE branches have different stack depths (then: #{then_depth}, else: #{else_depth})")
+
+              walk(remaining, state)
+            else
+              # Unify branch result types
+              {then_types, _} = Stack.pop_n(then_state.stack, then_depth)
+              {else_types, _} = Stack.pop_n(else_state.stack, else_depth)
+
+              {result_stack, state} =
+                Enum.zip(then_types, else_types)
+                |> Enum.reduce({Stack.new(), %{state | errors: merged_errors}}, fn
+                  {t1, t2}, {stack, st} ->
+                    case Unify.unify(t1, t2) do
+                      {:ok, unified} ->
+                        {Stack.push(stack, unified), st}
+
+                      :error ->
+                        # Use :any as fallback
+                        st = add_error(st, pos,
+                          "IF/ELSE branch type mismatch: #{format_type(t1)} vs #{format_type(t2)}")
+                        {Stack.push(stack, :any), st}
+                    end
+                end)
+
+              # Reverse since we built it backwards
+              result_stack = Stack.reverse(result_stack)
+              walk(remaining, %{state | stack: result_stack})
+            end
+        end
+
+      :underflow ->
+        state = add_error(state, pos, "IF requires a bool on the stack (stack underflow)")
+        # Skip past the END to keep going
+        {_then, _else, remaining} = split_if_branches(rest)
+        walk(remaining, state)
+    end
+  end
+
+  # Stack manipulation ops - special-cased
+  defp walk([{:op, :dup, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, t, _} ->
+        walk(rest, %{state | stack: state.stack |> Stack.push(t)})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "DUP requires 1 value on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :drop, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, _, new_stack} ->
+        walk(rest, %{state | stack: new_stack})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "DROP requires 1 value on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :swap, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[a, b], base} ->
+        walk(rest, %{state | stack: base |> Stack.push(a) |> Stack.push(b)})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "SWAP requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :over, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[_a, b], _base} ->
+        walk(rest, %{state | stack: state.stack |> Stack.push(b)})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "OVER requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :rot, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 3) do
+      {[a, b, c], base} ->
+        # ROT: [a, b, c | rest] -> [c, a, b | rest]
+        walk(rest, %{state | stack: base |> Stack.push(b) |> Stack.push(a) |> Stack.push(c)})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "ROT requires 3 values on the stack (stack underflow)"))
+    end
+  end
+
+  # APPLY - execute a block inline
+  defp walk([{:op, :apply, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, {:block, block_tokens}, new_stack} ->
+        block_state = %{state | stack: new_stack}
+        block_state = walk(block_tokens, block_state)
+        walk(rest, block_state)
+
+      {:ok, other, _} ->
+        walk(rest, add_error(state, pos, "APPLY requires a block, got #{format_type(other)}"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "APPLY requires a block on the stack (stack underflow)"))
+    end
+  end
+
+  # Higher-order ops: FILTER, MAP, REDUCE, TIMES, WHILE
+  defp walk([{:op, :filter, pos} | rest], state) do
+    check_filter(pos, rest, state)
+  end
+
+  defp walk([{:op, :map, pos} | rest], state) do
+    check_map(pos, rest, state)
+  end
+
+  defp walk([{:op, :reduce, pos} | rest], state) do
+    check_reduce(pos, rest, state)
+  end
+
+  defp walk([{:op, :times, pos} | rest], state) do
+    check_times(pos, rest, state)
+  end
+
+  defp walk([{:op, :while, pos} | rest], state) do
+    check_while(pos, rest, state)
+  end
+
+  # General operators - lookup effect
+  defp walk([{:op, op, pos} | rest], state) do
+    case Effects.lookup(op) do
+      {:ok, effect} ->
+        state = apply_effect(op, effect, pos, state)
+        walk(rest, state)
+
+      :unknown ->
+        walk(rest, add_error(state, pos, "unknown operator #{op}"))
+    end
+  end
+
+  # Function calls (identifiers)
+  defp walk([{:ident, name, pos} | rest], state) do
+    case Map.get(state.env, name) do
+      nil ->
+        walk(rest, add_error(state, pos, "undefined function '#{name}'"))
+
+      %{param_types: param_types, return_types: return_types} ->
+        arity = length(param_types)
+
+        case Stack.pop_n(state.stack, arity) do
+          {arg_types, base} ->
+            # Check arg types match
+            state =
+              arg_types
+              |> Enum.zip(param_types)
+              |> Enum.reduce(%{state | stack: base}, fn {actual, expected}, st ->
+                case Unify.unify(actual, expected) do
+                  {:ok, _} -> st
+                  :error ->
+                    add_error(st, pos,
+                      "function '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}")
+                end
+              end)
+
+            # Push return types
+            state =
+              if return_types == [:void] do
+                state
+              else
+                Enum.reduce(return_types, state, fn type, st ->
+                  %{st | stack: Stack.push(st.stack, type)}
+                end)
+              end
+
+            walk(rest, state)
+
+          :underflow ->
+            # Push return types as best-effort recovery
+            state = add_error(state, pos,
+              "function '#{name}' requires #{arity} argument(s) (stack underflow)")
+
+            state =
+              if return_types == [:void] do
+                state
+              else
+                Enum.reduce(return_types, state, fn type, st ->
+                  %{st | stack: Stack.push(st.stack, type)}
+                end)
+              end
+
+            walk(rest, state)
+        end
+    end
+  end
+
+  # Catch-all for unhandled token types during checking
+  defp walk([_token | rest], state) do
+    walk(rest, state)
+  end
+
+  # --- Higher-order operation checking ---
+
+  defp check_filter(pos, rest, state) do
+    # Two orders: {block} list FILTER or list {block} FILTER
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, block_tokens}, {:list, elem_type}], base} ->
+        # Check block: receives elem_type, must return bool
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        state = %{state | stack: base |> Stack.push({:list, elem_type}), errors: block_state.errors}
+        walk(rest, state)
+
+      {[{:list, elem_type}, {:block, block_tokens}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        state = %{state | stack: base |> Stack.push({:list, elem_type}), errors: block_state.errors}
+        walk(rest, state)
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "FILTER requires a list and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "FILTER requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp check_map(pos, rest, state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, block_tokens}, {:list, elem_type}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        result_type =
+          case Stack.pop(block_state.stack) do
+            {:ok, t, _} -> t
+            :underflow -> :any
+          end
+
+        state = %{state | stack: base |> Stack.push({:list, result_type}), errors: block_state.errors}
+        walk(rest, state)
+
+      {[{:list, elem_type}, {:block, block_tokens}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        result_type =
+          case Stack.pop(block_state.stack) do
+            {:ok, t, _} -> t
+            :underflow -> :any
+          end
+
+        state = %{state | stack: base |> Stack.push({:list, result_type}), errors: block_state.errors}
+        walk(rest, state)
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "MAP requires a list and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "MAP requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp check_reduce(pos, rest, state) do
+    # Three args: list init block REDUCE or block init list REDUCE
+    case Stack.pop_n(state.stack, 3) do
+      {[{:block, block_tokens}, init_type, {:list, elem_type}], base} ->
+        # Block gets [elem, acc] on stack, must return acc type
+        block_stack = Stack.new() |> Stack.push(init_type) |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        result_type =
+          case Stack.pop(block_state.stack) do
+            {:ok, t, _} -> t
+            :underflow -> init_type
+          end
+
+        state = %{state | stack: base |> Stack.push(result_type), errors: block_state.errors}
+        walk(rest, state)
+
+      {[{:list, _elem_type}, {:block, block_tokens}, init_type], base} ->
+        # Alternate order
+        block_state = %{state | stack: Stack.new() |> Stack.push(init_type) |> Stack.push(:any)}
+        block_state = walk(block_tokens, block_state)
+
+        result_type =
+          case Stack.pop(block_state.stack) do
+            {:ok, t, _} -> t
+            :underflow -> init_type
+          end
+
+        state = %{state | stack: base |> Stack.push(result_type), errors: block_state.errors}
+        walk(rest, state)
+
+      {_, _} ->
+        state = add_error(state, pos, "REDUCE requires a list, initial value, and block")
+        walk(rest, %{state | stack: state.stack |> Stack.push(:any)})
+
+      :underflow ->
+        state = add_error(state, pos, "REDUCE requires 3 values on the stack (stack underflow)")
+        walk(rest, %{state | stack: state.stack |> Stack.push(:any)})
+    end
+  end
+
+  defp check_times(pos, rest, state) do
+    # N {block} TIMES or {block} N TIMES
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, _block_tokens}, :int], base} ->
+        # TIMES: block runs N times, stack-preserving
+        walk(rest, %{state | stack: base})
+
+      {[:int, {:block, _block_tokens}], base} ->
+        walk(rest, %{state | stack: base})
+
+      {[{:block, _}, t], _base} ->
+        walk(rest, add_error(state, pos, "TIMES requires an int count, got #{format_type(t)}"))
+
+      {[t, {:block, _}], _base} ->
+        walk(rest, add_error(state, pos, "TIMES requires an int count, got #{format_type(t)}"))
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "TIMES requires an int and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "TIMES requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp check_while(pos, rest, state) do
+    # {cond} {body} WHILE
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, _body}, {:block, _cond}], base} ->
+        # WHILE preserves stack shape
+        walk(rest, %{state | stack: base})
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "WHILE requires two blocks (condition and body)"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "WHILE requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  # --- Effect application ---
+
+  defp apply_effect(op, %{pops: pops, pushes: pushes}, pos, state) do
+    arity = length(pops)
+
+    case Stack.pop_n(state.stack, arity) do
+      {arg_types, base} ->
+        # Unify each arg type with expected
+        state =
+          arg_types
+          |> Enum.zip(pops)
+          |> Enum.reduce(%{state | stack: base}, fn {actual, expected}, st ->
+            case Unify.unify(actual, expected) do
+              {:ok, _} -> st
+              :error ->
+                add_error(st, pos,
+                  "#{format_op(op)} expected #{format_type(expected)}, got #{format_type(actual)}")
+            end
+          end)
+
+        # Push result types
+        Enum.reduce(pushes, state, fn type, st ->
+          # If the push type is :num_result, resolve based on inputs
+          resolved =
+            case type do
+              :num_result -> resolve_num_result(arg_types)
+              other -> other
+            end
+
+          %{st | stack: Stack.push(st.stack, resolved)}
+        end)
+
+      :underflow ->
+        state = add_error(state, pos,
+          "#{format_op(op)} requires #{arity} value(s) on the stack (stack underflow)")
+
+        # Best-effort: push result types
+        Enum.reduce(pushes, state, fn type, st ->
+          resolved = if type == :num_result, do: :num, else: type
+          %{st | stack: Stack.push(st.stack, resolved)}
+        end)
+    end
+  end
+
+  # When both args are int, result is int; if either is float, result is float; else :num
+  defp resolve_num_result(arg_types) do
+    cond do
+      Enum.all?(arg_types, &(&1 == :int)) -> :int
+      Enum.any?(arg_types, &(&1 == :float)) -> :float
+      true -> :num
+    end
+  end
+
+  # --- Helpers ---
+
+  defp collect_list_elements([{:list_close, _, _} | rest], acc, _depth) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp collect_list_elements([{:list_open, _, _} | _rest] = tokens, acc, depth) do
+    collect_list_elements(tl(tokens), [hd(tokens) | acc], depth + 1)
+  end
+
+  defp collect_list_elements([tok | rest], acc, depth) do
+    collect_list_elements(rest, [tok | acc], depth)
+  end
+
+  defp collect_list_elements([], acc, _depth) do
+    {Enum.reverse(acc), []}
+  end
+
+  defp infer_list_element_type([], state) do
+    {tvar, state} = fresh_tvar(state)
+    {tvar, state}
+  end
+
+  defp infer_list_element_type(tokens, state) do
+    types =
+      Enum.map(tokens, fn
+        {:int_lit, _, _} -> :int
+        {:float_lit, _, _} -> :float
+        {:bool_lit, _, _} -> :bool
+        {:str_lit, _, _} -> :str
+        _ -> :any
+      end)
+
+    unified =
+      Enum.reduce(types, hd(types), fn t, acc ->
+        case Unify.unify(t, acc) do
+          {:ok, u} -> u
+          :error -> :any
+        end
+      end)
+
+    {unified, state}
+  end
+
+  defp collect_block_tokens([], _depth, acc), do: {Enum.reverse(acc), []}
+
+  defp collect_block_tokens([{:block_close, _, _} | rest], 0, acc) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp collect_block_tokens([{:block_open, _, _} = t | rest], depth, acc) do
+    collect_block_tokens(rest, depth + 1, [t | acc])
+  end
+
+  defp collect_block_tokens([{:block_close, _, _} = t | rest], depth, acc) when depth > 0 do
+    collect_block_tokens(rest, depth - 1, [t | acc])
+  end
+
+  defp collect_block_tokens([t | rest], depth, acc) do
+    collect_block_tokens(rest, depth, [t | acc])
+  end
+
+  defp split_if_branches(tokens) do
+    do_split_if(tokens, 0, [], nil)
+  end
+
+  defp do_split_if([], _depth, then_acc, else_acc) do
+    {Enum.reverse(then_acc), else_acc, []}
+  end
+
+  defp do_split_if([{:fn_end, _, _} | rest], 0, then_acc, else_acc) do
+    {Enum.reverse(then_acc), else_acc, rest}
+  end
+
+  defp do_split_if([{:else_kw, _, _} | rest], 0, then_acc, _else_acc) do
+    collect_else(rest, 0, Enum.reverse(then_acc), [])
+  end
+
+  defp do_split_if([{:if_kw, _, _} = t | rest], depth, then_acc, else_acc) do
+    do_split_if(rest, depth + 1, [t | then_acc], else_acc)
+  end
+
+  defp do_split_if([{:fn_end, _, _} = t | rest], depth, then_acc, else_acc) when depth > 0 do
+    do_split_if(rest, depth - 1, [t | then_acc], else_acc)
+  end
+
+  defp do_split_if([t | rest], depth, then_acc, else_acc) do
+    do_split_if(rest, depth, [t | then_acc], else_acc)
+  end
+
+  defp collect_else([], _depth, then_branch, else_acc) do
+    {then_branch, Enum.reverse(else_acc), []}
+  end
+
+  defp collect_else([{:fn_end, _, _} | rest], 0, then_branch, else_acc) do
+    {then_branch, Enum.reverse(else_acc), rest}
+  end
+
+  defp collect_else([{:if_kw, _, _} = t | rest], depth, then_branch, else_acc) do
+    collect_else(rest, depth + 1, then_branch, [t | else_acc])
+  end
+
+  defp collect_else([{:fn_end, _, _} = t | rest], depth, then_branch, else_acc) when depth > 0 do
+    collect_else(rest, depth - 1, then_branch, [t | else_acc])
+  end
+
+  defp collect_else([t | rest], depth, then_branch, else_acc) do
+    collect_else(rest, depth, then_branch, [t | else_acc])
+  end
+
+  defp fresh_tvar(state) do
+    id = state.next_tvar
+    {{:tvar, id}, %{state | next_tvar: id + 1}}
+  end
+
+  defp add_error(state, pos, message) do
+    error = %Error{message: message, position: pos}
+    %{state | errors: [error | state.errors]}
+  end
+
+  defp merge_error_lists(errors1, errors2) do
+    # Combine errors, deduplicating
+    (errors1 ++ errors2) |> Enum.uniq()
+  end
+
+  defp format_type(:int), do: "int"
+  defp format_type(:float), do: "float"
+  defp format_type(:bool), do: "bool"
+  defp format_type(:str), do: "str"
+  defp format_type(:any), do: "any"
+  defp format_type(:void), do: "void"
+  defp format_type(:num), do: "num"
+  defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
+  defp format_type({:block, _}), do: "block"
+  defp format_type({:tvar, id}), do: "t#{id}"
+  defp format_type(other), do: inspect(other)
+
+  defp format_op(op), do: String.upcase(to_string(op))
+end

@@ -35,6 +35,10 @@ defmodule Mix.Tasks.Axiom.Run do
           |> Enum.reverse()
           |> Enum.each(fn val -> IO.puts(format_value(val)) end)
         rescue
+          e in Axiom.StaticError ->
+            Mix.shell().error("Static type error: #{e.message}")
+            System.halt(1)
+
           e in Axiom.RuntimeError ->
             Mix.shell().error("Runtime error: #{e.message}")
             System.halt(1)

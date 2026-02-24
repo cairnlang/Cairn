@@ -67,6 +67,10 @@ defmodule Axiom.REPL do
 
               loop(new_stack, new_env)
             rescue
+              e in Axiom.StaticError ->
+                IO.puts("STATIC ERROR: #{e.message}")
+                loop(stack, env)
+
               e in Axiom.RuntimeError ->
                 IO.puts("ERROR: #{e.message}")
                 loop(stack, env)

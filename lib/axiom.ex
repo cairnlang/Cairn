@@ -5,7 +5,7 @@ defmodule Axiom do
   Public API for compiling and evaluating Axiom source code.
   """
 
-  alias Axiom.{Lexer, Parser, Evaluator}
+  alias Axiom.{Lexer, Parser, Evaluator, Checker}
 
   @doc """
   Evaluates an Axiom expression string and returns the resulting stack.
@@ -31,7 +31,8 @@ defmodule Axiom do
   @spec eval_with_env(String.t(), map(), list()) :: {list(), map()}
   def eval_with_env(source, env \\ %{}, stack \\ []) do
     with {:ok, tokens} <- Lexer.tokenize(source),
-         {:ok, items} <- Parser.parse(tokens) do
+         {:ok, items} <- Parser.parse(tokens),
+         :ok <- Checker.check(items, env) do
       Enum.reduce(items, {stack, env}, fn
         {:expr, expr_tokens}, {stack, env} ->
           Evaluator.eval_tokens_with_env(expr_tokens, stack, env)
@@ -40,7 +41,11 @@ defmodule Axiom do
           {stack, Map.put(env, func.name, func)}
       end)
     else
-      {:error, msg} -> raise Axiom.RuntimeError, msg
+      {:error, errors} when is_list(errors) ->
+        raise Axiom.StaticError, errors
+
+      {:error, msg} ->
+        raise Axiom.RuntimeError, msg
     end
   end
 

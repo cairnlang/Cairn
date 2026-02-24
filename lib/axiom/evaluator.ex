@@ -34,6 +34,7 @@ defmodule Axiom.Evaluator do
   defp run([{:bool_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
   defp run([{:str_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
   defp run([{:list_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
+  defp run([{:map_lit, val, _} | rest], stack, env), do: run(rest, [val | stack], env)
 
   # APPLY — pop a block from the stack and execute it inline
   defp run([{:op, :apply, _} | rest], [{:block, block_tokens, block_env} | stack], env) do
@@ -56,6 +57,12 @@ defmodule Axiom.Evaluator do
         stack = eval_function_call(func, stack, env)
         run(rest, stack, env)
     end
+  end
+
+  # Map construction: M[ key val ... ]
+  defp run([{:map_open, _, _} | rest], stack, env) do
+    {map, remaining} = collect_map_tokens(rest, [], env)
+    run(remaining, [map | stack], env)
   end
 
   # List construction: [ 1 2 3 ]
@@ -113,8 +120,41 @@ defmodule Axiom.Evaluator do
     collect_list_tokens(rest, [val | items], env)
   end
 
+  defp collect_list_tokens([{:str_lit, val, _} | rest], items, env) do
+    collect_list_tokens(rest, [val | items], env)
+  end
+
   defp collect_list_tokens([], _items, _env) do
     raise Axiom.RuntimeError, "unmatched ["
+  end
+
+  # Collect tokens inside M[ ], building key-value pairs
+  defp collect_map_tokens([{:list_close, _, _} | rest], items, _env) do
+    pairs = items |> Enum.reverse() |> Enum.chunk_every(2)
+
+    map =
+      Map.new(pairs, fn
+        [k, v] -> {k, v}
+        [_] -> raise Axiom.RuntimeError, "M[ requires even number of elements (key-value pairs)"
+      end)
+
+    {map, rest}
+  end
+
+  defp collect_map_tokens([{:int_lit, val, _} | rest], items, env),
+    do: collect_map_tokens(rest, [val | items], env)
+
+  defp collect_map_tokens([{:float_lit, val, _} | rest], items, env),
+    do: collect_map_tokens(rest, [val | items], env)
+
+  defp collect_map_tokens([{:bool_lit, val, _} | rest], items, env),
+    do: collect_map_tokens(rest, [val | items], env)
+
+  defp collect_map_tokens([{:str_lit, val, _} | rest], items, env),
+    do: collect_map_tokens(rest, [val | items], env)
+
+  defp collect_map_tokens([], _items, _env) do
+    raise Axiom.RuntimeError, "unmatched M["
   end
 
   # Collect tokens inside { }, handling nesting
@@ -240,9 +280,11 @@ defmodule Axiom.Evaluator do
   defp matches_type?(v, :bool) when is_boolean(v), do: true
   defp matches_type?(v, :str) when is_binary(v), do: true
   defp matches_type?(v, {:list, _}) when is_list(v), do: true
+  defp matches_type?(v, {:map, _, _}) when is_map(v), do: true
   defp matches_type?(_, _), do: false
 
   defp format_type({:list, inner}), do: "[#{inner}]"
+  defp format_type({:map, k, v}), do: "map[#{k} #{v}]"
   defp format_type(type), do: to_string(type)
 
   defp check_pre(func, args, env) do

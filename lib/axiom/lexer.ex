@@ -13,7 +13,8 @@ defmodule Axiom.Lexer do
                 TIMES WHILE APPLY
                 RANGE PRINT SAY
                 ARGV READ_FILE WRITE_FILE READ_LINE
-                WORDS LINES CONTAINS)
+                WORDS LINES CONTAINS
+                GET PUT DEL KEYS VALUES HAS MLEN MERGE)
 
   @type_names ~w(int float bool any void str)
 
@@ -43,9 +44,9 @@ defmodule Axiom.Lexer do
   defp strip_line_comment(<<?#, _::binary>>, false, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
   defp strip_line_comment(<<c, rest::binary>>, in_str, acc), do: strip_line_comment(rest, in_str, [c | acc])
 
-  # Scan words respecting quoted strings — "hello world" stays as one token
+  # Scan words respecting quoted strings and map types — "hello world" and map[str int] stay as one token
   defp scan_words(source) do
-    Regex.scan(~r/"[^"]*"|[^\s]+/, source)
+    Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|"[^"]*"|[^\s]+/, source)
     |> Enum.map(fn [match] -> match end)
   end
 
@@ -77,6 +78,8 @@ defmodule Axiom.Lexer do
   defp classify("T"), do: {:ok, {:bool_lit, true}}
   defp classify("F"), do: {:ok, {:bool_lit, false}}
   defp classify("[]"), do: {:ok, {:list_lit, []}}
+  defp classify("M["), do: {:ok, {:map_open, "M["}}
+  defp classify("M[]"), do: {:ok, {:map_lit, %{}}}
 
   defp classify(word) do
     cond do
@@ -99,6 +102,17 @@ defmodule Axiom.Lexer do
           {:error, "unknown list type: #{word}"}
         end
 
+      # map type like map[str int]
+      Regex.match?(~r/^map\[.+\s+.+\]$/, word) ->
+        inner = String.slice(word, 4..-2)
+        [key_str, val_str] = String.split(inner, ~r/\s+/, parts: 2)
+        key_type = parse_map_inner_type(key_str)
+        val_type = parse_map_inner_type(val_str)
+        case {key_type, val_type} do
+          {{:ok, k}, {:ok, v}} -> {:ok, {:type, {:map, k, v}}}
+          _ -> {:error, "unknown map type: #{word}"}
+        end
+
       # float literal
       Regex.match?(~r/^-?\d+\.\d+$/, word) ->
         {:ok, {:float_lit, String.to_float(word)}}
@@ -113,6 +127,29 @@ defmodule Axiom.Lexer do
 
       true ->
         {:error, "unexpected token: #{word}"}
+    end
+  end
+
+  defp parse_map_inner_type(s) do
+    if s in @type_names do
+      {:ok, String.to_atom(s)}
+    else
+      cond do
+        Regex.match?(~r/^\[.+\]$/, s) ->
+          inner = String.slice(s, 1..-2)
+          if inner in @type_names, do: {:ok, {:list, String.to_atom(inner)}}, else: :error
+
+        Regex.match?(~r/^map\[.+\s+.+\]$/, s) ->
+          inner = String.slice(s, 4..-2)
+          [k, v] = String.split(inner, ~r/\s+/, parts: 2)
+          case {parse_map_inner_type(k), parse_map_inner_type(v)} do
+            {{:ok, kt}, {:ok, vt}} -> {:ok, {:map, kt, vt}}
+            _ -> :error
+          end
+
+        true ->
+          :error
+      end
     end
   end
 end

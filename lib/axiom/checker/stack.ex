@@ -16,6 +16,7 @@ defmodule Axiom.Checker.Stack do
           | :void
           | :num
           | {:list, type_entry}
+          | {:map, type_entry, type_entry}
           | {:tvar, integer()}
           | {:block, [Axiom.Types.token()]}
 

@@ -156,6 +156,18 @@ defmodule Axiom.Runtime do
     run_while(cond_tokens, cond_env, body_tokens, body_env, rest)
   end
 
+  # Map operations
+  def execute(:get, [key, map | rest]) when is_map(map), do: [Map.fetch!(map, key) | rest]
+  def execute(:put, [value, key, map | rest]) when is_map(map), do: [Map.put(map, key, value) | rest]
+  def execute(:del, [key, map | rest]) when is_map(map), do: [Map.delete(map, key) | rest]
+  def execute(:keys, [map | rest]) when is_map(map), do: [Map.keys(map) | rest]
+  def execute(:values, [map | rest]) when is_map(map), do: [Map.values(map) | rest]
+  def execute(:has, [key, map | rest]) when is_map(map), do: [Map.has_key?(map, key) | rest]
+  def execute(:mlen, [map | rest]) when is_map(map), do: [map_size(map) | rest]
+
+  def execute(:merge, [map2, map1 | rest]) when is_map(map1) and is_map(map2),
+    do: [Map.merge(map1, map2) | rest]
+
   # WORDS: split string on whitespace, push list of words
   def execute(:words, [s | rest]) when is_binary(s), do: [String.split(s) | rest]
 

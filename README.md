@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.1.0**: Interpreted postfix core with a **static type checker**, **property-based verification** (VERIFY), runtime contracts (PRE/POST), closures, loops, and a REPL.
+**v0.1.0**: Interpreted postfix core with a **static type checker**, **property-based verification** (VERIFY), runtime contracts (PRE/POST), **maps**, closures, loops, and a REPL.
 
 ## Quick Start
 
@@ -18,7 +18,7 @@ mix axiom.run examples/bank.ax
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 
-# Run tests (251 tests)
+# Run tests (305 tests)
 mix test
 ```
 
@@ -27,12 +27,14 @@ mix test
 ### Literals
 
 ```
-42              # int
-3.14            # float
-T F             # bool
-"hello world"   # string
-[ 1 2 3 ]       # list
-{ DUP ADD }     # block (closure)
+42                          # int
+3.14                        # float
+T F                         # bool
+"hello world"               # string
+[ 1 2 3 ]                   # list
+M[ "a" 1 "b" 2 ]           # map (key-value pairs)
+M[]                         # empty map
+{ DUP ADD }                 # block (closure)
 ```
 
 ### Types
@@ -42,6 +44,7 @@ Functions declare parameter and return types. The type checker enforces these st
 ```
 int float bool str    # concrete types
 [int] [str]           # list types
+map[str int]          # map types (key type, value type)
 any                   # accepts any type
 void                  # function returns nothing
 ```
@@ -83,6 +86,16 @@ TIMES WHILE
 
 # Blocks
 APPLY                          # execute a block from the stack
+
+# Map operations
+GET                            # pop key, pop map, push value
+PUT                            # pop value, pop key, pop map, push updated map
+DEL                            # pop key, pop map, push map without key
+HAS                            # pop key, pop map, push bool
+KEYS                           # pop map, push list of keys
+VALUES                         # pop map, push list of values
+MLEN                           # pop map, push size
+MERGE                          # pop map2, pop map1, push merged (map2 wins)
 
 # String operations
 CONCAT                         # concatenate two strings (or two lists)
@@ -320,12 +333,37 @@ DUP sum_of_squares SAY DROP     # => 385
 median SAY DROP                 # => 6
 ```
 
+### Word Frequency Counter
+
+Uses maps to count word occurrences in a file:
+
+```
+DEF inc_word : str map[str int] -> map[str int]
+  OVER OVER HAS
+  IF
+    OVER OVER GET 1 ADD PUT
+  ELSE
+    1 PUT
+  END
+END
+
+ARGV HEAD READ_FILE WORDS
+M[] { inc_word } REDUCE
+SAY DROP
+```
+
+```bash
+mix axiom.run examples/freq.ax somefile.txt
+# => %{"apple" => 2, "banana" => 1, "grape" => 1, ...}
+```
+
 ### Cat / Word Count / Grep
 
 ```bash
 mix axiom.run examples/cat.ax somefile.txt
 mix axiom.run examples/wc.ax somefile.txt
 mix axiom.run examples/grep.ax somefile.txt
+mix axiom.run examples/freq.ax somefile.txt
 ```
 
 ## Architecture

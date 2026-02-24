@@ -120,6 +120,15 @@ defmodule Axiom.Verify do
     StreamData.list_of(type_generator(elem_type), min_length: 0, max_length: 10)
   end
 
+  defp type_generator({:map, key_type, value_type}) do
+    StreamData.map_of(
+      type_generator(key_type),
+      type_generator(value_type),
+      min_length: 0,
+      max_length: 5
+    )
+  end
+
   defp type_generator(:any) do
     StreamData.one_of([
       StreamData.integer(-100..100),
@@ -158,5 +167,6 @@ defmodule Axiom.Verify do
   defp format_type(:str), do: "str"
   defp format_type(:any), do: "any"
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
+  defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type(other), do: inspect(other)
 end

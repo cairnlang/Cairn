@@ -67,7 +67,17 @@ defmodule Axiom.Checker.Effects do
 
     # File I/O
     read_file: %{pops: [:str], pushes: [:str]},
-    write_file: %{pops: [:str, :str], pushes: []}
+    write_file: %{pops: [:str, :str], pushes: []},
+
+    # Map operations
+    get: %{pops: [:any, {:map, :any, :any}], pushes: [:any]},
+    put: %{pops: [:any, :any, {:map, :any, :any}], pushes: [{:map, :any, :any}]},
+    del: %{pops: [:any, {:map, :any, :any}], pushes: [{:map, :any, :any}]},
+    keys: %{pops: [{:map, :any, :any}], pushes: [{:list, :any}]},
+    values: %{pops: [{:map, :any, :any}], pushes: [{:list, :any}]},
+    has: %{pops: [:any, {:map, :any, :any}], pushes: [:bool]},
+    mlen: %{pops: [{:map, :any, :any}], pushes: [:int]},
+    merge: %{pops: [{:map, :any, :any}, {:map, :any, :any}], pushes: [{:map, :any, :any}]}
   }
 
   @doc """

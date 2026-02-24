@@ -176,6 +176,20 @@ defmodule Axiom.Checker do
     walk(rest, %{state | stack: Stack.push(state.stack, {:list, tvar})})
   end
 
+  # Empty map literal M[]
+  defp walk([{:map_lit, _, _} | rest], state) do
+    {k_tvar, state} = fresh_tvar(state)
+    {v_tvar, state} = fresh_tvar(state)
+    walk(rest, %{state | stack: Stack.push(state.stack, {:map, k_tvar, v_tvar})})
+  end
+
+  # Map construction: M[ ... ]
+  defp walk([{:map_open, _, _} | rest], state) do
+    {elem_tokens, remaining} = collect_map_elements(rest, [], 0)
+    {key_type, val_type, state} = infer_map_types(elem_tokens, state)
+    walk(remaining, %{state | stack: Stack.push(state.stack, {:map, key_type, val_type})})
+  end
+
   # List construction: [ ... ]
   defp walk([{:list_open, _, _} | rest], state) do
     {elem_tokens, remaining} = collect_list_elements(rest, [], 0)
@@ -639,6 +653,63 @@ defmodule Axiom.Checker do
 
   # --- Helpers ---
 
+  # Collect map elements until ]
+  defp collect_map_elements([{:list_close, _, _} | rest], acc, _depth) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp collect_map_elements([tok | rest], acc, depth) do
+    collect_map_elements(rest, [tok | acc], depth)
+  end
+
+  defp collect_map_elements([], acc, _depth) do
+    {Enum.reverse(acc), []}
+  end
+
+  defp infer_map_types([], state) do
+    {k_tvar, state} = fresh_tvar(state)
+    {v_tvar, state} = fresh_tvar(state)
+    {k_tvar, v_tvar, state}
+  end
+
+  defp infer_map_types(tokens, state) do
+    types =
+      Enum.map(tokens, fn
+        {:int_lit, _, _} -> :int
+        {:float_lit, _, _} -> :float
+        {:bool_lit, _, _} -> :bool
+        {:str_lit, _, _} -> :str
+        _ -> :any
+      end)
+
+    # Chunk into pairs: key, value, key, value, ...
+    pairs = Enum.chunk_every(types, 2)
+
+    key_types = Enum.map(pairs, fn [k | _] -> k end)
+    val_types = Enum.map(pairs, fn
+      [_, v] -> v
+      [_] -> :any
+    end)
+
+    key_type =
+      Enum.reduce(key_types, hd(key_types), fn t, acc ->
+        case Unify.unify(t, acc) do
+          {:ok, u} -> u
+          :error -> :any
+        end
+      end)
+
+    val_type =
+      Enum.reduce(val_types, hd(val_types), fn t, acc ->
+        case Unify.unify(t, acc) do
+          {:ok, u} -> u
+          :error -> :any
+        end
+      end)
+
+    {key_type, val_type, state}
+  end
+
   defp collect_list_elements([{:list_close, _, _} | rest], acc, _depth) do
     {Enum.reverse(acc), rest}
   end
@@ -770,6 +841,7 @@ defmodule Axiom.Checker do
   defp format_type(:void), do: "void"
   defp format_type(:num), do: "num"
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
+  defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:block, _}), do: "block"
   defp format_type({:tvar, id}), do: "t#{id}"
   defp format_type(other), do: inspect(other)

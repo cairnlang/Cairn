@@ -43,6 +43,16 @@ defmodule Axiom.Checker.Unify do
     end
   end
 
+  # Map unification
+  def unify({:map, k1, v1}, {:map, k2, v2}) do
+    with {:ok, k} <- unify(k1, k2),
+         {:ok, v} <- unify(v1, v2) do
+      {:ok, {:map, k, v}}
+    else
+      _ -> :error
+    end
+  end
+
   # Block types unify with each other
   def unify({:block, _} = a, {:block, _}), do: {:ok, a}
 

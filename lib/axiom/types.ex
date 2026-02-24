@@ -3,7 +3,7 @@ defmodule Axiom.Types do
   Type definitions for the Axiom language.
   """
 
-  @type axiom_type :: :int | :float | :bool | {:list, axiom_type} | :any | :void | :str
+  @type axiom_type :: :int | :float | :bool | {:list, axiom_type} | {:map, axiom_type, axiom_type} | :any | :void | :str
 
   @type token_type ::
           :int_lit
@@ -11,6 +11,8 @@ defmodule Axiom.Types do
           | :bool_lit
           | :list_open
           | :list_close
+          | :map_open
+          | :map_lit
           | :op
           | :ident
           | :fn_def

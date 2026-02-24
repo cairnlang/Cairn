@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-This is v0.0.1: an interpreted postfix core with runtime contracts, closures, loops, and a REPL.
+**v0.1.0**: Interpreted postfix core with a **static type checker**, **property-based verification** (VERIFY), runtime contracts (PRE/POST), closures, loops, and a REPL.
 
 ## Quick Start
 
@@ -12,10 +12,13 @@ This is v0.0.1: an interpreted postfix core with runtime contracts, closures, lo
 # Run a file
 mix axiom.run examples/collatz.ax
 
+# Verify contracts with random testing
+mix axiom.run examples/bank.ax
+
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 
-# Run tests
+# Run tests (251 tests)
 mix test
 ```
 
@@ -30,6 +33,25 @@ T F             # bool
 "hello world"   # string
 [ 1 2 3 ]       # list
 { DUP ADD }     # block (closure)
+```
+
+### Types
+
+Functions declare parameter and return types. The type checker enforces these statically before any code runs.
+
+```
+int float bool str    # concrete types
+[int] [str]           # list types
+any                   # accepts any type
+void                  # function returns nothing
+```
+
+Multi-return functions are supported:
+
+```
+DEF divmod : int int -> int int
+  DUP ROT SWAP MOD SWAP ROT DIV SWAP
+END
 ```
 
 ### Operators
@@ -66,6 +88,7 @@ APPLY                          # execute a block from the stack
 CONCAT                         # concatenate two strings (or two lists)
 WORDS                          # split string into words (on whitespace)
 LINES                          # split string into lines
+CONTAINS                       # check if string contains substring
 LEN                            # also works on strings (character count)
 
 # I/O
@@ -103,13 +126,45 @@ END
 
 # PRE contracts — checked before the body runs
 # POST contracts — checked after the body runs
-DEF safe_sqrt : int -> int
-  PRE { DUP 0 GTE }     # reject negative input
-  SQ
-  POST DUP 0 GTE        # output is non-negative
+DEF factorial : int -> int
+  PRE { DUP 0 GTE }
+  RANGE 1 { MUL } REDUCE
+  POST DUP 0 GT
 END
 
 # Violating a contract raises Axiom.ContractError
+# Type mismatches are caught statically before execution
+"hello" double    # => STATIC ERROR: expected int, got str
+```
+
+### VERIFY — Property-Based Testing
+
+`VERIFY` auto-generates random inputs, filters by PRE conditions, runs the function, and checks POST holds. Powered by StreamData.
+
+```
+DEF withdraw : int int -> int
+  PRE { OVER OVER GTE SWAP 0 GT AND }
+  SUB
+  POST DUP 0 GTE
+END
+
+VERIFY withdraw 500
+# => VERIFY withdraw: OK — 500 tests passed (1702 skipped by PRE)
+```
+
+When VERIFY finds a counterexample, it reports exactly which inputs broke the contract:
+
+```
+DEF withdraw_buggy : int int -> int
+  PRE { DUP 0 GT }           # Bug: doesn't check balance >= amount
+  SUB
+  POST DUP 0 GTE
+END
+
+VERIFY withdraw_buggy 100
+# => VERIFY withdraw_buggy: FAILED after 2 tests
+#      counterexample: 601 (int), 598 (int)
+#      error: CONTRACT: POST condition failed for withdraw_buggy
 ```
 
 ### Higher-Order Operations
@@ -137,6 +192,7 @@ END
 ```
 # This is a comment
 42 # inline comment
+"hello # world"    # hash inside strings is preserved
 ```
 
 ### File I/O and Arguments
@@ -158,10 +214,28 @@ READ_LINE SAY DROP
 
 ## Examples
 
-### Hello World
+### The Safe Bank
+
+Property-tested financial operations (Milestone 2 from the roadmap):
 
 ```
-"Hello, World!" SAY DROP
+DEF deposit : int int -> int
+  PRE { OVER 0 GTE SWAP 0 GT AND }
+  ADD
+  POST DUP 0 GTE
+END
+
+DEF withdraw : int int -> int
+  PRE { OVER OVER GTE SWAP 0 GT AND }
+  SUB
+  POST DUP 0 GTE
+END
+
+VERIFY deposit 500
+VERIFY withdraw 500
+
+1000 200 deposit    # => 1200
+1000 300 withdraw   # => 700
 ```
 
 ### Collatz Sequence
@@ -222,24 +296,6 @@ END
 [ 1 2 3 4 5 ] sum_sq_odds    # => 35
 ```
 
-### Cat (File I/O)
-
-```
-# Usage: mix axiom.run examples/cat.ax <filename>
-ARGV HEAD READ_FILE SAY DROP
-```
-
-### Word Count
-
-```
-# Usage: mix axiom.run examples/wc.ax <filename>
-# Prints: lines  words  chars
-ARGV HEAD READ_FILE
-DUP LINES LEN SAY DROP
-DUP WORDS LEN SAY DROP
-LEN SAY DROP
-```
-
 ### Statistics
 
 ```
@@ -249,11 +305,27 @@ END
 
 DEF sum_of_squares : [int] -> int
   0 { SQ ADD } REDUCE
+  POST DUP 0 GTE
+END
+
+DEF median : [int] -> int
+  SORT DUP LEN 2 DIV
+  { TAIL } TIMES
+  HEAD
 END
 
 [ 10 4 7 2 9 1 8 3 6 5 ]
-DUP mean              # => 5
-SWAP sum_of_squares   # => 385
+DUP mean SAY DROP               # => 5
+DUP sum_of_squares SAY DROP     # => 385
+median SAY DROP                 # => 6
+```
+
+### Cat / Word Count / Grep
+
+```bash
+mix axiom.run examples/cat.ax somefile.txt
+mix axiom.run examples/wc.ax somefile.txt
+mix axiom.run examples/grep.ax somefile.txt
 ```
 
 ## Architecture
@@ -262,27 +334,53 @@ SWAP sum_of_squares   # => 385
  source.ax
     │
     ▼
- Lexer ──→ tokens ──→ Parser ──→ functions + expressions
+ Lexer ──→ tokens ──→ Parser ──→ functions + expressions + verify items
+                                        │
+                                        ▼
+                                  Static Type Checker
+                                  (symbolic stack, type unification)
                                         │
                                         ▼
                                   Evaluator (stack-based interpreter)
                                         │
-                                  Axiom.Runtime (operator implementations)
-                                        │
-                                  Contract checker (PRE/POST assertions)
-                                        │
-                                     result
+                                  ┌─────┴──────┐
+                                  │            │
+                            Axiom.Runtime    Axiom.Verify
+                            (operators)     (property-based testing
+                                  │          via StreamData)
+                            Contract checker
+                            (PRE/POST assertions)
+                                  │
+                               result
 ```
 
-Runs on the BEAM via Elixir. The content-addressed DAG (ETS-backed) is in place for future use in multi-agent workflows and compilation to BEAM bytecode.
+### Static Type Checker
+
+The checker runs **before evaluation**, walking token streams with a symbolic stack (types instead of values). It catches:
+
+- Type mismatches (`"hello" 3 ADD` blocked at check time)
+- Stack underflow (`ADD` on empty stack)
+- IF/ELSE branch shape mismatches (different depths or types)
+- Non-bool IF conditions
+- Function argument type mismatches at call sites
+- Return type/arity mismatches in function bodies
+- Undefined function calls
+
+Errors are reported with position information and the checker continues after errors to report multiple issues in one pass.
+
+### VERIFY Engine
+
+`VERIFY function_name N` generates N random inputs using StreamData, filters by PRE condition, executes the function, and checks POST holds. When a counterexample is found, it reports the exact inputs that broke the contract.
+
+The content-addressed DAG (ETS-backed) is in place for future use in multi-agent workflows and compilation to BEAM bytecode.
 
 ## Roadmap
 
-- **v0.0.1** (current): Interpreter, PRE/POST contracts, REPL, TIMES/WHILE loops, FILTER/MAP/REDUCE
-- **v0.1.0**: Constraint solver / declarative mode
-- **v0.2.0**: Tensor, embedding, and distribution primitives
-- **v0.3.0**: Multi-agent collaboration via OTP
-- **Future**: Compilation to BEAM bytecode via Erlang Abstract Format
+- **v0.0.1** (complete): Interpreter, PRE/POST contracts, REPL, TIMES/WHILE, FILTER/MAP/REDUCE, strings, I/O
+- **v0.1.0** (current): Static type checker, VERIFY (property-based contract testing), Safe Bank milestone
+- **v0.2.0**: Constraint solver / compile-time verification (proving unreachable code from contracts)
+- **v0.3.0**: Typed BEAM concurrency (typed message passing, stateful actors)
+- **Future**: Tensor/distribution primitives, multi-agent collaboration, BEAM bytecode compilation
 
 ## Requirements
 

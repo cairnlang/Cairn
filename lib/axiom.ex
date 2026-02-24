@@ -5,7 +5,7 @@ defmodule Axiom do
   Public API for compiling and evaluating Axiom source code.
   """
 
-  alias Axiom.{Lexer, Parser, Evaluator, Checker}
+  alias Axiom.{Lexer, Parser, Evaluator, Checker, Verify}
 
   @doc """
   Evaluates an Axiom expression string and returns the resulting stack.
@@ -39,6 +39,10 @@ defmodule Axiom do
 
         %Axiom.Types.Function{} = func, {stack, env} ->
           {stack, Map.put(env, func.name, func)}
+
+        {:verify, name, count}, {stack, env} ->
+          run_verify(name, count, env)
+          {stack, env}
       end)
     else
       {:error, errors} when is_list(errors) ->
@@ -46,6 +50,29 @@ defmodule Axiom do
 
       {:error, msg} ->
         raise Axiom.RuntimeError, msg
+    end
+  end
+
+  defp run_verify(name, count, env) do
+    case Map.get(env, name) do
+      nil ->
+        raise Axiom.RuntimeError, "VERIFY: undefined function '#{name}'"
+
+      %Axiom.Types.Function{} = func ->
+        case Verify.run(func, count, env) do
+          {:ok, %{passed: passed, skipped: skipped}} ->
+            skip_msg = if skipped > 0, do: " (#{skipped} skipped by PRE)", else: ""
+            IO.puts("VERIFY #{name}: OK — #{passed} tests passed#{skip_msg}")
+
+          {:error, %{counterexample: nil, error: msg}} ->
+            raise Axiom.RuntimeError, "VERIFY #{name}: FAILED — #{msg}"
+
+          {:error, %{counterexample: ce, error: msg, passed: passed}} ->
+            raise Axiom.ContractError,
+              message: "VERIFY #{name}: FAILED after #{passed} tests\n  counterexample: #{ce}\n  error: #{msg}",
+              function_name: name,
+              stack: []
+        end
     end
   end
 

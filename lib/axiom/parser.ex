@@ -29,8 +29,15 @@ defmodule Axiom.Parser do
     end
   end
 
+  defp parse_top([{:verify_kw, _, _} | rest], acc) do
+    case parse_verify(rest) do
+      {:ok, verify_item, remaining} -> parse_top(remaining, [verify_item | acc])
+      {:error, _} = err -> err
+    end
+  end
+
   defp parse_top(tokens, acc) do
-    {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} -> type != :fn_def end)
+    {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} -> type not in [:fn_def, :verify_kw] end)
 
     if expr_tokens == [] do
       {:error, "unexpected token: #{inspect(hd(remaining))}"}
@@ -54,6 +61,19 @@ defmodule Axiom.Parser do
          post_condition: post_condition
        }, rest}
     end
+  end
+
+  # VERIFY name count
+  defp parse_verify([{:ident, name, _}, {:int_lit, count, _} | rest]) when count > 0 do
+    {:ok, {:verify, name, count}, rest}
+  end
+
+  defp parse_verify([{:ident, _name, _} | _]) do
+    {:error, "VERIFY requires a function name and positive integer count"}
+  end
+
+  defp parse_verify(_) do
+    {:error, "VERIFY requires a function name and positive integer count"}
   end
 
   defp expect_ident([{:ident, name, _} | rest]), do: {:ok, name, rest}

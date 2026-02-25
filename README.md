@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.1.0**: Interpreted postfix core with a **static type checker**, **property-based verification** (VERIFY), runtime contracts (PRE/POST), **maps**, closures, loops, and a REPL.
+**v0.2.0**: Interpreted postfix core with a **static type checker**, **property-based verification** (VERIFY), **compile-time proof** (PROVE via Z3), runtime contracts (PRE/POST), **maps**, closures, loops, and a REPL.
 
 ## Quick Start
 
@@ -18,7 +18,10 @@ mix axiom.run examples/bank.ax
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 
-# Run tests (305 tests)
+# Prove contracts mathematically (requires z3 on PATH)
+mix axiom.run examples/bank.ax
+
+# Run tests (413 tests)
 mix test
 ```
 
@@ -180,6 +183,37 @@ VERIFY withdraw_buggy 100
 #      error: CONTRACT: POST condition failed for withdraw_buggy
 ```
 
+### PROVE — Compile-Time Verification via Z3
+
+`PROVE` mathematically proves that a function's POST condition holds for **all** inputs satisfying PRE. Unlike VERIFY (probabilistic), PROVE gives certainty by symbolically executing the function and querying the Z3 SMT solver. Requires `z3` on PATH.
+
+```
+DEF deposit : int int -> int
+  PRE { OVER 0 GTE SWAP 0 GT AND }
+  ADD
+  POST DUP 0 GTE
+END
+
+PROVE deposit
+# => PROVE deposit: PROVEN — POST holds for all inputs satisfying PRE
+```
+
+When PROVE finds that a contract can be violated, it reports a counterexample:
+
+```
+DEF withdraw_buggy : int int -> int
+  PRE { DUP 0 GT }           # Bug: doesn't check balance >= amount
+  SUB
+  POST DUP 0 GTE
+END
+
+PROVE withdraw_buggy
+# => PROVE withdraw_buggy: DISPROVEN
+#      counterexample: p0 = 1, p1 = 0
+```
+
+PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ), all comparisons, logic ops, and stack manipulation. For functions using lists, maps, loops, or IF/ELSE, PROVE returns UNKNOWN and suggests using VERIFY instead.
+
 ### Higher-Order Operations
 
 ```
@@ -246,6 +280,9 @@ END
 
 VERIFY deposit 500
 VERIFY withdraw 500
+
+PROVE deposit       # mathematically proven for ALL inputs
+PROVE withdraw
 
 1000 200 deposit    # => 1200
 1000 300 withdraw   # => 700
@@ -372,7 +409,7 @@ mix axiom.run examples/freq.ax somefile.txt
  source.ax
     │
     ▼
- Lexer ──→ tokens ──→ Parser ──→ functions + expressions + verify items
+ Lexer ──→ tokens ──→ Parser ──→ functions + expressions + verify/prove items
                                         │
                                         ▼
                                   Static Type Checker
@@ -381,13 +418,14 @@ mix axiom.run examples/freq.ax somefile.txt
                                         ▼
                                   Evaluator (stack-based interpreter)
                                         │
-                                  ┌─────┴──────┐
-                                  │            │
-                            Axiom.Runtime    Axiom.Verify
-                            (operators)     (property-based testing
-                                  │          via StreamData)
-                            Contract checker
-                            (PRE/POST assertions)
+                                  ┌─────┼──────────┐
+                                  │     │          │
+                            Axiom.Runtime  │    Axiom.Solver
+                            (operators)    │    (symbolic exec → SMT-LIB → Z3
+                                  │        │     compile-time PROVE)
+                            Contract    Axiom.Verify
+                            checker     (property-based testing
+                            (PRE/POST)   via StreamData)
                                   │
                                result
 ```
@@ -410,13 +448,17 @@ Errors are reported with position information and the checker continues after er
 
 `VERIFY function_name N` generates N random inputs using StreamData, filters by PRE condition, executes the function, and checks POST holds. When a counterexample is found, it reports the exact inputs that broke the contract.
 
+### PROVE Solver
+
+`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. Functions with unsupported operations (lists, maps, loops, IF/ELSE) gracefully return UNKNOWN.
+
 The content-addressed DAG (ETS-backed) is in place for future use in multi-agent workflows and compilation to BEAM bytecode.
 
 ## Roadmap
 
 - **v0.0.1** (complete): Interpreter, PRE/POST contracts, REPL, TIMES/WHILE, FILTER/MAP/REDUCE, strings, I/O
-- **v0.1.0** (current): Static type checker, VERIFY (property-based contract testing), Safe Bank milestone
-- **v0.2.0**: Constraint solver / compile-time verification (proving unreachable code from contracts)
+- **v0.1.0** (complete): Static type checker, VERIFY (property-based contract testing), maps, Safe Bank milestone
+- **v0.2.0** (current): PROVE — compile-time contract verification via Z3 SMT solver
 - **v0.3.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **Future**: Tensor/distribution primitives, multi-agent collaboration, BEAM bytecode compilation
 
@@ -424,3 +466,4 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 
 - Elixir >= 1.12
 - Erlang/OTP >= 24
+- Z3 SMT solver (optional, required for `PROVE` — [install](https://github.com/Z3Prover/z3))

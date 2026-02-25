@@ -119,6 +119,16 @@ defmodule Axiom.CheckerTest do
       assert {:ok, %{pops: [], pushes: [{:list, :str}]}} = Effects.lookup(:argv)
       assert {:ok, %{pops: [:any], pushes: [:any]}} = Effects.lookup(:say)
     end
+
+    test "string primitive operators have effects" do
+      assert {:ok, %{pops: [:str],             pushes: [{:list, :str}]}} = Effects.lookup(:chars)
+      assert {:ok, %{pops: [:str, :str],       pushes: [{:list, :str}]}} = Effects.lookup(:split)
+      assert {:ok, %{pops: [:str],             pushes: [:str]}}           = Effects.lookup(:trim)
+      assert {:ok, %{pops: [:str, :str],       pushes: [:bool]}}          = Effects.lookup(:starts_with)
+      assert {:ok, %{pops: [:int, :int, :str], pushes: [:str]}}           = Effects.lookup(:slice)
+      assert {:ok, %{pops: [:str],             pushes: [:int]}}           = Effects.lookup(:to_int)
+      assert {:ok, %{pops: [:str],             pushes: [:float]}}         = Effects.lookup(:to_float)
+    end
   end
 
   # ── Literal type tracking ──
@@ -530,6 +540,113 @@ defmodule Axiom.CheckerTest do
     end
   end
 
+  # ── String primitives ──
+
+  describe "string primitives" do
+    test "CHARS on string" do
+      check_ok("\"hello\" CHARS")
+    end
+
+    test "CHARS result is [str] — LEN works" do
+      check_ok("\"hello\" CHARS LEN")
+    end
+
+    test "CHARS then HEAD gives str" do
+      check_ok("\"hello\" CHARS HEAD")
+    end
+
+    test "CHARS on non-string is error" do
+      errors = check_errors("42 CHARS")
+      assert Enum.any?(errors, fn e -> e.message =~ "CHARS" end)
+    end
+
+    test "SPLIT on two strings" do
+      check_ok("\"hello,world\" \",\" SPLIT")
+    end
+
+    test "SPLIT result is [str] — LEN works" do
+      check_ok("\"a,b,c\" \",\" SPLIT LEN")
+    end
+
+    test "SPLIT with wrong input type is error" do
+      errors = check_errors("42 \",\" SPLIT")
+      assert Enum.any?(errors, fn e -> e.message =~ "SPLIT" end)
+    end
+
+    test "TRIM on string" do
+      check_ok("\"  hi  \" TRIM")
+    end
+
+    test "TRIM result is str — CONCAT works" do
+      check_ok("\"  hi  \" TRIM \"!\" CONCAT")
+    end
+
+    test "TRIM on non-string is error" do
+      errors = check_errors("42 TRIM")
+      assert Enum.any?(errors, fn e -> e.message =~ "TRIM" end)
+    end
+
+    test "STARTS_WITH on two strings" do
+      check_ok("\"hello\" \"he\" STARTS_WITH")
+    end
+
+    test "STARTS_WITH result is bool — NOT works" do
+      check_ok("\"hello\" \"he\" STARTS_WITH NOT")
+    end
+
+    test "STARTS_WITH with wrong input type is error" do
+      errors = check_errors("42 \"he\" STARTS_WITH")
+      assert Enum.any?(errors, fn e -> e.message =~ "STARTS_WITH" end)
+    end
+
+    test "SLICE on string with int start and len" do
+      check_ok("\"hello\" 1 3 SLICE")
+    end
+
+    test "SLICE result is str — CONCAT works" do
+      check_ok("\"hello\" 0 3 SLICE \"!\" CONCAT")
+    end
+
+    test "SLICE with wrong type is error" do
+      errors = check_errors("42 1 3 SLICE")
+      assert Enum.any?(errors, fn e -> e.message =~ "SLICE" end)
+    end
+
+    test "TO_INT on string" do
+      check_ok("\"42\" TO_INT")
+    end
+
+    test "TO_INT result is int — arithmetic works" do
+      check_ok("\"42\" TO_INT 10 ADD")
+    end
+
+    test "TO_INT result is int — used in function expecting int" do
+      check_ok("DEF double : int -> int DUP ADD END \"5\" TO_INT double")
+    end
+
+    test "TO_INT on non-string is error" do
+      errors = check_errors("42 TO_INT")
+      assert Enum.any?(errors, fn e -> e.message =~ "TO_INT" end)
+    end
+
+    test "TO_FLOAT on string" do
+      check_ok("\"3.14\" TO_FLOAT")
+    end
+
+    test "TO_FLOAT result is float — arithmetic works" do
+      check_ok("\"3.14\" TO_FLOAT 1.0 ADD")
+    end
+
+    test "TO_FLOAT on non-string is error" do
+      errors = check_errors("3.14 TO_FLOAT")
+      assert Enum.any?(errors, fn e -> e.message =~ "TO_FLOAT" end)
+    end
+
+    test "pipeline: SPLIT then MAP TO_INT then SUM" do
+      check_ok("\"1,2,3\" \",\" SPLIT { TO_INT } MAP SUM")
+    end
+  end
+
   # ── Multiple errors in one pass ──
 
   describe "error recovery" do
@@ -642,6 +759,24 @@ defmodule Axiom.CheckerTest do
       "Hello, World!" SAY DROP
       "Hello, " "Axiom!" CONCAT SAY DROP
       42 "The answer is:" SAY DROP SAY DROP
+      """)
+    end
+
+    test "sum of CSV integers" do
+      check_ok("""
+      DEF parse_csv_sum : str -> int
+        "," SPLIT { TO_INT } MAP SUM
+      END
+      "1,2,3,4,5" parse_csv_sum SAY DROP
+      """)
+    end
+
+    test "trim and prefix check pipeline" do
+      check_ok("""
+      DEF is_keyword : str -> bool
+        TRIM "kw:" STARTS_WITH
+      END
+      "  kw:hello  " is_keyword SAY DROP
       """)
     end
   end

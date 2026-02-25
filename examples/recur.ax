@@ -1,0 +1,25 @@
+# Recursion — a function calling itself with a smaller input
+
+# Recursive factorial: n! = n * (n-1)! with base case 0! = 1
+DEF fact : int -> int
+  DUP 0 EQ
+  IF DROP 1
+  ELSE DUP 1 SUB fact MUL
+  END
+END
+
+5 fact SAY DROP     # => 120
+10 fact SAY DROP    # => 3628800
+
+# Recursive fibonacci: fib(n) = fib(n-1) + fib(n-2), base cases fib(0)=0 fib(1)=1
+DEF fib : int -> int
+  DUP 1 LTE
+  IF
+  ELSE DUP 1 SUB fib SWAP 2 SUB fib ADD
+  END
+END
+
+0 fib SAY DROP    # => 0
+1 fib SAY DROP    # => 1
+7 fib SAY DROP    # => 13
+10 fib SAY DROP   # => 55

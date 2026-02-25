@@ -12,6 +12,9 @@ Stack-based, postfix, contract-checked. Designed around the idea that an AI-firs
 # Run a file
 mix axiom.run examples/collatz.ax
 
+# Recursion (factorial + fibonacci)
+mix axiom.run examples/recur.ax
+
 # Algebraic data types + pattern matching
 mix axiom.run examples/option.ax
 
@@ -130,6 +133,23 @@ F IF 1 ELSE 2 END              # pushes 2
 # Loop while condition is true
 1 { DUP 100 LT } { DUP ADD } WHILE   # first power of 2 >= 100 = 128
 ```
+
+### Recursion
+
+A function can call itself by name. The base case is handled with `IF/ELSE`:
+
+```
+DEF fact : int -> int
+  DUP 0 EQ
+  IF DROP 1
+  ELSE DUP 1 SUB fact MUL
+  END
+END
+
+5 fact    # => 120
+```
+
+All previously defined functions are in scope inside a function body, including the function itself.
 
 ### Algebraic Data Types
 
@@ -413,6 +433,29 @@ END
 
 ```
 0 1 20 { SWAP OVER ADD } TIMES SWAP DROP    # => 10946
+```
+
+### Recursive Functions
+
+A minimal example of mutual self-recursion (`examples/recur.ax`):
+
+```
+DEF fact : int -> int
+  DUP 0 EQ
+  IF DROP 1
+  ELSE DUP 1 SUB fact MUL
+  END
+END
+
+DEF fib : int -> int
+  DUP 1 LTE
+  IF
+  ELSE DUP 1 SUB fib SWAP 2 SUB fib ADD
+  END
+END
+
+5 fact SAY DROP    # => 120
+10 fib SAY DROP    # => 55
 ```
 
 ### GCD (Euclidean Algorithm)

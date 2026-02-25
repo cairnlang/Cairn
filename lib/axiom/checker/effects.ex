@@ -55,7 +55,14 @@ defmodule Axiom.Checker.Effects do
     # String operations
     words: %{pops: [:str], pushes: [{:list, :str}]},
     lines: %{pops: [:str], pushes: [{:list, :str}]},
-    contains: %{pops: [:str, :str], pushes: [:bool]},
+    contains:    %{pops: [:str, :str],       pushes: [:bool]},
+    chars:       %{pops: [:str],             pushes: [{:list, :str}]},
+    split:       %{pops: [:str, :str],       pushes: [{:list, :str}]},
+    trim:        %{pops: [:str],             pushes: [:str]},
+    starts_with: %{pops: [:str, :str],       pushes: [:bool]},
+    slice:       %{pops: [:int, :int, :str], pushes: [:str]},
+    to_int:      %{pops: [:str],             pushes: [:int]},
+    to_float:    %{pops: [:str],             pushes: [:float]},
 
     # I/O — non-destructive (pop any, push same)
     say: %{pops: [:any], pushes: [:any]},

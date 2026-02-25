@@ -560,6 +560,70 @@ defmodule AxiomTest do
     test "WORDS LEN counts words" do
       assert Axiom.eval("\"one two three\" WORDS LEN") == [3]
     end
+
+    test "CHARS splits into graphemes" do
+      assert Axiom.eval("\"hello\" CHARS") == [["h", "e", "l", "l", "o"]]
+    end
+
+    test "CHARS LEN counts characters" do
+      assert Axiom.eval("\"hello\" CHARS LEN") == [5]
+    end
+
+    test "SPLIT on delimiter" do
+      assert Axiom.eval("\"hello,world\" \",\" SPLIT") == [["hello", "world"]]
+    end
+
+    test "SPLIT with no match returns single-element list" do
+      assert Axiom.eval("\"hello world\" \",\" SPLIT") == [["hello world"]]
+    end
+
+    test "TRIM removes surrounding whitespace" do
+      assert Axiom.eval("\"  hi  \" TRIM") == ["hi"]
+    end
+
+    test "TRIM on clean string is a no-op" do
+      assert Axiom.eval("\"hello\" TRIM") == ["hello"]
+    end
+
+    test "STARTS_WITH true" do
+      assert Axiom.eval("\"hello\" \"he\" STARTS_WITH") == [true]
+    end
+
+    test "STARTS_WITH false" do
+      assert Axiom.eval("\"hello\" \"wo\" STARTS_WITH") == [false]
+    end
+
+    test "SLICE extracts substring" do
+      assert Axiom.eval("\"hello\" 1 3 SLICE") == ["ell"]
+    end
+
+    test "SLICE from start" do
+      assert Axiom.eval("\"hello\" 0 2 SLICE") == ["he"]
+    end
+
+    test "TO_INT parses integer string" do
+      assert Axiom.eval("\"42\" TO_INT") == [42]
+    end
+
+    test "TO_INT parses negative integer" do
+      assert Axiom.eval("\"-7\" TO_INT") == [-7]
+    end
+
+    test "TO_INT raises on bad input" do
+      assert_raise Axiom.RuntimeError, ~r/TO_INT/, fn ->
+        Axiom.eval("\"abc\" TO_INT")
+      end
+    end
+
+    test "TO_FLOAT parses float string" do
+      assert Axiom.eval("\"3.14\" TO_FLOAT") == [3.14]
+    end
+
+    test "TO_FLOAT raises on bad input" do
+      assert_raise Axiom.RuntimeError, ~r/TO_FLOAT/, fn ->
+        Axiom.eval("\"abc\" TO_FLOAT")
+      end
+    end
   end
 
   describe "IO" do

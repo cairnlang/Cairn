@@ -174,6 +174,37 @@ defmodule Axiom.Runtime do
   # LINES: split string into lines
   def execute(:lines, [s | rest]) when is_binary(s), do: [String.split(s, "\n", trim: true) | rest]
 
+  # CHARS: split string into list of graphemes
+  def execute(:chars, [s | rest]) when is_binary(s), do: [String.graphemes(s) | rest]
+
+  # SPLIT: split string on delimiter
+  def execute(:split, [delim, s | rest]) when is_binary(s) and is_binary(delim), do: [String.split(s, delim) | rest]
+
+  # TRIM: remove leading and trailing whitespace
+  def execute(:trim, [s | rest]) when is_binary(s), do: [String.trim(s) | rest]
+
+  # STARTS_WITH: check if string starts with prefix
+  def execute(:starts_with, [prefix, s | rest]) when is_binary(s) and is_binary(prefix), do: [String.starts_with?(s, prefix) | rest]
+
+  # SLICE: extract substring (zero-based start, length)
+  def execute(:slice, [len, start, s | rest]) when is_binary(s) and is_integer(start) and is_integer(len), do: [String.slice(s, start, len) | rest]
+
+  # TO_INT: parse string as integer
+  def execute(:to_int, [s | rest]) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} -> [n | rest]
+      _ -> raise Axiom.RuntimeError, "TO_INT: cannot parse #{inspect(s)} as integer"
+    end
+  end
+
+  # TO_FLOAT: parse string as float
+  def execute(:to_float, [s | rest]) when is_binary(s) do
+    case Float.parse(s) do
+      {f, ""} -> [f | rest]
+      _ -> raise Axiom.RuntimeError, "TO_FLOAT: cannot parse #{inspect(s)} as float"
+    end
+  end
+
   # ARGV: push command-line args list (stored in process dictionary by mix task)
   def execute(:argv, stack), do: [Process.get(:axiom_argv, []) | stack]
 

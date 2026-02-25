@@ -28,6 +28,10 @@ END
 VERIFY deposit 500
 VERIFY withdraw 500
 
+# Prove both functions — mathematically, for ALL inputs
+PROVE deposit
+PROVE withdraw
+
 # Demo: manual operations
 1000 200 deposit SAY DROP
 1000 300 withdraw SAY DROP

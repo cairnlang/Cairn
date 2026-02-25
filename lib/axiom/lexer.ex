@@ -75,6 +75,7 @@ defmodule Axiom.Lexer do
   defp classify("IF"), do: {:ok, {:if_kw, "IF"}}
   defp classify("ELSE"), do: {:ok, {:else_kw, "ELSE"}}
   defp classify("VERIFY"), do: {:ok, {:verify_kw, "VERIFY"}}
+  defp classify("PROVE"), do: {:ok, {:prove_kw, "PROVE"}}
   defp classify("T"), do: {:ok, {:bool_lit, true}}
   defp classify("F"), do: {:ok, {:bool_lit, false}}
   defp classify("[]"), do: {:ok, {:list_lit, []}}

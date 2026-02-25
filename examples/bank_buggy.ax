@@ -10,5 +10,5 @@ DEF withdraw_buggy : int int -> int
   POST DUP 0 GTE
 END
 
-# This will FAIL: VERIFY finds cases where amount > balance
-VERIFY withdraw_buggy 100
+# This will FAIL: PROVE finds that POST can be violated
+PROVE withdraw_buggy

@@ -6,6 +6,7 @@ defmodule Axiom do
   """
 
   alias Axiom.{Lexer, Parser, Evaluator, Checker, Verify}
+  alias Axiom.Solver.Prove
 
   @doc """
   Evaluates an Axiom expression string and returns the resulting stack.
@@ -43,6 +44,10 @@ defmodule Axiom do
         {:verify, name, count}, {stack, env} ->
           run_verify(name, count, env)
           {stack, env}
+
+        {:prove, name}, {stack, env} ->
+          run_prove(name, env)
+          {stack, env}
       end)
     else
       {:error, errors} when is_list(errors) ->
@@ -72,6 +77,31 @@ defmodule Axiom do
               message: "VERIFY #{name}: FAILED after #{passed} tests\n  counterexample: #{ce}\n  error: #{msg}",
               function_name: name,
               stack: []
+        end
+    end
+  end
+
+  defp run_prove(name, env) do
+    case Map.get(env, name) do
+      nil ->
+        raise Axiom.RuntimeError, "PROVE: undefined function '#{name}'"
+
+      %Axiom.Types.Function{} = func ->
+        case Prove.prove(func) do
+          {:proven, _msg} ->
+            IO.puts("PROVE #{name}: PROVEN — POST holds for all inputs satisfying PRE")
+
+          {:disproven, counterexample, _model} ->
+            raise Axiom.ContractError,
+              message: "PROVE #{name}: DISPROVEN\n  counterexample: #{counterexample}",
+              function_name: name,
+              stack: []
+
+          {:unknown, reason} ->
+            IO.puts("PROVE #{name}: UNKNOWN — #{reason}")
+
+          {:error, reason} ->
+            raise Axiom.RuntimeError, "PROVE #{name}: ERROR — #{reason}"
         end
     end
   end

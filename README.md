@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.2.0**: Interpreted postfix core with a **static type checker**, **property-based verification** (VERIFY), **compile-time proof** (PROVE via Z3), runtime contracts (PRE/POST), **maps**, closures, loops, and a REPL.
+**v0.3.0**: Interpreted postfix core with a **static type checker**, **algebraic data types** (TYPE/MATCH), **property-based verification** (VERIFY), **compile-time proof** (PROVE via Z3), runtime contracts (PRE/POST), **maps**, closures, loops, and a REPL.
 
 ## Quick Start
 
@@ -12,16 +12,16 @@ Stack-based, postfix, contract-checked. Designed around the idea that an AI-firs
 # Run a file
 mix axiom.run examples/collatz.ax
 
-# Verify contracts with random testing
+# Algebraic data types + pattern matching
+mix axiom.run examples/option.ax
+
+# Verify contracts with random testing + compile-time proof
 mix axiom.run examples/bank.ax
 
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 
-# Prove contracts mathematically (requires z3 on PATH)
-mix axiom.run examples/bank.ax
-
-# Run tests (413 tests)
+# Run tests (464 tests)
 mix test
 ```
 
@@ -50,6 +50,7 @@ int float bool str    # concrete types
 map[str int]          # map types (key type, value type)
 any                   # accepts any type
 void                  # function returns nothing
+option result         # user-defined algebraic types (see TYPE below)
 ```
 
 Multi-return functions are supported:
@@ -128,6 +129,69 @@ F IF 1 ELSE 2 END              # pushes 2
 
 # Loop while condition is true
 1 { DUP 100 LT } { DUP ADD } WHILE   # first power of 2 >= 100 = 128
+```
+
+### Algebraic Data Types
+
+`TYPE` declares a sum type (tagged union) with named constructors and typed fields. Constructors start with an uppercase letter. Field types follow the constructor name.
+
+```
+TYPE option = None | Some int
+TYPE result = Ok int | Err str
+TYPE shape  = Circle float | Rect float float | Point
+```
+
+Constructors are called like stack words — they pop their fields and push a tagged value:
+
+```
+42 Some        # pushes Some(42) — pops 42, constructs variant
+None           # pushes None — no fields
+"oops" Err     # pushes Err("oops")
+```
+
+**Stack convention**: `param_types[0]` is the TOP of stack. To call a function that takes `option int`, push the `int` default first, then the `option` last:
+
+```
+0 42 Some unwrap_or    # stack before call: [Some(42), 0] (option on top)
+```
+
+### MATCH — Pattern Dispatch
+
+`MATCH` pops a variant from the top of the stack and dispatches to the matching arm. Each arm starts with the constructor name followed by a block `{ }`. Fields are pushed onto the stack before the arm body runs.
+
+```
+42 Some
+MATCH
+  None { 0 }           # None: no fields, leave 0 on stack
+  Some { 1 ADD }       # Some(x): x is on top, compute x + 1
+END
+# => [43]
+```
+
+The static checker verifies exhaustiveness — every constructor must have a matching arm:
+
+```
+42 Some
+MATCH
+  Some { }             # STATIC ERROR: MATCH is not exhaustive: missing None
+END
+```
+
+Using algebraic types in function signatures:
+
+```
+TYPE option = None | Some int
+
+DEF unwrap_or : option int -> int
+  # option is top of stack, int (default) is below
+  MATCH
+    None { }           # leave default on stack
+    Some { SWAP DROP } # field is on top, swap and drop default
+  END
+END
+
+0 42 Some unwrap_or    # => 42
+99 None   unwrap_or    # => 99
 ```
 
 ### Functions and Contracts
@@ -260,6 +324,37 @@ READ_LINE SAY DROP
 ```
 
 ## Examples
+
+### Option and Result Types
+
+Safe value handling without runtime exceptions (`examples/option.ax`):
+
+```
+TYPE option = None | Some int
+TYPE result = Ok int | Err str
+
+DEF unwrap_or : option int -> int
+  MATCH
+    None { }
+    Some { SWAP DROP }
+  END
+END
+
+DEF safe_div : int int -> result
+  DUP 0 EQ
+  IF
+    DROP DROP "division by zero" Err
+  ELSE
+    DIV Ok
+  END
+END
+
+0 42 Some unwrap_or    # => 42  (Some unwrapped)
+99 None   unwrap_or    # => 99  (default returned)
+
+10 2 safe_div          # => Ok(5)
+10 0 safe_div          # => Err("division by zero")
+```
 
 ### The Safe Bank
 
@@ -441,6 +536,9 @@ The checker runs **before evaluation**, walking token streams with a symbolic st
 - Function argument type mismatches at call sites
 - Return type/arity mismatches in function bodies
 - Undefined function calls
+- Unknown constructors
+- Non-exhaustive MATCH arms (missing constructors)
+- MATCH on non-variant values
 
 Errors are reported with position information and the checker continues after errors to report multiple issues in one pass.
 
@@ -458,8 +556,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 
 - **v0.0.1** (complete): Interpreter, PRE/POST contracts, REPL, TIMES/WHILE, FILTER/MAP/REDUCE, strings, I/O
 - **v0.1.0** (complete): Static type checker, VERIFY (property-based contract testing), maps, Safe Bank milestone
-- **v0.2.0** (current): PROVE — compile-time contract verification via Z3 SMT solver
-- **v0.3.0**: Typed BEAM concurrency (typed message passing, stateful actors)
+- **v0.2.0** (complete): PROVE — compile-time contract verification via Z3 SMT solver
+- **v0.3.0** (current): Algebraic data types (TYPE/MATCH) — Option, Result, and user-defined sum types with exhaustiveness checking
+- **Next**: Typed BEAM concurrency (typed message passing, stateful actors), JSON parser built on sum types
 - **Future**: Tensor/distribution primitives, multi-agent collaboration, BEAM bytecode compilation
 
 ## Requirements

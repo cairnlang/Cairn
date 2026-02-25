@@ -76,6 +76,10 @@ defmodule Axiom.Lexer do
   defp classify("ELSE"), do: {:ok, {:else_kw, "ELSE"}}
   defp classify("VERIFY"), do: {:ok, {:verify_kw, "VERIFY"}}
   defp classify("PROVE"), do: {:ok, {:prove_kw, "PROVE"}}
+  defp classify("TYPE"), do: {:ok, {:type_kw, "TYPE"}}
+  defp classify("MATCH"), do: {:ok, {:match_kw, "MATCH"}}
+  defp classify("|"), do: {:ok, {:pipe, "|"}}
+  defp classify("="), do: {:ok, {:equals, "="}}
   defp classify("T"), do: {:ok, {:bool_lit, true}}
   defp classify("F"), do: {:ok, {:bool_lit, false}}
   defp classify("[]"), do: {:ok, {:list_lit, []}}
@@ -122,8 +126,12 @@ defmodule Axiom.Lexer do
       Regex.match?(~r/^-?\d+$/, word) ->
         {:ok, {:int_lit, String.to_integer(word)}}
 
+      # variant constructor — starts with uppercase, not already matched as keyword/operator
+      Regex.match?(~r/^[A-Z][a-zA-Z0-9_]*$/, word) ->
+        {:ok, {:constructor, word}}
+
       # identifier (short semantic tag)
-      Regex.match?(~r/^[a-z_][a-z0-9_]*$/i, word) ->
+      Regex.match?(~r/^[a-z_][a-z0-9_]*$/, word) ->
         {:ok, {:ident, word}}
 
       true ->

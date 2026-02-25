@@ -56,6 +56,9 @@ defmodule Axiom.Checker.Unify do
   # Block types unify with each other
   def unify({:block, _} = a, {:block, _}), do: {:ok, a}
 
+  # User-defined types unify when they name the same type
+  def unify({:user_type, n}, {:user_type, n}), do: {:ok, {:user_type, n}}
+
   # Everything else fails
   def unify(_, _), do: :error
 end

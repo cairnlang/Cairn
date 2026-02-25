@@ -47,6 +47,48 @@ defmodule Axiom.Evaluator do
   # Operators — delegate to Runtime
   defp run([{:op, op, _} | rest], stack, env), do: run(rest, Runtime.execute(op, stack), env)
 
+  # Constructor — build a variant value: pop fields, push {:variant, type, ctor, fields}
+  defp run([{:constructor, name, pos} | rest], stack, env) do
+    ctors = Map.get(env, "__constructors__", %{})
+
+    case Map.get(ctors, name) do
+      nil ->
+        raise Axiom.RuntimeError, "unknown constructor '#{name}' at word #{pos + 1}"
+
+      {type_name, field_types} ->
+        arity = length(field_types)
+        {fields, stack} = pop_args(stack, arity)
+        variant = {:variant, type_name, name, fields}
+        run(rest, [variant | stack], env)
+    end
+  end
+
+  # MATCH — pop a variant, dispatch to matching arm, push fields onto stack
+  defp run([{:match_kw, _, pos} | rest], [{:variant, _type_name, ctor_name, fields} | stack], env) do
+    {arms, remaining} = collect_match_arms(rest, [], 0)
+
+    case Enum.find(arms, fn {arm_ctor, _} -> arm_ctor == ctor_name end) do
+      nil ->
+        raise Axiom.RuntimeError,
+          "MATCH at word #{pos + 1}: no arm for constructor '#{ctor_name}'"
+
+      {_ctor, arm_tokens} ->
+        # Push fields onto stack (last field first so first field is on top)
+        field_stack = Enum.reverse(fields) ++ stack
+        {stack, env} = run(arm_tokens, field_stack, env)
+        run(remaining, stack, env)
+    end
+  end
+
+  defp run([{:match_kw, _, pos} | _], [top | _], _env) do
+    raise Axiom.RuntimeError,
+      "MATCH at word #{pos + 1}: expected a variant on the stack, got #{inspect(top)}"
+  end
+
+  defp run([{:match_kw, _, pos} | _], [], _env) do
+    raise Axiom.RuntimeError, "MATCH at word #{pos + 1}: empty stack"
+  end
+
   # Identifiers — look up in environment
   defp run([{:ident, name, pos} | rest], stack, env) do
     case Map.get(env, name) do
@@ -227,6 +269,29 @@ defmodule Axiom.Evaluator do
     collect_else_branch(rest, depth, then_branch, [t | else_acc])
   end
 
+  # Collect MATCH arms: [{ctor_name, block_tokens}, ...]
+  # Arms are: Constructor { body } pairs, terminated by END at depth 0
+  defp collect_match_arms([{:fn_end, _, _} | rest], arms, 0) do
+    {Enum.reverse(arms), rest}
+  end
+
+  defp collect_match_arms([{:constructor, name, _}, {:block_open, _, _} | rest], arms, depth) do
+    {block_tokens, remaining} = collect_block(rest, 0, [])
+    collect_match_arms(remaining, [{name, block_tokens} | arms], depth)
+  end
+
+  defp collect_match_arms([{:match_kw, _, _} | _rest], _arms, _depth) do
+    raise Axiom.RuntimeError, "nested MATCH not supported in MATCH arms"
+  end
+
+  defp collect_match_arms([], _arms, _depth) do
+    raise Axiom.RuntimeError, "MATCH without matching END"
+  end
+
+  defp collect_match_arms([token | _], _arms, _depth) do
+    raise Axiom.RuntimeError, "unexpected token in MATCH arm: #{inspect(token)}"
+  end
+
   # --- Function calls ---
 
   @doc """
@@ -281,10 +346,12 @@ defmodule Axiom.Evaluator do
   defp matches_type?(v, :str) when is_binary(v), do: true
   defp matches_type?(v, {:list, _}) when is_list(v), do: true
   defp matches_type?(v, {:map, _, _}) when is_map(v), do: true
+  defp matches_type?({:variant, type_name, _, _}, {:user_type, type_name}), do: true
   defp matches_type?(_, _), do: false
 
   defp format_type({:list, inner}), do: "[#{inner}]"
   defp format_type({:map, k, v}), do: "map[#{k} #{v}]"
+  defp format_type({:user_type, name}), do: name
   defp format_type(type), do: to_string(type)
 
   defp check_pre(func, args, env) do

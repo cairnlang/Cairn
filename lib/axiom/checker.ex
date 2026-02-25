@@ -20,11 +20,14 @@ defmodule Axiom.Checker do
   @spec check([Axiom.Types.Function.t() | {:expr, [Axiom.Types.token()]}], map()) ::
           :ok | {:error, [Error.t()]}
   def check(items, env \\ %{}) do
+    {type_env, types} = build_checker_env(env)
+
     state = %{
       stack: Stack.new(),
-      env: build_type_env(env),
+      env: type_env,
       errors: [],
-      next_tvar: 0
+      next_tvar: 0,
+      types: types
     }
 
     state = Enum.reduce(items, state, &check_item/2)
@@ -35,11 +38,29 @@ defmodule Axiom.Checker do
     end
   end
 
-  # Build a type environment from the runtime env (function name -> signature)
-  defp build_type_env(env) do
-    Map.new(env, fn {name, func} ->
-      {name, %{param_types: func.param_types, return_types: func.return_types}}
-    end)
+  # Build type environment and type map from runtime env
+  defp build_checker_env(env) do
+    # Convert Function entries to checker signatures
+    type_env =
+      env
+      |> Enum.filter(fn {_, v} -> match?(%Axiom.Types.Function{}, v) end)
+      |> Map.new(fn {name, func} ->
+        {name, %{param_types: func.param_types, return_types: func.return_types}}
+      end)
+
+    # Register constructors from runtime "__constructors__" map
+    ctors = Map.get(env, "__constructors__", %{})
+
+    type_env =
+      Enum.reduce(ctors, type_env, fn {ctor_name, {type_name, field_types}}, acc ->
+        Map.put(acc, ctor_name, %{
+          param_types: field_types,
+          return_types: [{:user_type, type_name}]
+        })
+      end)
+
+    types = Map.get(env, "__types__", %{})
+    {type_env, types}
   end
 
   defp check_item(%Axiom.Types.Function{} = func, state) do
@@ -98,6 +119,20 @@ defmodule Axiom.Checker do
 
     # Restore stack for next item (function defs don't affect expression stack)
     %{body_state | stack: state.stack}
+  end
+
+  defp check_item(%Axiom.Types.TypeDef{} = typedef, state) do
+    # Register each constructor as a pseudo-function in the checker env
+    state =
+      Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
+        put_in(st.env[ctor_name], %{
+          param_types: field_types,
+          return_types: [{:user_type, typedef.name}]
+        })
+      end)
+
+    # Register the type definition for MATCH exhaustiveness checking
+    %{state | types: Map.put(state.types, typedef.name, typedef)}
   end
 
   defp check_item({:expr, tokens}, state) do
@@ -444,6 +479,107 @@ defmodule Axiom.Checker do
 
             walk(rest, state)
         end
+    end
+  end
+
+  # Constructor tokens — behave like function calls
+  defp walk([{:constructor, name, pos} | rest], state) do
+    case Map.get(state.env, name) do
+      nil ->
+        walk(rest, add_error(state, pos, "unknown constructor '#{name}'"))
+
+      %{param_types: param_types, return_types: return_types} ->
+        arity = length(param_types)
+
+        case Stack.pop_n(state.stack, arity) do
+          {arg_types, base} ->
+            state =
+              arg_types
+              |> Enum.zip(param_types)
+              |> Enum.reduce(%{state | stack: base}, fn {actual, expected}, st ->
+                case Unify.unify(actual, expected) do
+                  {:ok, _} -> st
+                  :error ->
+                    add_error(st, pos,
+                      "constructor '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}")
+                end
+              end)
+
+            state =
+              Enum.reduce(return_types, state, fn type, st ->
+                %{st | stack: Stack.push(st.stack, type)}
+              end)
+
+            walk(rest, state)
+
+          :underflow ->
+            state =
+              add_error(state, pos,
+                "constructor '#{name}' requires #{arity} argument(s) (stack underflow)")
+
+            state =
+              Enum.reduce(return_types, state, fn type, st ->
+                %{st | stack: Stack.push(st.stack, type)}
+              end)
+
+            walk(rest, state)
+        end
+    end
+  end
+
+  # MATCH/END — pattern dispatch on a variant value
+  defp walk([{:match_kw, _, pos} | rest], state) do
+    {arms, remaining} = collect_checker_match_arms(rest, [])
+
+    case Stack.pop(state.stack) do
+      {:ok, {:user_type, type_name}, base_stack} ->
+        state = %{state | stack: base_stack}
+        typedef = Map.get(state.types, type_name)
+
+        # Exhaustiveness check
+        state =
+          if typedef do
+            arm_names = MapSet.new(arms, fn {name, _} -> name end)
+            all_ctors = MapSet.new(Map.keys(typedef.variants))
+            missing = MapSet.difference(all_ctors, arm_names)
+
+            if MapSet.size(missing) > 0 do
+              add_error(state, pos,
+                "MATCH on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
+            else
+              state
+            end
+          else
+            state
+          end
+
+        # Walk each arm
+        arm_states =
+          Enum.map(arms, fn {ctor_name, arm_tokens} ->
+            field_types =
+              if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
+
+            arm_stack =
+              field_types
+              |> Enum.reverse()
+              |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+
+            walk(arm_tokens, %{state | stack: arm_stack})
+          end)
+
+        {result_stack, state} = unify_arm_stacks(arm_states, state, pos)
+        walk(remaining, %{state | stack: result_stack})
+
+      {:ok, other, _} ->
+        state =
+          add_error(state, pos,
+            "MATCH requires a variant on the stack, got #{format_type(other)}")
+
+        walk(remaining, state)
+
+      :underflow ->
+        state = add_error(state, pos, "MATCH requires a value on the stack (stack underflow)")
+        walk(remaining, state)
     end
   end
 
@@ -821,6 +957,79 @@ defmodule Axiom.Checker do
     collect_else(rest, depth, then_branch, [t | else_acc])
   end
 
+  # Collect MATCH arms for the static checker: [{ctor_name, block_tokens}, ...]
+  defp collect_checker_match_arms([{:fn_end, _, _} | rest], arms) do
+    {Enum.reverse(arms), rest}
+  end
+
+  defp collect_checker_match_arms(
+         [{:constructor, name, _}, {:block_open, _, _} | rest],
+         arms
+       ) do
+    {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    collect_checker_match_arms(remaining, [{name, block_tokens} | arms])
+  end
+
+  defp collect_checker_match_arms([], arms) do
+    {Enum.reverse(arms), []}
+  end
+
+  defp collect_checker_match_arms([_ | rest], arms) do
+    collect_checker_match_arms(rest, arms)
+  end
+
+  # Unify result stacks from multiple MATCH arms
+  defp unify_arm_stacks([], state, _pos) do
+    {Stack.new(), state}
+  end
+
+  defp unify_arm_stacks([first_state | rest_states], state, pos) do
+    first_depth = Stack.depth(first_state.stack)
+
+    # Merge errors from all arm states
+    all_arm_errors = Enum.flat_map([first_state | rest_states], fn s -> s.errors end)
+    state = %{state | errors: Enum.uniq(state.errors ++ all_arm_errors)}
+
+    # Check all arms have same stack depth
+    state =
+      Enum.reduce(rest_states, state, fn arm_state, st ->
+        arm_depth = Stack.depth(arm_state.stack)
+
+        if arm_depth != first_depth do
+          add_error(st, pos,
+            "MATCH arms produce different stack depths (expected #{first_depth}, got #{arm_depth})")
+        else
+          st
+        end
+      end)
+
+    # Unify result types across arms
+    {first_types, _} = Stack.pop_n(first_state.stack, first_depth)
+
+    result_types =
+      Enum.reduce(rest_states, first_types, fn arm_state, acc_types ->
+        n = min(first_depth, Stack.depth(arm_state.stack))
+        {arm_types, _} = Stack.pop_n(arm_state.stack, n)
+        padded = arm_types ++ List.duplicate(:any, max(0, length(acc_types) - length(arm_types)))
+
+        acc_types
+        |> Enum.zip(padded)
+        |> Enum.map(fn {t1, t2} ->
+          case Unify.unify(t1, t2) do
+            {:ok, unified} -> unified
+            :error -> :any
+          end
+        end)
+      end)
+
+    result_stack =
+      result_types
+      |> Enum.reduce(Stack.new(), &Stack.push(&2, &1))
+      |> Stack.reverse()
+
+    {result_stack, state}
+  end
+
   defp fresh_tvar(state) do
     id = state.next_tvar
     {{:tvar, id}, %{state | next_tvar: id + 1}}
@@ -847,6 +1056,7 @@ defmodule Axiom.Checker do
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:block, _}), do: "block"
   defp format_type({:tvar, id}), do: "t#{id}"
+  defp format_type({:user_type, name}), do: name
   defp format_type(other), do: inspect(other)
 
   defp format_op(op), do: String.upcase(to_string(op))

@@ -2,20 +2,22 @@ defmodule Axiom.Parser do
   @moduledoc """
   Parses a token list into Axiom function definitions and expressions.
 
-  Two top-level constructs:
+  Top-level constructs:
   1. Expressions — postfix sequences of literals, identifiers, and operators.
   2. Function definitions — `DEF name : type -> type body [POST condition] END`
+  3. TYPE declarations — `TYPE name = Ctor1 [types...] | Ctor2 [types...] ...`
+  4. VERIFY/PROVE statements
 
   POST comes after the body, before END.
   """
 
-  alias Axiom.Types.Function
+  alias Axiom.Types.{Function, TypeDef}
 
   @doc """
   Parses a token list into a list of parsed items.
-  Returns `{:ok, items}` where each item is a `%Function{}` or `{:expr, tokens}`.
+  Returns `{:ok, items}` where each item is a `%Function{}`, `%TypeDef{}`, or `{:expr, tokens}`.
   """
-  @spec parse([Axiom.Types.token()]) :: {:ok, [Function.t() | {:expr, [Axiom.Types.token()]}]} | {:error, String.t()}
+  @spec parse([Axiom.Types.token()]) :: {:ok, [Function.t() | TypeDef.t() | {:expr, [Axiom.Types.token()]}]} | {:error, String.t()}
   def parse(tokens) do
     parse_top(tokens, [])
   end
@@ -43,8 +45,17 @@ defmodule Axiom.Parser do
     end
   end
 
+  defp parse_top([{:type_kw, _, _} | rest], acc) do
+    case parse_type_def(rest) do
+      {:ok, typedef, remaining} -> parse_top(remaining, [typedef | acc])
+      {:error, _} = err -> err
+    end
+  end
+
   defp parse_top(tokens, acc) do
-    {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} -> type not in [:fn_def, :verify_kw, :prove_kw] end)
+    {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} ->
+      type not in [:fn_def, :verify_kw, :prove_kw, :type_kw]
+    end)
 
     if expr_tokens == [] do
       {:error, "unexpected token: #{inspect(hd(remaining))}"}
@@ -69,6 +80,58 @@ defmodule Axiom.Parser do
        }, rest}
     end
   end
+
+  # TYPE name = Ctor1 type1 type2 | Ctor2 type3 | Ctor3
+  defp parse_type_def([{:ident, name, _}, {:equals, _, _} | rest]) do
+    case collect_variants(rest, %{}, nil, []) do
+      {:ok, variants, remaining} ->
+        {:ok, %TypeDef{name: name, variants: variants}, remaining}
+      {:error, _} = err -> err
+    end
+  end
+
+  defp parse_type_def(_) do
+    {:error, "TYPE requires: TYPE name = Constructor [types...] | ..."}
+  end
+
+  # Collect variant declarations: Ctor1 type... | Ctor2 type... | ...
+  # Terminates when we see a top-level keyword or end of tokens
+  defp collect_variants([], variants, current_ctor, current_types) do
+    variants = finish_variant(variants, current_ctor, current_types)
+    {:ok, variants, []}
+  end
+
+  defp collect_variants([{:pipe, _, _} | rest], variants, current_ctor, current_types) do
+    variants = finish_variant(variants, current_ctor, current_types)
+    collect_variants(rest, variants, nil, [])
+  end
+
+  defp collect_variants([{:constructor, ctor_name, _} | rest], variants, current_ctor, current_types) do
+    # If we already have a current constructor without a pipe, it was a nullary ctor
+    variants = finish_variant(variants, current_ctor, current_types)
+    collect_variants(rest, variants, ctor_name, [])
+  end
+
+  defp collect_variants([{:type, type_val, _} | rest], variants, current_ctor, current_types)
+       when not is_nil(current_ctor) do
+    collect_variants(rest, variants, current_ctor, current_types ++ [type_val])
+  end
+
+  # Stop at any top-level boundary token
+  defp collect_variants([{type, _, _} | _] = rest, variants, current_ctor, current_types)
+       when type in [:fn_def, :verify_kw, :prove_kw, :type_kw] do
+    variants = finish_variant(variants, current_ctor, current_types)
+    {:ok, variants, rest}
+  end
+
+  # Any other token terminates the TYPE declaration — start of next expression
+  defp collect_variants(tokens, variants, current_ctor, current_types) do
+    variants = finish_variant(variants, current_ctor, current_types)
+    {:ok, variants, tokens}
+  end
+
+  defp finish_variant(variants, nil, _types), do: variants
+  defp finish_variant(variants, ctor_name, types), do: Map.put(variants, ctor_name, types)
 
   # VERIFY name count
   defp parse_verify([{:ident, name, _}, {:int_lit, count, _} | rest]) when count > 0 do
@@ -115,8 +178,14 @@ defmodule Axiom.Parser do
 
       :error ->
         case type_tokens do
-          [{:type, t, _}] -> {:ok, [], [t], rest}
-          _ -> {:error, "invalid type signature"}
+          [{:type, t, _}] ->
+            {:ok, [], [t], rest}
+
+          [{:user_type_tok, name, _}] ->
+            {:ok, [], [{:user_type, name}], rest}
+
+          _ ->
+            {:error, "invalid type signature"}
         end
     end
   end
@@ -126,6 +195,10 @@ defmodule Axiom.Parser do
 
   defp collect_type_tokens([{:arrow, _, _} = t | rest], acc),
     do: collect_type_tokens(rest, [t | acc])
+
+  # User-defined type names in signatures (e.g. `option`, `result`) appear as :ident tokens
+  defp collect_type_tokens([{:ident, name, pos} | rest], acc),
+    do: collect_type_tokens(rest, [{:user_type_tok, name, pos} | acc])
 
   defp collect_type_tokens(rest, acc), do: {Enum.reverse(acc), rest}
 
@@ -147,8 +220,11 @@ defmodule Axiom.Parser do
 
         param_types =
           before
-          |> Enum.filter(fn {type, _, _} -> type == :type end)
-          |> Enum.map(fn {:type, val, _} -> val end)
+          |> Enum.filter(fn {type, _, _} -> type in [:type, :user_type_tok] end)
+          |> Enum.map(fn
+            {:type, val, _} -> val
+            {:user_type_tok, name, _} -> {:user_type, name}
+          end)
 
         case after_arrow do
           [] ->
@@ -158,6 +234,7 @@ defmodule Axiom.Parser do
             return_types =
               Enum.map(types, fn
                 {:type, val, _} -> val
+                {:user_type_tok, name, _} -> {:user_type, name}
                 other -> throw({:bad_return_type, other})
               end)
 
@@ -167,10 +244,10 @@ defmodule Axiom.Parser do
   end
 
   # Collects body tokens until END, splitting on PRE/POST if present.
-  # Tracks IF nesting depth so inner IF...END blocks don't close the function.
+  # Tracks IF and MATCH nesting depth so inner IF...END / MATCH...END
+  # blocks don't prematurely close the function.
   # Syntax: [PRE cond] body [POST cond] END
   defp parse_body([{:pre, _, _} | rest]) do
-    # PRE comes first — collect until body starts
     collect_pre(rest, [], 0)
   end
 
@@ -181,24 +258,8 @@ defmodule Axiom.Parser do
     end
   end
 
-  # Collect PRE condition tokens until we hit the body.
-  # PRE ends at the first token that isn't part of it — but since PRE
-  # and body use the same token types, we need a delimiter.
-  # Solution: PRE runs until we see POST, END, or a non-PRE section.
-  # Simplest: PRE ends at ENDPRE... no. Let's use the same strategy as POST:
-  # PRE is everything between PRE keyword and the body. We know the body
-  # starts when PRE "ends" — but how?
-  #
-  # Pragmatic: PRE { cond_block } body POST cond END
-  # If PRE is followed by a block { ... }, that's the pre condition.
-  # Otherwise, collect tokens until we see a body-starting construct.
-  #
-  # Actually simplest: require PRE to use a block.
-  # PRE { condition } body POST condition END
   defp collect_pre([{:block_open, _, _} | _] = tokens, _acc, _depth) do
-    # Collect the block tokens for PRE condition
     {block_tokens, remaining} = collect_block_tokens(tokens)
-    # Now parse the rest as normal body (which may have POST)
     case collect_body(remaining, [], nil, 0) do
       {:ok, post, body, rest} -> {:ok, block_tokens, post, body, rest}
       {:error, _} = err -> err
@@ -209,7 +270,6 @@ defmodule Axiom.Parser do
     {:error, "PRE must be followed by a block { ... }, got: #{inspect(hd(tokens))}"}
   end
 
-  # Collect a { ... } block, returning the inner tokens and the remaining tokens
   defp collect_block_tokens([{:block_open, _, _} | rest]) do
     do_collect_block(rest, 0, [])
   end
@@ -245,13 +305,18 @@ defmodule Axiom.Parser do
     {:ok, post, body, rest}
   end
 
-  # END at depth > 0 = belongs to an inner IF, keep it in body
+  # END at depth > 0 = belongs to an inner IF or MATCH
   defp collect_body([{:fn_end, _, _} = t | rest], body_acc, post_acc, depth) do
     collect_body(rest, [t | body_acc], post_acc, depth - 1)
   end
 
   # IF increases nesting depth
   defp collect_body([{:if_kw, _, _} = t | rest], body_acc, post_acc, depth) do
+    collect_body(rest, [t | body_acc], post_acc, depth + 1)
+  end
+
+  # MATCH increases nesting depth
+  defp collect_body([{:match_kw, _, _} = t | rest], body_acc, post_acc, depth) do
     collect_body(rest, [t | body_acc], post_acc, depth + 1)
   end
 
@@ -264,7 +329,6 @@ defmodule Axiom.Parser do
     collect_body(rest, [token | body_acc], post_acc, depth)
   end
 
-  # When called without PRE, wrap result to include nil pre_condition
   defp collect_post([], _body, _post_acc, _depth) do
     {:error, "expected END after POST condition, got end of input"}
   end
@@ -278,6 +342,10 @@ defmodule Axiom.Parser do
   end
 
   defp collect_post([{:if_kw, _, _} = t | rest], body, post_acc, depth) do
+    collect_post(rest, body, [t | post_acc], depth + 1)
+  end
+
+  defp collect_post([{:match_kw, _, _} = t | rest], body, post_acc, depth) do
     collect_post(rest, body, [t | post_acc], depth + 1)
   end
 

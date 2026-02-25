@@ -41,6 +41,22 @@ defmodule Axiom do
         %Axiom.Types.Function{} = func, {stack, env} ->
           {stack, Map.put(env, func.name, func)}
 
+        %Axiom.Types.TypeDef{} = typedef, {stack, env} ->
+          types = Map.get(env, "__types__", %{})
+          ctors = Map.get(env, "__constructors__", %{})
+
+          new_ctors =
+            Enum.reduce(typedef.variants, ctors, fn {ctor_name, field_types}, acc ->
+              Map.put(acc, ctor_name, {typedef.name, field_types})
+            end)
+
+          env =
+            env
+            |> Map.put("__types__", Map.put(types, typedef.name, typedef))
+            |> Map.put("__constructors__", new_ctors)
+
+          {stack, env}
+
         {:verify, name, count}, {stack, env} ->
           run_verify(name, count, env)
           {stack, env}

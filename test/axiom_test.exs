@@ -624,6 +624,22 @@ defmodule AxiomTest do
         Axiom.eval("\"abc\" TO_FLOAT")
       end
     end
+
+    test "JOIN with separator" do
+      assert Axiom.eval("[ \"a\" \"b\" \"c\" ] \",\" JOIN") == ["a,b,c"]
+    end
+
+    test "JOIN with empty separator" do
+      assert Axiom.eval("[ \"h\" \"e\" \"l\" \"l\" \"o\" ] \"\" JOIN") == ["hello"]
+    end
+
+    test "JOIN on empty list" do
+      assert Axiom.eval("[ ] \",\" JOIN") == [""]
+    end
+
+    test "CHARS then JOIN round-trips" do
+      assert Axiom.eval("\"hello\" CHARS \"\" JOIN") == ["hello"]
+    end
   end
 
   describe "IO" do

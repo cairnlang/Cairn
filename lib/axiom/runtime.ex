@@ -197,6 +197,9 @@ defmodule Axiom.Runtime do
     end
   end
 
+  # JOIN: join list of strings with separator
+  def execute(:join, [sep, list | rest]) when is_list(list) and is_binary(sep), do: [Enum.join(list, sep) | rest]
+
   # TO_FLOAT: parse string as float
   def execute(:to_float, [s | rest]) when is_binary(s) do
     case Float.parse(s) do

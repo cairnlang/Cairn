@@ -63,6 +63,7 @@ defmodule Axiom.Checker.Effects do
     slice:       %{pops: [:int, :int, :str], pushes: [:str]},
     to_int:      %{pops: [:str],             pushes: [:int]},
     to_float:    %{pops: [:str],             pushes: [:float]},
+    join:        %{pops: [:str, {:list, :str}], pushes: [:str]},
 
     # I/O — non-destructive (pop any, push same)
     say: %{pops: [:any], pushes: [:any]},

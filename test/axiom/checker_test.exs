@@ -645,6 +645,23 @@ defmodule Axiom.CheckerTest do
     test "pipeline: SPLIT then MAP TO_INT then SUM" do
       check_ok("\"1,2,3\" \",\" SPLIT { TO_INT } MAP SUM")
     end
+
+    test "JOIN on list of strings" do
+      check_ok("[ \"a\" \"b\" \"c\" ] \",\" JOIN")
+    end
+
+    test "JOIN result is str" do
+      check_ok("[ \"a\" \"b\" ] \",\" JOIN LEN")
+    end
+
+    test "CHARS then JOIN round-trips" do
+      check_ok("\"hello\" CHARS \"\" JOIN")
+    end
+
+    test "JOIN with wrong sep type is error" do
+      errors = check_errors("[ \"a\" \"b\" ] 42 JOIN")
+      assert Enum.any?(errors, fn e -> e.message =~ "JOIN" end)
+    end
   end
 
   # ── Multiple errors in one pass ──

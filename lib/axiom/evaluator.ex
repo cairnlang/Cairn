@@ -166,6 +166,22 @@ defmodule Axiom.Evaluator do
     collect_list_tokens(rest, [val | items], env)
   end
 
+  # Constructor inside a list literal — pop its fields from accumulated items, push variant
+  defp collect_list_tokens([{:constructor, name, pos} | rest], items, env) do
+    ctors = Map.get(env, "__constructors__", %{})
+
+    case Map.get(ctors, name) do
+      nil ->
+        raise Axiom.RuntimeError, "unknown constructor '#{name}' at word #{pos + 1}"
+
+      {type_name, field_types} ->
+        arity = length(field_types)
+        {fields, remaining_items} = Enum.split(items, arity)
+        variant = {:variant, type_name, name, fields}
+        collect_list_tokens(rest, [variant | remaining_items], env)
+    end
+  end
+
   defp collect_list_tokens([], _items, _env) do
     raise Axiom.RuntimeError, "unmatched ["
   end
@@ -194,6 +210,22 @@ defmodule Axiom.Evaluator do
 
   defp collect_map_tokens([{:str_lit, val, _} | rest], items, env),
     do: collect_map_tokens(rest, [val | items], env)
+
+  # Constructor inside a map literal — pop its fields from accumulated items, push variant
+  defp collect_map_tokens([{:constructor, name, pos} | rest], items, env) do
+    ctors = Map.get(env, "__constructors__", %{})
+
+    case Map.get(ctors, name) do
+      nil ->
+        raise Axiom.RuntimeError, "unknown constructor '#{name}' at word #{pos + 1}"
+
+      {type_name, field_types} ->
+        arity = length(field_types)
+        {fields, remaining_items} = Enum.split(items, arity)
+        variant = {:variant, type_name, name, fields}
+        collect_map_tokens(rest, [variant | remaining_items], env)
+    end
+  end
 
   defp collect_map_tokens([], _items, _env) do
     raise Axiom.RuntimeError, "unmatched M["

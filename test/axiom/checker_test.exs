@@ -685,6 +685,101 @@ defmodule Axiom.CheckerTest do
     end
   end
 
+  # ── User types in compound positions (recursive sum types) ──
+
+  @json_type """
+  TYPE json = JNull
+            | JBool bool
+            | JNum  float
+            | JStr  str
+            | JArr  [json]
+            | JObj  map[str json]
+  """
+
+  describe "user types in compound positions" do
+    test "[user_type] is a valid list type in the lexer" do
+      assert {:ok, [{:type, {:list, {:user_type, "json"}}, 0}]} =
+               Axiom.Lexer.tokenize("[json]")
+    end
+
+    test "map[str user_type] is a valid map type in the lexer" do
+      assert {:ok, [{:type, {:map, :str, {:user_type, "json"}}, 0}]} =
+               Axiom.Lexer.tokenize("map[str json]")
+    end
+
+    test "recursive TYPE json definition type-checks" do
+      check_ok(@json_type)
+    end
+
+    test "constructing JNull, JBool, JNum, JStr type-checks" do
+      # 0 DROP terminates the TYPE declaration so bare JNull is an expression
+      check_ok(@json_type <> "0 DROP JNull  T JBool  3.14 JNum  \"hi\" JStr")
+    end
+
+    test "JArr constructor accepts [json]" do
+      check_ok(@json_type <> "[ JNull ] JArr")
+    end
+
+    test "JObj constructor accepts map[str json]" do
+      check_ok(@json_type <> ~s(M[ "k" JNull ] JObj))
+    end
+
+    test "[json] works as a function parameter type" do
+      check_ok(@json_type <> """
+      DEF wrap_array : [json] -> json
+        JArr
+      END
+      """)
+    end
+
+    test "map[str json] works as a function parameter type" do
+      check_ok(@json_type <> """
+      DEF wrap_object : map[str json] -> json
+        JObj
+      END
+      """)
+    end
+
+    test "MATCH on json type-checks with exhaustive arms" do
+      check_ok(@json_type <> """
+      DEF is_null : json -> bool
+        MATCH
+          JNull { T }
+          JBool { DROP F }
+          JNum  { DROP F }
+          JStr  { DROP F }
+          JArr  { DROP F }
+          JObj  { DROP F }
+        END
+      END
+      """)
+    end
+
+    test "non-exhaustive MATCH on json is an error" do
+      errors = check_errors(@json_type <> """
+      DEF bad : json -> bool
+        MATCH
+          JNull { T }
+          JBool { DROP F }
+        END
+      END
+      """)
+      assert Enum.any?(errors, fn e -> e.message =~ "exhaustive" end)
+    end
+
+    test "user type as bare variant field type-checks (tree)" do
+      check_ok("""
+      TYPE tree = Leaf int | Node tree tree
+      DEF depth : tree -> int
+        MATCH
+          Leaf { DROP 1 }
+          Node { depth SWAP depth SWAP MAX 1 ADD }
+        END
+      END
+      """)
+    end
+  end
+
   # ── Example programs (no false positives) ──
 
   describe "example programs" do

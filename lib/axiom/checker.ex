@@ -871,24 +871,33 @@ defmodule Axiom.Checker do
   end
 
   defp infer_list_element_type(tokens, state) do
-    types =
-      Enum.map(tokens, fn
-        {:int_lit, _, _} -> :int
-        {:float_lit, _, _} -> :float
-        {:bool_lit, _, _} -> :bool
-        {:str_lit, _, _} -> :str
-        _ -> :any
-      end)
+    # Walk body on a fresh stack so constructors and operators are handled correctly.
+    # e.g. [ JNull T JBool ] — JBool consumes T, leaving two json values.
+    sub_state = walk(tokens, %{state | stack: Stack.new()})
+    state = %{state | errors: sub_state.errors, next_tvar: sub_state.next_tvar}
+    depth = Stack.depth(sub_state.stack)
 
-    unified =
-      Enum.reduce(types, hd(types), fn t, acc ->
-        case Unify.unify(t, acc) do
-          {:ok, u} -> u
-          :error -> :any
-        end
-      end)
+    if depth == 0 do
+      {tvar, state} = fresh_tvar(state)
+      {tvar, state}
+    else
+      case Stack.pop_n(sub_state.stack, depth) do
+        {types, _} ->
+          unified =
+            Enum.reduce(tl(types), hd(types), fn t, acc ->
+              case Unify.unify(t, acc) do
+                {:ok, u} -> u
+                :error -> :any
+              end
+            end)
 
-    {unified, state}
+          {unified, state}
+
+        :underflow ->
+          {tvar, state} = fresh_tvar(state)
+          {tvar, state}
+      end
+    end
   end
 
   defp collect_block_tokens([], _depth, acc), do: {Enum.reverse(acc), []}

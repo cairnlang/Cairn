@@ -99,13 +99,16 @@ defmodule Axiom.Lexer do
       word in @type_names ->
         {:ok, {:type, String.to_atom(word)}}
 
-      # list type like [int] or [float]
+      # list type like [int], [str], or [json] (user-defined)
       Regex.match?(~r/^\[.+\]$/, word) ->
         inner = String.slice(word, 1..-2)
-        if inner in @type_names do
-          {:ok, {:type, {:list, String.to_atom(inner)}}}
-        else
-          {:error, "unknown list type: #{word}"}
+        cond do
+          inner in @type_names ->
+            {:ok, {:type, {:list, String.to_atom(inner)}}}
+          Regex.match?(~r/^[a-z_][a-z0-9_]*$/, inner) ->
+            {:ok, {:type, {:list, {:user_type, inner}}}}
+          true ->
+            {:error, "unknown list type: #{word}"}
         end
 
       # map type like map[str int]
@@ -147,7 +150,10 @@ defmodule Axiom.Lexer do
       cond do
         Regex.match?(~r/^\[.+\]$/, s) ->
           inner = String.slice(s, 1..-2)
-          if inner in @type_names, do: {:ok, {:list, String.to_atom(inner)}}, else: :error
+          case parse_map_inner_type(inner) do
+            {:ok, t} -> {:ok, {:list, t}}
+            :error -> :error
+          end
 
         Regex.match?(~r/^map\[.+\s+.+\]$/, s) ->
           inner = String.slice(s, 4..-2)
@@ -156,6 +162,9 @@ defmodule Axiom.Lexer do
             {{:ok, kt}, {:ok, vt}} -> {:ok, {:map, kt, vt}}
             _ -> :error
           end
+
+        Regex.match?(~r/^[a-z_][a-z0-9_]*$/, s) ->
+          {:ok, {:user_type, s}}
 
         true ->
           :error

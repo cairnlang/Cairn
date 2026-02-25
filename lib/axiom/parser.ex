@@ -117,6 +117,13 @@ defmodule Axiom.Parser do
     collect_variants(rest, variants, current_ctor, current_types ++ [type_val])
   end
 
+  # User-defined type names as variant field types (e.g. `Node tree tree`, `JArr [json]` uses lexer,
+  # but bare user types like `Wrap json` arrive here as :ident tokens)
+  defp collect_variants([{:ident, name, _} | rest], variants, current_ctor, current_types)
+       when not is_nil(current_ctor) do
+    collect_variants(rest, variants, current_ctor, current_types ++ [{:user_type, name}])
+  end
+
   # Stop at any top-level boundary token
   defp collect_variants([{type, _, _} | _] = rest, variants, current_ctor, current_types)
        when type in [:fn_def, :verify_kw, :prove_kw, :type_kw] do

@@ -642,6 +642,118 @@ defmodule AxiomTest do
     end
   end
 
+  # Shared TYPE definition used across recursive-type tests
+  @json_type """
+  TYPE json = JNull
+            | JBool bool
+            | JNum  float
+            | JStr  str
+            | JArr  [json]
+            | JObj  map[str json]
+  """
+
+  describe "recursive sum types" do
+    test "JNull constructs a zero-field variant" do
+      # An int literal before JNull terminates the TYPE declaration so JNull
+      # is parsed as an expression, not a 7th variant.
+      result = Axiom.eval(@json_type <> "0 DROP JNull")
+      assert result == [{:variant, "json", "JNull", []}]
+    end
+
+    test "JBool wraps a bool" do
+      result = Axiom.eval(@json_type <> "T JBool")
+      assert result == [{:variant, "json", "JBool", [true]}]
+    end
+
+    test "JNum wraps a float" do
+      result = Axiom.eval(@json_type <> "3.14 JNum")
+      assert result == [{:variant, "json", "JNum", [3.14]}]
+    end
+
+    test "JStr wraps a string" do
+      result = Axiom.eval(@json_type <> "\"hello\" JStr")
+      assert result == [{:variant, "json", "JStr", ["hello"]}]
+    end
+
+    test "JArr wraps a list of json values (recursive)" do
+      result = Axiom.eval(@json_type <> "[ JNull T JBool ] JArr")
+      assert [{:variant, "json", "JArr", [[jnull, jbool]]}] = result
+      assert jnull == {:variant, "json", "JNull", []}
+      assert jbool == {:variant, "json", "JBool", [true]}
+    end
+
+    test "JObj wraps a map of str -> json" do
+      result = Axiom.eval(@json_type <> ~s(M[ "k" JNull ] JObj))
+      assert [{:variant, "json", "JObj", [%{"k" => jnull}]}] = result
+      assert jnull == {:variant, "json", "JNull", []}
+    end
+
+    test "MATCH dispatches on JNull" do
+      source = @json_type <> """
+      DEF is_null : json -> bool
+        MATCH
+          JNull { T }
+          JBool { DROP F }
+          JNum  { DROP F }
+          JStr  { DROP F }
+          JArr  { DROP F }
+          JObj  { DROP F }
+        END
+      END
+      JNull is_null
+      """
+      assert Axiom.eval(source) == [true]
+    end
+
+    test "MATCH extracts JBool payload" do
+      source = @json_type <> """
+      DEF unwrap_bool : json -> bool
+        MATCH
+          JNull { F }
+          JBool { }
+          JNum  { DROP F }
+          JStr  { DROP F }
+          JArr  { DROP F }
+          JObj  { DROP F }
+        END
+      END
+      T JBool unwrap_bool
+      """
+      assert Axiom.eval(source) == [true]
+    end
+
+    test "MATCH extracts JArr payload as [json]" do
+      source = @json_type <> """
+      DEF json_len : json -> int
+        MATCH
+          JNull { 0 }
+          JBool { DROP 0 }
+          JNum  { DROP 0 }
+          JStr  { DROP 0 }
+          JArr  { LEN }
+          JObj  { DROP 0 }
+        END
+      END
+      [ JNull T JBool 1.0 JNum ] JArr json_len
+      """
+      assert Axiom.eval(source) == [3]
+    end
+
+    test "user type as bare variant field (tree-style)" do
+      source = """
+      TYPE tree = Leaf int | Node tree tree
+      DEF depth : tree -> int
+        MATCH
+          Leaf { DROP 1 }
+          Node { depth SWAP depth SWAP MAX 1 ADD }
+        END
+      END
+      3 Leaf  5 Leaf  7 Leaf Node  Node  depth
+      """
+      assert Axiom.eval(source) == [3]
+    end
+  end
+
   describe "IO" do
     test "ARGV returns empty list by default" do
       Process.delete(:axiom_argv)

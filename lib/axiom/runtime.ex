@@ -41,6 +41,7 @@ defmodule Axiom.Runtime do
   def execute(:swap, [a, b | rest]), do: [b, a | rest]
   def execute(:over, [a, b | rest]), do: [b, a, b | rest]
   def execute(:rot, [a, b, c | rest]), do: [c, a, b | rest]
+  def execute(:rot4, [a, b, c, d | rest]), do: [d, a, b, c | rest]
 
   # Math — binary
   def execute(:min, [a, b | rest]) when is_number(a) and is_number(b), do: [Kernel.min(b, a) | rest]

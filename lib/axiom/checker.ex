@@ -22,6 +22,29 @@ defmodule Axiom.Checker do
   def check(items, env \\ %{}) do
     {type_env, types} = build_checker_env(env)
 
+    # Pre-register all type definitions and function signatures upfront so that
+    # mutually recursive functions can see each other regardless of source order.
+    {type_env, types} =
+      Enum.reduce(items, {type_env, types}, fn
+        %Axiom.Types.TypeDef{} = typedef, {te, tys} ->
+          te =
+            Enum.reduce(typedef.variants, te, fn {ctor_name, field_types}, acc ->
+              Map.put(acc, ctor_name, %{
+                param_types: field_types,
+                return_types: [{:user_type, typedef.name}]
+              })
+            end)
+
+          {te, Map.put(tys, typedef.name, typedef)}
+
+        %Axiom.Types.Function{} = func, {te, tys} ->
+          {Map.put(te, func.name, %{param_types: func.param_types, return_types: func.return_types}),
+           tys}
+
+        _, acc ->
+          acc
+      end)
+
     state = %{
       stack: Stack.new(),
       env: type_env,
@@ -375,6 +398,17 @@ defmodule Axiom.Checker do
 
       :underflow ->
         walk(rest, add_error(state, pos, "ROT requires 3 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :rot4, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 4) do
+      {[a, b, c, d], base} ->
+        # ROT4: [a, b, c, d | rest] -> [d, a, b, c | rest]
+        walk(rest, %{state | stack: base |> Stack.push(c) |> Stack.push(b) |> Stack.push(a) |> Stack.push(d)})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "ROT4 requires 4 values on the stack (stack underflow)"))
     end
   end
 

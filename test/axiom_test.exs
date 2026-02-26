@@ -848,6 +848,73 @@ defmodule AxiomTest do
     end
   end
 
+  describe "JSON array/object parser" do
+    test "parse_array parses empty array" do
+      result = Axiom.eval(@json_parser <> ~s("[]" CHARS parse_array))
+      assert result == [[], jv("JArr", [[]])]
+    end
+
+    test "parse_array parses single element" do
+      result = Axiom.eval(@json_parser <> ~s("[1.0]" CHARS parse_array))
+      assert result == [[], jv("JArr", [[jv("JNum", [1.0])]])]
+    end
+
+    test "parse_array parses multiple elements" do
+      result = Axiom.eval(@json_parser <> ~s("[1.0,2.0,3.0]" CHARS parse_array))
+      assert result == [[], jv("JArr", [[jv("JNum", [1.0]), jv("JNum", [2.0]), jv("JNum", [3.0])]])]
+    end
+
+    test "parse_array parses boolean elements" do
+      result = Axiom.eval(@json_parser <> ~s("[true,false]" CHARS parse_array))
+      assert result == [[], jv("JArr", [[jv("JBool", [true]), jv("JBool", [false])]])]
+    end
+
+    test "parse_array handles whitespace around elements" do
+      result = Axiom.eval(@json_parser <> ~s("[ 1.0 , 2.0 ]" CHARS parse_array))
+      assert result == [[], jv("JArr", [[jv("JNum", [1.0]), jv("JNum", [2.0])]])]
+    end
+
+    test "parse_array parses nested arrays" do
+      result = Axiom.eval(@json_parser <> ~s("[[1.0]]" CHARS parse_array))
+      assert result == [[], jv("JArr", [[jv("JArr", [[jv("JNum", [1.0])]])]])]
+    end
+
+    test "parse_value dispatches [ to parse_array" do
+      result = Axiom.eval(@json_parser <> ~s("[null]" CHARS parse_value))
+      assert result == [[], jv("JArr", [[jv("JNull", [])]])]
+    end
+
+    test "parse_object parses empty object" do
+      result = Axiom.eval(@json_parser <> ~s("{}" CHARS parse_object))
+      assert result == [[], jv("JObj", [%{}])]
+    end
+
+    test "parse_object parses single key-value pair" do
+      result = Axiom.eval(@json_parser <> ~S("{\"x\":1.0}" CHARS parse_object))
+      assert result == [[], jv("JObj", [%{"x" => jv("JNum", [1.0])}])]
+    end
+
+    test "parse_object parses multiple key-value pairs" do
+      result = Axiom.eval(@json_parser <> ~S("{\"a\":true,\"b\":false}" CHARS parse_object))
+      assert result == [[], jv("JObj", [%{"a" => jv("JBool", [true]), "b" => jv("JBool", [false])}])]
+    end
+
+    test "parse_object handles whitespace" do
+      result = Axiom.eval(@json_parser <> ~S("{ \"k\" : null }" CHARS parse_object))
+      assert result == [[], jv("JObj", [%{"k" => jv("JNull", [])}])]
+    end
+
+    test "parse_value dispatches { to parse_object" do
+      result = Axiom.eval(@json_parser <> ~S("{\"n\":1.0}" CHARS parse_value))
+      assert result == [[], jv("JObj", [%{"n" => jv("JNum", [1.0])}])]
+    end
+
+    test "parse_value handles array of objects" do
+      result = Axiom.eval(@json_parser <> ~S("[{\"a\":1.0}]" CHARS parse_value))
+      assert result == [[], jv("JArr", [[jv("JObj", [%{"a" => jv("JNum", [1.0])}])]])]
+    end
+  end
+
   describe "IO" do
     test "ARGV returns empty list by default" do
       Process.delete(:axiom_argv)

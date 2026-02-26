@@ -6,7 +6,7 @@ defmodule Axiom.Lexer do
   """
 
   @operators ~w(ADD SUB MUL DIV MOD EQ NEQ GT LT GTE LTE AND OR NOT
-                DUP DROP SWAP OVER ROT
+                DUP DROP SWAP OVER ROT ROT4
                 FILTER MAP REDUCE SUM LEN HEAD TAIL CONS CONCAT
                 SORT REVERSE MIN MAX
                 SQ ABS NEG

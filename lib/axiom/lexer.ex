@@ -40,16 +40,27 @@ defmodule Axiom.Lexer do
   end
 
   defp strip_line_comment(<<>>, _in_str, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
+  # Escaped quote inside a string — not a string boundary
+  defp strip_line_comment(<<?\\, ?", rest::binary>>, true, acc), do: strip_line_comment(rest, true, [?", ?\\ | acc])
   defp strip_line_comment(<<?", rest::binary>>, false, acc), do: strip_line_comment(rest, true, [?" | acc])
   defp strip_line_comment(<<?", rest::binary>>, true, acc), do: strip_line_comment(rest, false, [?" | acc])
   defp strip_line_comment(<<?#, _::binary>>, false, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
   defp strip_line_comment(<<c, rest::binary>>, in_str, acc), do: strip_line_comment(rest, in_str, [c | acc])
 
-  # Scan words respecting quoted strings and map types — "hello world" and map[str int] stay as one token
+  # Scan words respecting quoted strings (with \" escapes) and map types
   defp scan_words(source) do
-    Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|"[^"]*"|[^\s]+/, source)
+    Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|"(?:[^"\\]|\\.)*"|[^\s]+/, source)
     |> Enum.map(fn [match] -> match end)
   end
+
+  # Resolve backslash escape sequences inside a string literal body
+  defp unescape(<<>>), do: <<>>
+  defp unescape(<<?\\, ?", rest::binary>>), do: <<?", unescape(rest)::binary>>
+  defp unescape(<<?\\, ?\\, rest::binary>>), do: <<?\\, unescape(rest)::binary>>
+  defp unescape(<<?\\, ?n, rest::binary>>), do: <<?\n, unescape(rest)::binary>>
+  defp unescape(<<?\\, ?t, rest::binary>>), do: <<?\t, unescape(rest)::binary>>
+  defp unescape(<<?\\, ?r, rest::binary>>), do: <<?\r, unescape(rest)::binary>>
+  defp unescape(<<c, rest::binary>>), do: <<c, unescape(rest)::binary>>
 
   defp tokenize_words([], acc, _pos), do: {:ok, Enum.reverse(acc)}
 
@@ -89,9 +100,9 @@ defmodule Axiom.Lexer do
 
   defp classify(word) do
     cond do
-      # String literal: "..."
+      # String literal: "..." (supports \" \\ \n \t \r escape sequences)
       String.starts_with?(word, "\"") and String.ends_with?(word, "\"") ->
-        {:ok, {:str_lit, String.slice(word, 1..-2)}}
+        {:ok, {:str_lit, word |> String.slice(1..-2) |> unescape()}}
 
       word in @operators ->
         {:ok, {:op, String.to_atom(String.downcase(word))}}

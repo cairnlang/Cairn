@@ -25,7 +25,8 @@ defmodule Axiom.Parser do
   defp parse_top([], acc), do: {:ok, Enum.reverse(acc)}
 
   defp parse_top([{:fn_def, _, _} | rest], acc) do
-    case parse_function(rest) do
+    known_types = collect_known_types(acc)
+    case parse_function(rest, known_types) do
       {:ok, func, remaining} -> parse_top(remaining, [func | acc])
       {:error, _} = err -> err
     end
@@ -64,10 +65,10 @@ defmodule Axiom.Parser do
     end
   end
 
-  defp parse_function(tokens) do
+  defp parse_function(tokens, known_types) do
     with {:ok, name, rest} <- expect_ident(tokens),
          {:ok, _colon, rest} <- expect(:colon, rest),
-         {:ok, param_types, return_types, rest} <- parse_type_signature(rest),
+         {:ok, param_types, return_types, rest} <- parse_type_signature(rest, known_types),
          {:ok, pre_condition, post_condition, body, rest} <- parse_body(rest) do
       {:ok,
        %Function{
@@ -176,8 +177,8 @@ defmodule Axiom.Parser do
 
   defp expect(type, []), do: {:error, "expected #{type}, got end of input"}
 
-  defp parse_type_signature(tokens) do
-    {type_tokens, rest} = collect_type_tokens(tokens, [])
+  defp parse_type_signature(tokens, known_types) do
+    {type_tokens, rest} = collect_type_tokens(tokens, [], known_types)
 
     case split_on_last_arrow(type_tokens) do
       {:ok, param_types, return_types} ->
@@ -197,17 +198,23 @@ defmodule Axiom.Parser do
     end
   end
 
-  defp collect_type_tokens([{:type, _, _} = t | rest], acc),
-    do: collect_type_tokens(rest, [t | acc])
+  defp collect_type_tokens([{:type, _, _} = t | rest], acc, known_types),
+    do: collect_type_tokens(rest, [t | acc], known_types)
 
-  defp collect_type_tokens([{:arrow, _, _} = t | rest], acc),
-    do: collect_type_tokens(rest, [t | acc])
+  defp collect_type_tokens([{:arrow, _, _} = t | rest], acc, known_types),
+    do: collect_type_tokens(rest, [t | acc], known_types)
 
-  # User-defined type names in signatures (e.g. `option`, `result`) appear as :ident tokens
-  defp collect_type_tokens([{:ident, name, pos} | rest], acc),
-    do: collect_type_tokens(rest, [{:user_type_tok, name, pos} | acc])
+  # User-defined type names in signatures — only accepted if the name is a known TYPE declaration.
+  # This prevents function call idents at the start of a body from being consumed as return types.
+  defp collect_type_tokens([{:ident, name, pos} | rest], acc, known_types) do
+    if MapSet.member?(known_types, name) do
+      collect_type_tokens(rest, [{:user_type_tok, name, pos} | acc], known_types)
+    else
+      {Enum.reverse(acc), [{:ident, name, pos} | rest]}
+    end
+  end
 
-  defp collect_type_tokens(rest, acc), do: {Enum.reverse(acc), rest}
+  defp collect_type_tokens(rest, acc, _known_types), do: {Enum.reverse(acc), rest}
 
   defp split_on_last_arrow(type_tokens) do
     indices =
@@ -358,5 +365,13 @@ defmodule Axiom.Parser do
 
   defp collect_post([token | rest], body, post_acc, depth) do
     collect_post(rest, body, [token | post_acc], depth)
+  end
+
+  # Build the set of user-defined type names from already-parsed top-level items
+  defp collect_known_types(items) do
+    Enum.reduce(items, MapSet.new(), fn
+      %TypeDef{name: n}, set -> MapSet.put(set, n)
+      _, set -> set
+    end)
   end
 end

@@ -754,6 +754,100 @@ defmodule AxiomTest do
     end
   end
 
+  # Full JSON scalar parser source (TYPE + helpers + parsers, no demo expressions)
+  @json_parser File.read!("examples/json.ax")
+               |> String.split("\n# --- Demo ---\n")
+               |> hd()
+
+  defp jv(tag, fields), do: {:variant, "json", tag, fields}
+
+  describe "JSON scalar parser" do
+    # After any parse_X call: stack = [remaining_chars(top), json_value(below)]
+    # So Axiom.eval result list is [remaining, json_value].
+
+    test "parse_null consumes 'null'" do
+      result = Axiom.eval(@json_parser <> ~s("null" CHARS parse_null))
+      assert result == [[], jv("JNull", [])]
+    end
+
+    test "parse_bool consumes 'true'" do
+      result = Axiom.eval(@json_parser <> ~s("true" CHARS parse_bool))
+      assert result == [[], jv("JBool", [true])]
+    end
+
+    test "parse_bool consumes 'false'" do
+      result = Axiom.eval(@json_parser <> ~s("false" CHARS parse_bool))
+      assert result == [[], jv("JBool", [false])]
+    end
+
+    test "parse_number handles integer-valued float" do
+      result = Axiom.eval(@json_parser <> ~s("42" CHARS parse_number))
+      assert result == [[], jv("JNum", [42.0])]
+    end
+
+    test "parse_number handles decimal" do
+      result = Axiom.eval(@json_parser <> ~s("3.14" CHARS parse_number))
+      assert result == [[], jv("JNum", [3.14])]
+    end
+
+    test "parse_number handles negative" do
+      result = Axiom.eval(@json_parser <> ~s("-7.5" CHARS parse_number))
+      assert result == [[], jv("JNum", [-7.5])]
+    end
+
+    test "parse_string returns JStr and remaining chars" do
+      # ~S avoids Elixir escape processing — Axiom receives \"hello\" with real backslashes
+      result = Axiom.eval(@json_parser <> ~S("\"hello\"" CHARS parse_string))
+      assert result == [[], jv("JStr", ["hello"])]
+    end
+
+    test "parse_string preserves inner spaces" do
+      result = Axiom.eval(@json_parser <> ~S("\"ab cd\"" CHARS parse_string))
+      assert result == [[], jv("JStr", ["ab cd"])]
+    end
+
+    test "skip_ws drops leading spaces" do
+      result = Axiom.eval(@json_parser <> ~s("   hi" CHARS skip_ws))
+      assert result == [["h", "i"]]
+    end
+
+    test "parse_value dispatches null" do
+      result = Axiom.eval(@json_parser <> ~s("null" CHARS parse_value))
+      assert result == [[], jv("JNull", [])]
+    end
+
+    test "parse_value dispatches true" do
+      result = Axiom.eval(@json_parser <> ~s("true" CHARS parse_value))
+      assert result == [[], jv("JBool", [true])]
+    end
+
+    test "parse_value dispatches false" do
+      result = Axiom.eval(@json_parser <> ~s("false" CHARS parse_value))
+      assert result == [[], jv("JBool", [false])]
+    end
+
+    test "parse_value dispatches number" do
+      result = Axiom.eval(@json_parser <> ~s("99.0" CHARS parse_value))
+      assert result == [[], jv("JNum", [99.0])]
+    end
+
+    test "parse_value dispatches string" do
+      result = Axiom.eval(@json_parser <> ~S("\"world\"" CHARS parse_value))
+      assert result == [[], jv("JStr", ["world"])]
+    end
+
+    test "parse_value skips leading whitespace" do
+      result = Axiom.eval(@json_parser <> ~s("  false" CHARS parse_value))
+      assert result == [[], jv("JBool", [false])]
+    end
+
+    test "parse_value leaves trailing chars on stack" do
+      # parse_value consumes 'null' and leaves ',' as remaining
+      result = Axiom.eval(@json_parser <> ~s("null," CHARS parse_value))
+      assert result == [[","], jv("JNull", [])]
+    end
+  end
+
   describe "IO" do
     test "ARGV returns empty list by default" do
       Process.delete(:axiom_argv)

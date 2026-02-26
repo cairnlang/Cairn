@@ -451,12 +451,12 @@ defmodule Axiom.Checker do
                 end
               end)
 
-            # Push return types
+            # Push return types — reverse so return_types[0] lands on top
             state =
               if return_types == [:void] do
                 state
               else
-                Enum.reduce(return_types, state, fn type, st ->
+                Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                   %{st | stack: Stack.push(st.stack, type)}
                 end)
               end
@@ -472,7 +472,7 @@ defmodule Axiom.Checker do
               if return_types == [:void] do
                 state
               else
-                Enum.reduce(return_types, state, fn type, st ->
+                Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                   %{st | stack: Stack.push(st.stack, type)}
                 end)
               end
@@ -506,7 +506,7 @@ defmodule Axiom.Checker do
               end)
 
             state =
-              Enum.reduce(return_types, state, fn type, st ->
+              Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                 %{st | stack: Stack.push(st.stack, type)}
               end)
 
@@ -518,7 +518,7 @@ defmodule Axiom.Checker do
                 "constructor '#{name}' requires #{arity} argument(s) (stack underflow)")
 
             state =
-              Enum.reduce(return_types, state, fn type, st ->
+              Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                 %{st | stack: Stack.push(st.stack, type)}
               end)
 
@@ -757,8 +757,8 @@ defmodule Axiom.Checker do
             end
           end)
 
-        # Push result types
-        Enum.reduce(pushes, state, fn type, st ->
+        # Push result types — reverse so pushes[0] lands on top
+        Enum.reduce(Enum.reverse(pushes), state, fn type, st ->
           # If the push type is :num_result, resolve based on inputs
           resolved =
             case type do
@@ -774,7 +774,7 @@ defmodule Axiom.Checker do
           "#{format_op(op)} requires #{arity} value(s) on the stack (stack underflow)")
 
         # Best-effort: push result types
-        Enum.reduce(pushes, state, fn type, st ->
+        Enum.reduce(Enum.reverse(pushes), state, fn type, st ->
           resolved = if type == :num_result, do: :num, else: type
           %{st | stack: Stack.push(st.stack, resolved)}
         end)

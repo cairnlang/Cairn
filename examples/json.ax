@@ -1,0 +1,122 @@
+# json.ax — JSON scalar parser written in Axiom
+# Milestone: recursive sum types + string primitives → a real parser
+#
+# All parse_X functions share one interface:
+#   Input:  [str] (remaining chars) on top of stack
+#   Output: [str] (remaining chars) on top, parsed json value below
+#
+# Stack convention: param_types[0] is top-of-stack.
+
+TYPE json = JNull | JBool bool | JNum float | JStr str | JArr [json] | JObj map[str json]
+
+# --- Whitespace helpers ---
+
+DEF is_ws : str -> bool
+  " \t\n\r" SWAP CONTAINS
+END
+
+DEF skip_ws : [str] -> [str]
+  DUP LEN 0 GT
+  IF
+    DUP HEAD is_ws
+    IF TAIL skip_ws
+    END
+  END
+END
+
+# --- Internal: accumulate chars while predicate holds ---
+# collect_num: collect digits / . / e / E / + / - from front of char list
+# Stack in:  [str](remaining) on top, str(acc) below
+# Stack out: [str](remaining) on top, str(acc) below
+
+DEF collect_num : [str] str -> [str] str
+  DUP LEN 0 GT
+  IF
+    DUP HEAD "0123456789.eE+-" SWAP CONTAINS
+    IF
+      DUP TAIL SWAP HEAD  # [char, [str_tail], acc]
+      ROT SWAP CONCAT     # [acc<>char, [str_tail]]
+      SWAP collect_num
+    END
+  END
+END
+
+# collect_str_chars: collect chars into accumulator until closing '"' (which is consumed)
+# Stack in:  [str](remaining, after opening ") on top, str(acc) below
+# Stack out: [str](remaining, after closing ")  on top, str(acc) below
+
+DEF collect_str_chars : [str] str -> [str] str
+  DUP HEAD "\"" EQ
+  IF
+    TAIL               # skip the closing quote
+  ELSE
+    DUP TAIL SWAP HEAD  # [char, [str_tail], acc]
+    ROT SWAP CONCAT     # [acc<>char, [str_tail]]
+    SWAP collect_str_chars
+  END
+END
+
+# --- Scalar parsers ---
+
+DEF parse_null : [str] -> [str] json
+  TAIL TAIL TAIL TAIL   # consume 'n','u','l','l'
+  JNull
+  SWAP
+END
+
+DEF parse_bool : [str] -> [str] json
+  DUP HEAD "t" EQ
+  IF
+    TAIL TAIL TAIL TAIL   # consume 't','r','u','e'
+    T JBool
+  ELSE
+    TAIL TAIL TAIL TAIL TAIL  # consume 'f','a','l','s','e'
+    F JBool
+  END
+  SWAP
+END
+
+DEF parse_number : [str] -> [str] json
+  "" SWAP          # [str] on top, "" accumulator below
+  collect_num      # [[str_remaining], num_str]
+  SWAP TO_FLOAT JNum SWAP
+END
+
+DEF parse_string : [str] -> [str] json
+  TAIL             # skip opening '"'
+  "" SWAP          # [str] on top, "" accumulator below
+  collect_str_chars
+  SWAP JStr SWAP
+END
+
+# --- Dispatcher: any JSON scalar value ---
+# (arrays and objects are a future milestone)
+
+DEF parse_value : [str] -> [str] json
+  skip_ws
+  DUP HEAD
+  DUP "n" EQ
+  IF DROP parse_null
+  ELSE DUP "t" EQ
+    IF DROP parse_bool
+    ELSE DUP "f" EQ
+      IF DROP parse_bool
+      ELSE DUP "\"" EQ
+        IF DROP parse_string
+        ELSE DROP parse_number
+        END
+      END
+    END
+  END
+END
+
+# --- Demo ---
+# Each call: parse, print the json value, discard remaining chars.
+
+"null"        CHARS parse_value DROP SAY DROP  # {:variant,"json","JNull",[]}
+"true"        CHARS parse_value DROP SAY DROP  # {:variant,"json","JBool",[true]}
+"false"       CHARS parse_value DROP SAY DROP  # {:variant,"json","JBool",[false]}
+"42.5"        CHARS parse_value DROP SAY DROP  # {:variant,"json","JNum",[42.5]}
+"-7.0"        CHARS parse_value DROP SAY DROP  # {:variant,"json","JNum",[-7.0]}
+"\"hello\""   CHARS parse_value DROP SAY DROP  # {:variant,"json","JStr",["hello"]}
+"  null"      CHARS parse_value DROP SAY DROP  # whitespace skip -> JNull

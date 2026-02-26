@@ -85,7 +85,9 @@ defmodule Axiom.Checker.Effects do
     values: %{pops: [{:map, :any, :any}], pushes: [{:list, :any}]},
     has: %{pops: [:any, {:map, :any, :any}], pushes: [:bool]},
     mlen: %{pops: [{:map, :any, :any}], pushes: [:int]},
-    merge: %{pops: [{:map, :any, :any}, {:map, :any, :any}], pushes: [{:map, :any, :any}]}
+    merge:   %{pops: [{:map, :any, :any}, {:map, :any, :any}], pushes: [{:map, :any, :any}]},
+    pairs:   %{pops: [{:map, :any, :any}], pushes: [{:list, {:list, :any}}]},
+    num_str: %{pops: [:num], pushes: [:str]}
   }
 
   @doc """

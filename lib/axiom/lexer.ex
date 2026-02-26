@@ -14,8 +14,8 @@ defmodule Axiom.Lexer do
                 RANGE PRINT SAY
                 ARGV READ_FILE WRITE_FILE READ_LINE
                 WORDS LINES CONTAINS
-                CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT JOIN
-                GET PUT DEL KEYS VALUES HAS MLEN MERGE)
+                CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT NUM_STR JOIN
+                GET PUT DEL KEYS VALUES HAS MLEN MERGE PAIRS)
 
   @type_names ~w(int float bool any void str)
 

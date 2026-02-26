@@ -169,6 +169,12 @@ defmodule Axiom.Runtime do
   def execute(:merge, [map2, map1 | rest]) when is_map(map1) and is_map(map2),
     do: [Map.merge(map1, map2) | rest]
 
+  def execute(:pairs, [map | rest]) when is_map(map),
+    do: [map |> Map.to_list() |> Enum.map(fn {k, v} -> [k, v] end) | rest]
+
+  def execute(:num_str, [n | rest]) when is_float(n), do: [Float.to_string(n) | rest]
+  def execute(:num_str, [n | rest]) when is_integer(n), do: [Integer.to_string(n) | rest]
+
   # WORDS: split string on whitespace, push list of words
   def execute(:words, [s | rest]) when is_binary(s), do: [String.split(s) | rest]
 

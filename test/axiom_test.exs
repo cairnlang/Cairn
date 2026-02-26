@@ -915,6 +915,95 @@ defmodule AxiomTest do
     end
   end
 
+  # Full json.ax source including encoder (no demo expressions)
+  @json_full File.read!("examples/json.ax")
+             |> String.split("\n# --- Demo:")
+             |> hd()
+
+  describe "JSON encoder" do
+    test "encode JNull" do
+      assert Axiom.eval(@json_full <> " JNull encode") == ["null"]
+    end
+
+    test "encode JBool true" do
+      assert Axiom.eval(@json_full <> " T JBool encode") == ["true"]
+    end
+
+    test "encode JBool false" do
+      assert Axiom.eval(@json_full <> " F JBool encode") == ["false"]
+    end
+
+    test "encode JNum" do
+      assert Axiom.eval(@json_full <> " 42.5 JNum encode") == ["42.5"]
+    end
+
+    test "encode JStr" do
+      assert Axiom.eval(@json_full <> ~S( "hello" JStr encode)) == [~S("hello")]
+    end
+
+    test "encode empty JArr" do
+      assert Axiom.eval(@json_full <> " [] JArr encode") == ["[]"]
+    end
+
+    test "encode JArr with elements" do
+      result = Axiom.eval(@json_full <> " [ 1.0 JNum 2.0 JNum ] JArr encode")
+      assert result == ["[1.0,2.0]"]
+    end
+
+    test "encode empty JObj" do
+      assert Axiom.eval(@json_full <> " M[] JObj encode") == ["{}"]
+    end
+
+    test "encode JObj with entry" do
+      result = Axiom.eval(@json_full <> ~S( M[] "x" 1.0 JNum PUT JObj encode))
+      assert result == [~S({"x":1.0})]
+    end
+
+    test "round-trip: parse then encode scalars" do
+      for src <- ["null", "true", "false", "42.5", "-7.0"] do
+        result = Axiom.eval(@json_full <> ~s( "#{src}" CHARS parse_value DROP encode))
+        assert result == [src], "round-trip failed for #{src}"
+      end
+    end
+
+    test "round-trip: parse then encode array" do
+      result = Axiom.eval(@json_full <> ~s( "[1.0,2.0]" CHARS parse_value DROP encode))
+      assert result == ["[1.0,2.0]"]
+    end
+
+    test "round-trip: parse then encode object" do
+      # Single key avoids map-ordering concerns; ~S keeps the \" literal for Axiom
+      result = Axiom.eval(@json_full <> ~S( "{\"x\":42.5}" CHARS parse_value DROP encode))
+      assert result == [~S({"x":42.5})]
+    end
+
+    test "round-trip: parse then encode nested array-of-objects" do
+      result = Axiom.eval(@json_full <> ~S( "[{\"n\":1.0}]" CHARS parse_value DROP encode))
+      assert result == [~S([{"n":1.0}])]
+    end
+  end
+
+  describe "VERIFY sum type generation" do
+    test "VERIFY works on a json -> json identity function" do
+      source = @json_full <> """
+      DEF json_id : json -> json
+      END
+      VERIFY json_id 50
+      """
+      assert Axiom.eval(source) == []
+    end
+
+    test "VERIFY round-trip: encode then parse gives back same value" do
+      source = @json_full <> """
+      DEF roundtrip : json -> json
+        encode CHARS parse_value DROP
+      END
+      VERIFY roundtrip 50
+      """
+      assert Axiom.eval(source) == []
+    end
+  end
+
   describe "IO" do
     test "ARGV returns empty list by default" do
       Process.delete(:axiom_argv)

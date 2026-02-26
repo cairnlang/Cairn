@@ -27,7 +27,6 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Symbolic execution of function bodies into SMT-LIB v2 formulas
 - Z3 integration: `PRE AND NOT(POST)` — if unsat, contract is mathematically proven
 - Supports: integer arithmetic, comparisons, logic, stack manipulation
-- Limitations: returns UNKNOWN for IF/ELSE, loops, lists, maps, MATCH
 
 ### v0.3.0 — Algebraic Data Types
 - `TYPE name = Ctor1 | Ctor2 type | Ctor3 type type` declarations
@@ -35,33 +34,59 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Recursive/mutually recursive type support
 - Pre-registration of all function signatures (mutual recursion across functions)
 
-### v0.4.0 — JSON Parser Milestone (current)
+### v0.4.0 — JSON Parser Milestone
 - Wildcard MATCH (`_ { body }`) — catch-all pattern, discards fields
 - String primitives: CHARS, SPLIT, TRIM, STARTS_WITH, SLICE, TO_INT, TO_FLOAT, JOIN
 - ROT4 (4-element stack rotation), PAIRS (map to key-value list), NUM_STR
 - VERIFY support for user-defined sum types (StreamData.tree depth-limited generation)
 - Complete JSON parser + encoder written in Axiom (`examples/json.ax`)
-- 587 tests passing
+
+### v0.4.1 — PROVE: Branches + Function Inlining
+- PROVE handles IF/ELSE via `ite` (if-then-else) nodes in SMT-LIB
+- ABS, MIN, MAX unlocked as syntactic sugar for conditionals
+- Function call inlining during symbolic execution (depth limit 10)
+- Compositional proofs: prove a helper, then prove functions that call it
+- `examples/proven.ax` — abs, distance, clamp, symmetry proofs
+- 610 tests passing
 
 ---
 
 ## Next Up
 
-### v0.5.0 — PROVE for Branches and Algebraic Types
+### v0.5.0 — Practical Language Features
 
-**Goal:** Unlock PROVE for the majority of real functions by adding path-splitting.
-
-Currently PROVE returns UNKNOWN for any function with IF/ELSE or MATCH. Path-splitting in the Z3 translation would handle these by asserting `(cond => post_then) AND (NOT cond => post_else)`.
+**Goal:** Make Axiom usable for real programs beyond toy examples. The language has strong verification foundations but lacks practical features that any working language needs.
 
 **Deliverables:**
-- PROVE handles IF/ELSE via path-splitting in symbolic execution
-- PROVE handles MATCH by enumerating constructor cases
-- Provable examples: `abs_val`, `max`, `safe_div`, `unwrap_or`
-- Stretch: PROVE for simple recursive functions (induction-style)
 
-**Why now:** PROVE is Axiom's most distinctive feature, but it's crippled for anything beyond straight-line arithmetic. This is the smallest change that makes it dramatically more useful.
+- **LET bindings** — named local values for readability
+  `LET x 42` pushes 42 and binds it to `x`; `x` pushes a copy.
+  Stack-only code is fine for small functions but unreadable past 5-6 operations. Even Forth has variables.
 
-### v0.6.0 — Typed BEAM Concurrency
+- **String interpolation or formatting** — SAY/PRINT are bare-bones, no way to build formatted output
+
+- **Error handling beyond contracts** — currently the only error mechanism is contract violations crashing. Need TRY/CATCH or Result-based error flow for I/O, parsing, and other fallible operations.
+
+- **IMPORT / module system** — no way to split code across files. Every example is a single monolithic `.ax` file. A working language needs `IMPORT "file.ax"` or similar.
+
+- **Standard library extraction** — move common patterns (abs, max, min, clamp, etc.) from inline definitions into a prelude that's always available
+
+**Why now:** Axiom has a JSON parser, algebraic types, a type checker, VERIFY, and PROVE — but you still can't split code across files, name intermediate values, or handle errors gracefully. These gaps block any project larger than a single-file example.
+
+### v0.6.0 — PROVE for Algebraic Types + Refinements
+
+**Goal:** Extend PROVE to handle MATCH and unlock refinement-style reasoning.
+
+**Deliverables:**
+- PROVE handles MATCH by enumerating constructor cases (encode as nested `ite`)
+- Provable examples: `safe_div`, `unwrap_or`, `map_option`
+- PRE conditions narrow types within function bodies (refinement-lite)
+- Static detection of unreachable branches after PRE
+- Stretch: bounded recursion unrolling for simple recursive functions
+
+**Why after v0.5.0:** More PROVE power is valuable but the language needs practical features first. No one will use PROVE on a program they can't modularize.
+
+### v0.7.0 — Typed BEAM Concurrency
 
 **Goal:** Type-safe message passing on the BEAM — the feature no other language has.
 
@@ -86,17 +111,7 @@ DEF pinger : pid[msg] -> void
 END
 ```
 
-**Why after v0.5.0:** Typed concurrency benefits enormously from PROVE — imagine proving that a state machine's transitions never violate an invariant across all message types.
-
-### v0.7.0 — Refinement Types and Advanced Static Analysis
-
-**Goal:** Use contracts to inform type narrowing at compile time.
-
-**Deliverables:**
-- PRE conditions narrow types within function bodies (e.g., `PRE { DUP 0 GTE }` narrows `int` to `non_negative_int`)
-- Static detection of unreachable code (dead branch after PRE)
-- Contract-aware type inference across function calls
-- Warning when PROVE can statically detect a PRE violation at a call site
+**Why after v0.6.0:** Typed concurrency benefits enormously from PROVE — imagine proving that a state machine's transitions never violate an invariant across all message types.
 
 ### v0.8.0 — BEAM Bytecode Compilation
 
@@ -130,7 +145,7 @@ These are high-ambition features from the original vision documents. They requir
 ### Multi-Agent Collaboration
 - Content-addressed DAG enables structural merge/conflict resolution
 - Multiple AI agents editing the same codebase via DAG operations
-- Typed inter-agent message passing (builds on v0.6.0 concurrency)
+- Typed inter-agent message passing (builds on v0.7.0 concurrency)
 
 ### Advanced Verification
 - Inductive proofs for recursive functions
@@ -159,8 +174,8 @@ These are high-ambition features from the original vision documents. They requir
                                  +-----+----------+
                                  |     |          |
                            Runtime     |    Solver
-                           (operators) |    (symbolic exec -> SMT-LIB -> Z3)
-                                 |     |
+                           (operators) |    (symbolic exec -> SMT-LIB -> Z3
+                                 |     |     IF/ELSE via ite, function inlining)
                            Contract  Verify
                            checker   (StreamData, sum type generation)
                            (PRE/POST)

@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.4.0**: Interpreted postfix core with a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, and a **JSON parser + encoder** written entirely in Axiom.
+**v0.4.1**: Interpreted postfix core with a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, and a **JSON parser + encoder** written entirely in Axiom.
 
 ## Quick Start
 
@@ -673,9 +673,13 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.1.0** (complete): Static type checker, VERIFY (property-based contract testing), maps, Safe Bank milestone
 - **v0.2.0** (complete): PROVE — compile-time contract verification via Z3 SMT solver
 - **v0.3.0** (complete): Algebraic data types (TYPE/MATCH) — Option, Result, and user-defined sum types with exhaustiveness checking
-- **v0.4.0** (current): JSON parser/encoder milestone — wildcard MATCH, string primitives (CHARS, SPLIT, TRIM, STARTS_WITH, SLICE, TO_INT, TO_FLOAT, JOIN), ROT4, PAIRS, NUM_STR, VERIFY for sum types, mutually recursive function support
-- **Next**: Typed BEAM concurrency (typed message passing, stateful actors)
-- **Future**: Tensor/distribution primitives, multi-agent collaboration, BEAM bytecode compilation
+- **v0.4.0** (complete): JSON parser/encoder milestone — wildcard MATCH, string primitives, ROT4, PAIRS, NUM_STR, VERIFY for sum types
+- **v0.4.1** (current): PROVE for IF/ELSE branches (via SMT-LIB `ite`), ABS/MIN/MAX, function call inlining
+- **v0.5.0** (next): Practical language features — LET bindings, IMPORT/modules, error handling, standard library
+- **v0.6.0**: PROVE for MATCH/algebraic types, refinement-style reasoning
+- **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
+- **v0.8.0**: BEAM bytecode compilation
+- **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration
 
 ## Requirements
 

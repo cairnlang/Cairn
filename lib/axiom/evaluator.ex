@@ -68,15 +68,24 @@ defmodule Axiom.Evaluator do
     {arms, remaining} = collect_match_arms(rest, [], 0)
 
     case Enum.find(arms, fn {arm_ctor, _} -> arm_ctor == ctor_name end) do
-      nil ->
-        raise Axiom.RuntimeError,
-          "MATCH at word #{pos + 1}: no arm for constructor '#{ctor_name}'"
-
       {_ctor, arm_tokens} ->
         # Push fields onto stack (last field first so first field is on top)
         field_stack = Enum.reverse(fields) ++ stack
         {stack, env} = run(arm_tokens, field_stack, env)
         run(remaining, stack, env)
+
+      nil ->
+        # Try wildcard catch-all arm
+        case Enum.find(arms, fn {arm_ctor, _} -> arm_ctor == :wildcard end) do
+          {:wildcard, arm_tokens} ->
+            # Wildcard discards all fields — body starts with clean stack
+            {stack, env} = run(arm_tokens, stack, env)
+            run(remaining, stack, env)
+
+          nil ->
+            raise Axiom.RuntimeError,
+              "MATCH at word #{pos + 1}: no arm for constructor '#{ctor_name}'"
+        end
     end
   end
 
@@ -310,6 +319,11 @@ defmodule Axiom.Evaluator do
   defp collect_match_arms([{:constructor, name, _}, {:block_open, _, _} | rest], arms, depth) do
     {block_tokens, remaining} = collect_block(rest, 0, [])
     collect_match_arms(remaining, [{name, block_tokens} | arms], depth)
+  end
+
+  defp collect_match_arms([{:wildcard, _, _}, {:block_open, _, _} | rest], arms, depth) do
+    {block_tokens, remaining} = collect_block(rest, 0, [])
+    collect_match_arms(remaining, [{:wildcard, block_tokens} | arms], depth)
   end
 
   defp collect_match_arms([{:match_kw, _, _} | _rest], _arms, _depth) do

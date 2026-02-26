@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.3.0**: Interpreted postfix core with a **static type checker**, **algebraic data types** (TYPE/MATCH), **property-based verification** (VERIFY), **compile-time proof** (PROVE via Z3), runtime contracts (PRE/POST), **maps**, closures, loops, and a REPL.
+**v0.4.0**: Interpreted postfix core with a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, and a **JSON parser + encoder** written entirely in Axiom.
 
 ## Quick Start
 
@@ -21,10 +21,13 @@ mix axiom.run examples/option.ax
 # Verify contracts with random testing + compile-time proof
 mix axiom.run examples/bank.ax
 
+# JSON parser + encoder (recursive sum types in action)
+mix axiom.run examples/json.ax
+
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 
-# Run tests (464 tests)
+# Run tests (587 tests)
 mix test
 ```
 
@@ -80,7 +83,7 @@ EQ NEQ GT LT GTE LTE
 AND OR NOT
 
 # Stack manipulation
-DUP DROP SWAP OVER ROT
+DUP DROP SWAP OVER ROT ROT4
 
 # List operations
 SUM LEN HEAD TAIL CONS CONCAT SORT REVERSE RANGE
@@ -103,6 +106,8 @@ KEYS                           # pop map, push list of keys
 VALUES                         # pop map, push list of values
 MLEN                           # pop map, push size
 MERGE                          # pop map2, pop map1, push merged (map2 wins)
+PAIRS                          # pop map, push list of [key, value] pairs
+NUM_STR                        # pop number (int or float), push string
 
 # String operations
 CONCAT                         # concatenate two strings (or two lists)
@@ -110,6 +115,14 @@ WORDS                          # split string into words (on whitespace)
 LINES                          # split string into lines
 CONTAINS                       # check if string contains substring
 LEN                            # also works on strings (character count)
+CHARS                          # split string into list of single characters
+SPLIT                          # pop delimiter, pop string, push split list
+TRIM                           # remove leading/trailing whitespace
+STARTS_WITH                    # pop prefix, pop string, push bool
+SLICE                          # pop len, pop start, pop string, push substring
+TO_INT                         # parse string as integer
+TO_FLOAT                       # parse string as float
+JOIN                           # pop separator, pop list of strings, push joined
 
 # I/O
 PRINT                          # non-destructive debug output (with label)
@@ -197,6 +210,19 @@ MATCH
 END
 ```
 
+Use `_` as a **wildcard catch-all** to match any remaining constructors. The wildcard discards all fields — the body starts with a clean stack:
+
+```
+TYPE json = JNull | JBool bool | JNum float | JStr str | JArr [json] | JObj map[str json]
+
+DEF jstr_val : json -> str
+  MATCH
+    JStr { }           # JStr field (the string) is on the stack
+    _    { "" }        # all other variants: discard fields, push ""
+  END
+END
+```
+
 Using algebraic types in function signatures:
 
 ```
@@ -239,7 +265,7 @@ END
 
 ### VERIFY — Property-Based Testing
 
-`VERIFY` auto-generates random inputs, filters by PRE conditions, runs the function, and checks POST holds. Powered by StreamData.
+`VERIFY` auto-generates random inputs, filters by PRE conditions, runs the function, and checks POST holds. Powered by StreamData. Supports all types including user-defined sum types — recursive types use depth-limited generation to avoid infinite expansion.
 
 ```
 DEF withdraw : int int -> int
@@ -532,6 +558,52 @@ mix axiom.run examples/freq.ax somefile.txt
 # => %{"apple" => 2, "banana" => 1, "grape" => 1, ...}
 ```
 
+### JSON Parser and Encoder
+
+A complete JSON parser and encoder written entirely in Axiom (`examples/json.ax`), demonstrating recursive sum types, character-level string processing, and the wildcard MATCH pattern:
+
+```
+TYPE json = JNull | JBool bool | JNum float | JStr str | JArr [json] | JObj map[str json]
+
+# Parse any JSON value from a character list
+DEF parse_value : [str] -> [str] json
+  skip_ws DUP HEAD
+  DUP "n" EQ IF DROP parse_null
+  ELSE DUP "t" EQ IF DROP parse_bool
+  ELSE DUP "f" EQ IF DROP parse_bool
+  ELSE DUP "\"" EQ IF DROP parse_string
+  ELSE DUP "[" EQ IF DROP parse_array
+  ELSE DUP "{" EQ IF DROP parse_object
+  ELSE DROP parse_number
+  END END END END END END
+END
+
+# Encode any JSON value back to a string
+DEF encode : json -> str
+  MATCH
+  JNull { "null" }
+  JBool { IF "true" ELSE "false" END }
+  JNum  { NUM_STR }
+  JStr  { encode_str }
+  JArr  { { encode } MAP "," JOIN "[" SWAP CONCAT "]" CONCAT }
+  JObj  { PAIRS { encode_pair } MAP "," JOIN "{" SWAP CONCAT "}" CONCAT }
+  END
+END
+
+# Practical: extract full names from a JSON array of person objects
+DEF full_name : json -> str
+  MATCH
+  JObj { DUP "last" GET jstr_val SWAP "first" GET jstr_val " " CONCAT SWAP CONCAT }
+  _    { "" }
+  END
+END
+```
+
+```bash
+mix axiom.run examples/json.ax
+# Parses and prints JSON values, extracts names, round-trips through encode
+```
+
 ### Cat / Word Count / Grep
 
 ```bash
@@ -580,14 +652,14 @@ The checker runs **before evaluation**, walking token streams with a symbolic st
 - Return type/arity mismatches in function bodies
 - Undefined function calls
 - Unknown constructors
-- Non-exhaustive MATCH arms (missing constructors)
+- Non-exhaustive MATCH arms (missing constructors, unless `_` wildcard is present)
 - MATCH on non-variant values
 
 Errors are reported with position information and the checker continues after errors to report multiple issues in one pass.
 
 ### VERIFY Engine
 
-`VERIFY function_name N` generates N random inputs using StreamData, filters by PRE condition, executes the function, and checks POST holds. When a counterexample is found, it reports the exact inputs that broke the contract.
+`VERIFY function_name N` generates N random inputs using StreamData, filters by PRE condition, executes the function, and checks POST holds. When a counterexample is found, it reports the exact inputs that broke the contract. User-defined sum types are supported with depth-limited recursive generation (via `StreamData.tree`).
 
 ### PROVE Solver
 
@@ -600,8 +672,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.0.1** (complete): Interpreter, PRE/POST contracts, REPL, TIMES/WHILE, FILTER/MAP/REDUCE, strings, I/O
 - **v0.1.0** (complete): Static type checker, VERIFY (property-based contract testing), maps, Safe Bank milestone
 - **v0.2.0** (complete): PROVE — compile-time contract verification via Z3 SMT solver
-- **v0.3.0** (current): Algebraic data types (TYPE/MATCH) — Option, Result, and user-defined sum types with exhaustiveness checking
-- **Next**: Typed BEAM concurrency (typed message passing, stateful actors), JSON parser built on sum types
+- **v0.3.0** (complete): Algebraic data types (TYPE/MATCH) — Option, Result, and user-defined sum types with exhaustiveness checking
+- **v0.4.0** (current): JSON parser/encoder milestone — wildcard MATCH, string primitives (CHARS, SPLIT, TRIM, STARTS_WITH, SLICE, TO_INT, TO_FLOAT, JOIN), ROT4, PAIRS, NUM_STR, VERIFY for sum types, mutually recursive function support
+- **Next**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **Future**: Tensor/distribution primitives, multi-agent collaboration, BEAM bytecode compilation
 
 ## Requirements

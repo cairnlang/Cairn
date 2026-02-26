@@ -216,12 +216,8 @@ END
 # Extract the str payload from a JStr; return "" for any other json variant.
 DEF jstr_val : json -> str
   MATCH
-  JNull { "" }
-  JBool { DROP "" }
-  JNum  { DROP "" }
-  JStr  { }
-  JArr  { DROP "" }
-  JObj  { DROP "" }
+  JStr { }
+  _    { "" }
   END
 END
 
@@ -229,30 +225,22 @@ END
 # Stack inside JObj branch: person_map on top.
 DEF full_name : json -> str
   MATCH
-  JNull { "" }
-  JBool { DROP "" }
-  JNum  { DROP "" }
-  JStr  { }
-  JArr  { DROP "" }
-  JObj  {
+  JObj {
     DUP "last"  GET jstr_val   # [last_str,  person_map]
     SWAP                        # [person_map, last_str]
     "first" GET jstr_val        # [first_str, last_str]
     " " CONCAT                  # ["first ",  last_str]
     SWAP CONCAT                 # "first " <> last_str  =  "First Last"
   }
+  _ { "" }
   END
 END
 
 # Given a JArr of JObj person records, return a [str] list of full names.
 DEF names_of : json -> [str]
   MATCH
-  JArr  { { full_name } MAP }
-  JNull { [] }
-  JBool { DROP [] }
-  JNum  { DROP [] }
-  JStr  { DROP [] }
-  JObj  { DROP [] }
+  JArr { { full_name } MAP }
+  _    { [] }
   END
 END
 

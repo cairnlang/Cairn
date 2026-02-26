@@ -569,10 +569,11 @@ defmodule Axiom.Checker do
       {:ok, {:user_type, type_name}, base_stack} ->
         state = %{state | stack: base_stack}
         typedef = Map.get(state.types, type_name)
+        has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
 
-        # Exhaustiveness check
+        # Exhaustiveness check — skip if wildcard catch-all is present
         state =
-          if typedef do
+          if typedef && !has_wildcard do
             arm_names = MapSet.new(arms, fn {name, _} -> name end)
             all_ctors = MapSet.new(Map.keys(typedef.variants))
             missing = MapSet.difference(all_ctors, arm_names)
@@ -589,16 +590,21 @@ defmodule Axiom.Checker do
 
         # Walk each arm
         arm_states =
-          Enum.map(arms, fn {ctor_name, arm_tokens} ->
-            field_types =
-              if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
+          Enum.map(arms, fn
+            {:wildcard, arm_tokens} ->
+              # Wildcard arm: no fields pushed — body starts with base stack
+              walk(arm_tokens, %{state | stack: base_stack})
 
-            arm_stack =
-              field_types
-              |> Enum.reverse()
-              |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+            {ctor_name, arm_tokens} ->
+              field_types =
+                if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
 
-            walk(arm_tokens, %{state | stack: arm_stack})
+              arm_stack =
+                field_types
+                |> Enum.reverse()
+                |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+
+              walk(arm_tokens, %{state | stack: arm_stack})
           end)
 
         {result_stack, state} = unify_arm_stacks(arm_states, state, pos)
@@ -1011,6 +1017,14 @@ defmodule Axiom.Checker do
        ) do
     {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
     collect_checker_match_arms(remaining, [{name, block_tokens} | arms])
+  end
+
+  defp collect_checker_match_arms(
+         [{:wildcard, _, _}, {:block_open, _, _} | rest],
+         arms
+       ) do
+    {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    collect_checker_match_arms(remaining, [{:wildcard, block_tokens} | arms])
   end
 
   defp collect_checker_match_arms([], arms) do

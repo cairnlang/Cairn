@@ -97,6 +97,7 @@ defmodule Axiom.Lexer do
   defp classify("[]"), do: {:ok, {:list_lit, []}}
   defp classify("M["), do: {:ok, {:map_open, "M["}}
   defp classify("M[]"), do: {:ok, {:map_lit, %{}}}
+  defp classify("_"), do: {:ok, {:wildcard, "_"}}
 
   defp classify(word) do
     cond do

@@ -1250,4 +1250,115 @@ defmodule AxiomTest do
       end
     end
   end
+
+  describe "wildcard MATCH" do
+    test "wildcard catches unmatched constructors" do
+      source = """
+      TYPE color = Red | Green | Blue
+      DEF is_red : color -> bool
+        MATCH
+          Red { T }
+          _ { F }
+        END
+      END
+      Red is_red
+      """
+      assert Axiom.eval(source) == [true]
+    end
+
+    test "wildcard falls through when no named arm matches" do
+      source = """
+      TYPE color = Red | Green | Blue
+      DEF is_red : color -> bool
+        MATCH
+          Red { T }
+          _ { F }
+        END
+      END
+      Blue is_red
+      """
+      assert Axiom.eval(source) == [false]
+    end
+
+    test "wildcard as sole arm matches everything" do
+      source = """
+      TYPE color = Red | Green | Blue
+      DEF always_42 : color -> int
+        MATCH
+          _ { 42 }
+        END
+      END
+      Green always_42
+      """
+      assert Axiom.eval(source) == [42]
+    end
+
+    test "wildcard discards fields (clean stack)" do
+      source = @json_type <> """
+      DEF is_null : json -> bool
+        MATCH
+          JNull { T }
+          _ { F }
+        END
+      END
+      3.14 JNum is_null
+      """
+      # JNum has 1 field (float) — wildcard must discard it
+      assert Axiom.eval(source) == [false]
+    end
+
+    test "wildcard with multi-field variant discards all fields" do
+      source = """
+      TYPE shape = Point | Circle float | Rect float float
+      DEF is_point : shape -> bool
+        MATCH
+          Point { T }
+          _ { F }
+        END
+      END
+      3.0 4.0 Rect is_point
+      """
+      # Rect has 2 fields — wildcard must discard both
+      assert Axiom.eval(source) == [false]
+    end
+
+    test "type checker accepts wildcard as exhaustive" do
+      source = @json_type <> """
+      DEF is_null : json -> bool
+        MATCH
+          JNull { T }
+          _ { F }
+        END
+      END
+      """
+      # Should not raise — wildcard makes it exhaustive
+      assert :ok = Axiom.Checker.check(elem(Axiom.Parser.parse(elem(Axiom.Lexer.tokenize(source), 1)), 1))
+    end
+
+    test "wildcard works with json.ax helpers" do
+      source = @json_full <> """
+      DEF jstr_val2 : json -> str
+        MATCH
+          JStr { }
+          _ { "" }
+        END
+      END
+      "hello" JStr jstr_val2
+      """
+      assert Axiom.eval(source) == ["hello"]
+    end
+
+    test "wildcard works with json.ax helpers — fallback case" do
+      source = @json_full <> """
+      DEF jstr_val2 : json -> str
+        MATCH
+          JStr { }
+          _ { "" }
+        END
+      END
+      JNull jstr_val2
+      """
+      assert Axiom.eval(source) == [""]
+    end
+  end
 end

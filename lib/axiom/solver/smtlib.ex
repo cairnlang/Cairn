@@ -43,6 +43,7 @@ defmodule Axiom.Solver.SmtLib do
   def emit_constraint({:and, a, b}), do: "(and #{emit_constraint(a)} #{emit_constraint(b)})"
   def emit_constraint({:or, a, b}), do: "(or #{emit_constraint(a)} #{emit_constraint(b)})"
   def emit_constraint({:not, a}), do: "(not #{emit_constraint(a)})"
+  def emit_constraint({:ite_bool, cond, t, e}), do: "(ite #{emit_constraint(cond)} #{emit_constraint(t)} #{emit_constraint(e)})"
 
   @doc """
   Emit an integer expression as an SMT-LIB v2 string.
@@ -57,6 +58,7 @@ defmodule Axiom.Solver.SmtLib do
   def emit_expr({:div, a, b}), do: "(div #{emit_expr(a)} #{emit_expr(b)})"
   def emit_expr({:mod, a, b}), do: "(mod #{emit_expr(a)} #{emit_expr(b)})"
   def emit_expr({:neg, a}), do: "(- #{emit_expr(a)})"
+  def emit_expr({:ite, cond, t, e}), do: "(ite #{emit_constraint(cond)} #{emit_expr(t)} #{emit_expr(e)})"
 
   @doc """
   Collect all variable names referenced in a constraint.
@@ -79,6 +81,12 @@ defmodule Axiom.Solver.SmtLib do
     do_collect_constraint_vars(a, acc)
   end
 
+  defp do_collect_constraint_vars({:ite_bool, cond, t, e}, acc) do
+    acc = do_collect_constraint_vars(cond, acc)
+    acc = do_collect_constraint_vars(t, acc)
+    do_collect_constraint_vars(e, acc)
+  end
+
   defp do_collect_constraint_vars({_cmp, a, b}, acc) do
     acc = do_collect_expr_vars(a, acc)
     do_collect_expr_vars(b, acc)
@@ -87,6 +95,12 @@ defmodule Axiom.Solver.SmtLib do
   defp do_collect_expr_vars({:var, name}, acc), do: MapSet.put(acc, name)
   defp do_collect_expr_vars({:const, _}, acc), do: acc
   defp do_collect_expr_vars({:neg, a}, acc), do: do_collect_expr_vars(a, acc)
+
+  defp do_collect_expr_vars({:ite, cond, t, e}, acc) do
+    acc = do_collect_constraint_vars(cond, acc)
+    acc = do_collect_expr_vars(t, acc)
+    do_collect_expr_vars(e, acc)
+  end
 
   defp do_collect_expr_vars({_op, a, b}, acc) do
     acc = do_collect_expr_vars(a, acc)

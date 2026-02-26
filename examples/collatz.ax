@@ -4,11 +4,15 @@
 # Runs until it reaches 1
 
 DEF step : int -> int
+  PRE { DUP 0 GT }
   DUP 2 MOD 0 EQ
   IF 2 DIV
   ELSE 3 MUL 1 ADD
   END
   POST DUP 0 GT
 END
+
+# Mathematically prove that step preserves positivity
+PROVE step
 
 27 { DUP 1 GT } { step } WHILE SAY DROP

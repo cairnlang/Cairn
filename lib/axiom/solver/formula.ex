@@ -15,6 +15,7 @@ defmodule Axiom.Solver.Formula do
           | {:div, expr, expr}
           | {:mod, expr, expr}
           | {:neg, expr}
+          | {:ite, constraint, expr, expr}
 
   # Symbolic boolean (constraint formula)
   @type constraint ::
@@ -27,6 +28,7 @@ defmodule Axiom.Solver.Formula do
           | {:and, constraint, constraint}
           | {:or, constraint, constraint}
           | {:not, constraint}
+          | {:ite_bool, constraint, constraint, constraint}
           | true
           | false
 
@@ -55,6 +57,9 @@ defmodule Axiom.Solver.Formula do
   def sand(a, b), do: {:and, a, b}
   def sor(a, b), do: {:or, a, b}
   def snot(a), do: {:not, a}
+
+  def ite(cond, t, e), do: {:ite, cond, t, e}
+  def ite_bool(cond, t, e), do: {:ite_bool, cond, t, e}
 
   def int_expr(e), do: {:int_expr, e}
   def bool_expr(c), do: {:bool_expr, c}

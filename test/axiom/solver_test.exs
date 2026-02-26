@@ -239,23 +239,27 @@ defmodule Axiom.SolverTest do
     end
   end
 
+  describe "Symbolic.execute — ABS, MIN, MAX" do
+    test "ABS produces ite expression" do
+      stack = [{:int_expr, {:var, "p0"}}]
+      assert {:ok, [{:int_expr, {:ite, {:lt, {:var, "p0"}, {:const, 0}}, {:neg, {:var, "p0"}}, {:var, "p0"}}}]} =
+               Symbolic.execute([{:op, :abs, 0}], stack)
+    end
+
+    test "MIN produces ite expression" do
+      stack = [{:int_expr, {:var, "p0"}}, {:int_expr, {:var, "p1"}}]
+      assert {:ok, [{:int_expr, {:ite, {:lt, {:var, "p1"}, {:var, "p0"}}, {:var, "p1"}, {:var, "p0"}}}]} =
+               Symbolic.execute([{:op, :min, 0}], stack)
+    end
+
+    test "MAX produces ite expression" do
+      stack = [{:int_expr, {:var, "p0"}}, {:int_expr, {:var, "p1"}}]
+      assert {:ok, [{:int_expr, {:ite, {:gt, {:var, "p1"}, {:var, "p0"}}, {:var, "p1"}, {:var, "p0"}}}]} =
+               Symbolic.execute([{:op, :max, 0}], stack)
+    end
+  end
+
   describe "Symbolic.execute — unsupported ops" do
-    test "ABS returns unsupported" do
-      assert {:unsupported, reason} =
-               Symbolic.execute([{:op, :abs, 0}], [{:int_expr, {:var, "p0"}}])
-      assert reason =~ "ABS"
-    end
-
-    test "MIN returns unsupported" do
-      stack = [{:int_expr, {:var, "p0"}}, {:int_expr, {:var, "p1"}}]
-      assert {:unsupported, _} = Symbolic.execute([{:op, :min, 0}], stack)
-    end
-
-    test "MAX returns unsupported" do
-      stack = [{:int_expr, {:var, "p0"}}, {:int_expr, {:var, "p1"}}]
-      assert {:unsupported, _} = Symbolic.execute([{:op, :max, 0}], stack)
-    end
-
     test "FILTER returns unsupported" do
       assert {:unsupported, reason} = Symbolic.execute([{:op, :filter, 0}], [])
       assert reason =~ "FILTER"
@@ -274,8 +278,72 @@ defmodule Axiom.SolverTest do
       assert {:unsupported, _} = Symbolic.execute([{:list_open, "[", 0}], [])
     end
 
-    test "IF/ELSE returns unsupported" do
-      assert {:unsupported, _} = Symbolic.execute([{:if_kw, "IF", 0}], [])
+    test "IF without bool condition on stack returns unsupported" do
+      assert {:unsupported, _} = Symbolic.execute([{:if_kw, "IF", 0}], [{:int_expr, {:var, "p0"}}])
+    end
+  end
+
+  describe "Symbolic.execute — IF/ELSE" do
+    test "IF/END (no ELSE) — identity on false branch" do
+      # DUP 0 LT IF NEG END — abs via IF without ELSE
+      stack = [{:int_expr, {:var, "p0"}}]
+      tokens = [
+        {:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :lt, 2},
+        {:if_kw, "IF", 3}, {:op, :neg, 4}, {:fn_end, "END", 5}
+      ]
+      assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
+      # Should be ite(p0 < 0, -p0, p0)
+      assert {:ite, {:lt, {:var, "p0"}, {:const, 0}}, {:neg, {:var, "p0"}}, {:var, "p0"}} = result
+    end
+
+    test "IF/ELSE/END — both branches" do
+      # DUP 0 GTE IF ELSE NEG END — abs via IF/ELSE
+      stack = [{:int_expr, {:var, "p0"}}]
+      tokens = [
+        {:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :gte, 2},
+        {:if_kw, "IF", 3}, {:else_kw, "ELSE", 4}, {:op, :neg, 5}, {:fn_end, "END", 6}
+      ]
+      assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
+      # true branch is identity (p0), false branch is NEG (neg p0)
+      assert {:ite, {:gte, {:var, "p0"}, {:const, 0}}, {:var, "p0"}, {:neg, {:var, "p0"}}} = result
+    end
+
+    test "IF/ELSE with operations in both branches" do
+      # DUP 0 GT IF 1 ADD ELSE 1 SUB END
+      stack = [{:int_expr, {:var, "p0"}}]
+      tokens = [
+        {:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :gt, 2},
+        {:if_kw, "IF", 3},
+        {:int_lit, 1, 4}, {:op, :add, 5},
+        {:else_kw, "ELSE", 6},
+        {:int_lit, 1, 7}, {:op, :sub, 8},
+        {:fn_end, "END", 9}
+      ]
+      assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
+      assert {:ite, {:gt, {:var, "p0"}, {:const, 0}},
+              {:add, {:var, "p0"}, {:const, 1}},
+              {:sub, {:var, "p0"}, {:const, 1}}} = result
+    end
+
+    test "IF with continuation tokens after END" do
+      # DUP 0 LT IF NEG END 1 ADD
+      stack = [{:int_expr, {:var, "p0"}}]
+      tokens = [
+        {:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :lt, 2},
+        {:if_kw, "IF", 3}, {:op, :neg, 4}, {:fn_end, "END", 5},
+        {:int_lit, 1, 6}, {:op, :add, 7}
+      ]
+      assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
+      # abs(p0) + 1
+      assert {:add, {:ite, {:lt, {:var, "p0"}, {:const, 0}}, {:neg, {:var, "p0"}}, {:var, "p0"}}, {:const, 1}} = result
+    end
+
+    test "ROT4" do
+      stack = [{:int_expr, {:var, "a"}}, {:int_expr, {:var, "b"}},
+               {:int_expr, {:var, "c"}}, {:int_expr, {:var, "d"}}]
+      assert {:ok, [{:int_expr, {:var, "d"}}, {:int_expr, {:var, "a"}},
+                     {:int_expr, {:var, "b"}}, {:int_expr, {:var, "c"}}]} =
+               Symbolic.execute([{:op, :rot4, 0}], stack)
     end
   end
 
@@ -385,6 +453,11 @@ defmodule Axiom.SolverTest do
       expr = {:add, {:mul, {:var, "p0"}, {:var, "p0"}}, {:const, 1}}
       assert SmtLib.emit_expr(expr) == "(+ (* p0 p0) 1)"
     end
+
+    test "ite expression" do
+      expr = {:ite, {:lt, {:var, "p0"}, {:const, 0}}, {:neg, {:var, "p0"}}, {:var, "p0"}}
+      assert SmtLib.emit_expr(expr) == "(ite (< p0 0) (- p0) p0)"
+    end
   end
 
   describe "SmtLib.emit_constraint" do
@@ -434,6 +507,11 @@ defmodule Axiom.SolverTest do
       c = {:not, {:eq, {:var, "p0"}, {:const, 0}}}
       assert SmtLib.emit_constraint(c) == "(not (= p0 0))"
     end
+
+    test "ite_bool" do
+      c = {:ite_bool, {:lt, {:var, "p0"}, {:const, 0}}, {:gt, {:var, "p0"}, {:const, 0}}, false}
+      assert SmtLib.emit_constraint(c) == "(ite (< p0 0) (> p0 0) false)"
+    end
   end
 
   describe "SmtLib.build_script" do
@@ -477,6 +555,19 @@ defmodule Axiom.SolverTest do
       c = {:gte, {:add, {:var, "x"}, {:var, "y"}}, {:const, 0}}
       vars = SmtLib.collect_vars(c)
       assert MapSet.equal?(vars, MapSet.new(["x", "y"]))
+    end
+
+    test "collects vars through ite in expr" do
+      # ite(p0 < 0, -p0, p0) >= 0
+      c = {:gte, {:ite, {:lt, {:var, "p0"}, {:const, 0}}, {:neg, {:var, "p0"}}, {:var, "p0"}}, {:const, 0}}
+      vars = SmtLib.collect_vars(c)
+      assert MapSet.equal?(vars, MapSet.new(["p0"]))
+    end
+
+    test "collects vars through ite_bool in constraint" do
+      c = {:ite_bool, {:lt, {:var, "x"}, {:const, 0}}, {:gt, {:var, "y"}, {:const, 0}}, {:gt, {:var, "z"}, {:const, 0}}}
+      vars = SmtLib.collect_vars(c)
+      assert MapSet.equal?(vars, MapSet.new(["x", "y", "z"]))
     end
   end
 
@@ -681,6 +772,49 @@ defmodule Axiom.SolverTest do
     end
   end
 
+  describe "Prove.prove — abs with IF (should be proven)" do
+    test "proves abs POST >= 0" do
+      func = %Function{
+        name: "my_abs",
+        param_types: [:int],
+        return_types: [:int],
+        body: [
+          {:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :lt, 2},
+          {:if_kw, "IF", 3}, {:op, :neg, 4}, {:fn_end, "END", 5}
+        ],
+        pre_condition: nil,
+        post_condition: [{:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :gte, 2}]
+      }
+
+      assert {:proven, _} = Prove.prove(func)
+    end
+  end
+
+  describe "Prove.prove — IF/ELSE disprovable" do
+    test "disproves IF/ELSE with wrong postcondition" do
+      # DEF bad : int -> int
+      #   DUP 0 GT IF 1 ADD ELSE 1 SUB END
+      #   POST DUP 0 GT  -- fails when input is 0 (0-1 = -1, not > 0)
+      func = %Function{
+        name: "bad",
+        param_types: [:int],
+        return_types: [:int],
+        body: [
+          {:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :gt, 2},
+          {:if_kw, "IF", 3},
+          {:int_lit, 1, 4}, {:op, :add, 5},
+          {:else_kw, "ELSE", 6},
+          {:int_lit, 1, 7}, {:op, :sub, 8},
+          {:fn_end, "END", 9}
+        ],
+        pre_condition: nil,
+        post_condition: [{:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :gt, 2}]
+      }
+
+      assert {:disproven, _, _} = Prove.prove(func)
+    end
+  end
+
   describe "Prove.prove — unsupported operations" do
     test "function with list ops returns unknown" do
       func = %Function{
@@ -710,18 +844,18 @@ defmodule Axiom.SolverTest do
       assert reason =~ "non-int"
     end
 
-    test "function with IF in body returns unknown" do
+    test "function with IF and unsupported body op returns unknown" do
       func = %Function{
         name: "if_func",
         param_types: [:int],
         return_types: [:int],
-        body: [{:int_lit, 0, 0}, {:op, :gt, 1}, {:if_kw, "IF", 2}],
+        body: [{:int_lit, 0, 0}, {:op, :gt, 1}, {:if_kw, "IF", 2}, {:op, :print, 3}, {:fn_end, "END", 4}],
         pre_condition: nil,
         post_condition: nil
       }
 
       assert {:unknown, reason} = Prove.prove(func)
-      assert reason =~ "IF"
+      assert reason =~ "PRINT"
     end
   end
 
@@ -808,13 +942,28 @@ defmodule Axiom.SolverTest do
       end
     end
 
-    test "PROVE on function with unsupported ops prints UNKNOWN" do
+    test "PROVE abs_func with IF/ELSE is proven" do
       source = """
       DEF abs_func : int -> int
         DUP 0 GTE IF ELSE NEG END
         POST DUP 0 GTE
       END
       PROVE abs_func
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        Axiom.eval(source)
+      end)
+      assert output =~ "PROVEN"
+    end
+
+    test "PROVE on function with unsupported ops prints UNKNOWN" do
+      source = """
+      DEF list_sum : int -> int
+        RANGE SUM
+        POST DUP 0 GTE
+      END
+      PROVE list_sum
       """
 
       output = ExUnit.CaptureIO.capture_io(fn ->

@@ -1361,4 +1361,83 @@ defmodule AxiomTest do
       assert Axiom.eval(source) == [""]
     end
   end
+
+  # ── PROVE with IF/ELSE ──
+
+  describe "PROVE with IF/ELSE" do
+    test "PROVE function using IF (abs) is proven" do
+      source = """
+      DEF my_abs : int -> int
+        DUP 0 LT IF NEG END
+        POST DUP 0 GTE
+      END
+      PROVE my_abs
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        Axiom.eval(source)
+      end)
+      assert output =~ "PROVEN"
+    end
+
+    test "PROVE function using IF/ELSE is proven" do
+      source = """
+      DEF safe_abs : int -> int
+        DUP 0 GTE IF ELSE NEG END
+        POST DUP 0 GTE
+      END
+      PROVE safe_abs
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        Axiom.eval(source)
+      end)
+      assert output =~ "PROVEN"
+    end
+
+    test "PROVE function using IF/ELSE is disproven" do
+      source = """
+      DEF bad_branch : int -> int
+        DUP 0 GT IF 1 ADD ELSE 1 SUB END
+        POST DUP 0 GT
+      END
+      PROVE bad_branch
+      """
+
+      assert_raise Axiom.ContractError, ~r/DISPROVEN/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "PROVE function using ABS is proven" do
+      source = """
+      DEF use_abs : int -> int
+        ABS
+        POST DUP 0 GTE
+      END
+      PROVE use_abs
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        Axiom.eval(source)
+      end)
+      assert output =~ "PROVEN"
+    end
+
+    test "PROVE function using MIN is proven" do
+      source = """
+      DEF clamp_top : int int -> int
+        PRE { OVER 0 GTE SWAP 0 GT AND }
+        MIN
+        POST DUP 0 GTE
+      END
+      PROVE clamp_top
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        Axiom.eval(source)
+      end)
+      assert output =~ "PROVEN"
+    end
+  end
 end

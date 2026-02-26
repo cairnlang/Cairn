@@ -180,17 +180,27 @@ defmodule Axiom.Solver.Symbolic do
     walk(rest, [c, a, b | stack])
   end
 
-  # Unsupported ops — bail with reason
-  defp walk([{:op, :abs, _} | _], _stack) do
-    {:unsupported, "ABS requires if-then-else (not yet supported by PROVE)"}
+  # ROT4: [a, b, c, d | rest] -> [d, a, b, c | rest]
+  defp walk([{:op, :rot4, _} | rest], [a, b, c, d | stack]) do
+    walk(rest, [d, a, b, c | stack])
   end
 
-  defp walk([{:op, :min, _} | _], _stack) do
-    {:unsupported, "MIN requires if-then-else (not yet supported by PROVE)"}
+  # ABS: ite(a < 0, -a, a)
+  defp walk([{:op, :abs, _} | rest], [{:int_expr, a} | stack]) do
+    result = {:int_expr, {:ite, {:lt, a, {:const, 0}}, {:neg, a}, a}}
+    walk(rest, [result | stack])
   end
 
-  defp walk([{:op, :max, _} | _], _stack) do
-    {:unsupported, "MAX requires if-then-else (not yet supported by PROVE)"}
+  # MIN: ite(b < a, b, a) — b is deeper, a is top
+  defp walk([{:op, :min, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
+    result = {:int_expr, {:ite, {:lt, b, a}, b, a}}
+    walk(rest, [result | stack])
+  end
+
+  # MAX: ite(b > a, b, a) — b is deeper, a is top
+  defp walk([{:op, :max, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
+    result = {:int_expr, {:ite, {:gt, b, a}, b, a}}
+    walk(rest, [result | stack])
   end
 
   defp walk([{:op, op, _} | _], _stack)
@@ -258,9 +268,18 @@ defmodule Axiom.Solver.Symbolic do
     {:unsupported, "map operations are not supported by PROVE — use VERIFY instead"}
   end
 
-  # IF/ELSE is unsupported (future extension)
-  defp walk([{:if_kw, _, _} | _], _stack) do
-    {:unsupported, "IF/ELSE is not yet supported by PROVE — use VERIFY instead"}
+  # IF/ELSE path-splitting: symbolically execute both branches and merge with ite
+  defp walk([{:if_kw, _, _} | rest], [{:bool_expr, cond} | stack]) do
+    {then_tokens, else_tokens, remaining} = split_if_branches(rest)
+
+    with {:ok, then_stack} <- walk(then_tokens, stack),
+         {:ok, else_stack} <-
+           if(else_tokens, do: walk(else_tokens, stack), else: {:ok, stack}) do
+      case merge_stacks(cond, then_stack, else_stack) do
+        {:ok, merged} -> walk(remaining, merged)
+        {:unsupported, _} = err -> err
+      end
+    end
   end
 
   # Block literals are unsupported
@@ -276,5 +295,73 @@ defmodule Axiom.Solver.Symbolic do
   # Catch-all: unsupported token
   defp walk([token | _], _stack) do
     {:unsupported, "unsupported token #{inspect(token)} in PROVE"}
+  end
+
+  # --- IF/ELSE branch splitting ---
+
+  defp split_if_branches(tokens), do: split_if_then(tokens, 0, [])
+
+  defp split_if_then([{:fn_end, _, _} | rest], 0, acc) do
+    {Enum.reverse(acc), nil, rest}
+  end
+
+  defp split_if_then([{:else_kw, _, _} | rest], 0, acc) do
+    split_if_else(rest, 0, Enum.reverse(acc), [])
+  end
+
+  defp split_if_then([{:if_kw, _, _} = t | rest], depth, acc) do
+    split_if_then(rest, depth + 1, [t | acc])
+  end
+
+  defp split_if_then([{:fn_end, _, _} = t | rest], depth, acc) when depth > 0 do
+    split_if_then(rest, depth - 1, [t | acc])
+  end
+
+  defp split_if_then([t | rest], depth, acc) do
+    split_if_then(rest, depth, [t | acc])
+  end
+
+  defp split_if_else([{:fn_end, _, _} | rest], 0, then_branch, acc) do
+    {then_branch, Enum.reverse(acc), rest}
+  end
+
+  defp split_if_else([{:if_kw, _, _} = t | rest], depth, then_branch, acc) do
+    split_if_else(rest, depth + 1, then_branch, [t | acc])
+  end
+
+  defp split_if_else([{:fn_end, _, _} = t | rest], depth, then_branch, acc) when depth > 0 do
+    split_if_else(rest, depth - 1, then_branch, [t | acc])
+  end
+
+  defp split_if_else([t | rest], depth, then_branch, acc) do
+    split_if_else(rest, depth, then_branch, [t | acc])
+  end
+
+  # --- Stack merging with ite ---
+
+  defp merge_stacks(_cond, then_stack, else_stack)
+       when length(then_stack) != length(else_stack) do
+    {:unsupported, "IF/ELSE branches produce different stack depths — cannot merge"}
+  end
+
+  defp merge_stacks(cond, then_stack, else_stack) do
+    merged =
+      Enum.zip(then_stack, else_stack)
+      |> Enum.map(fn
+        {{:int_expr, t}, {:int_expr, e}} ->
+          {:int_expr, {:ite, cond, t, e}}
+
+        {{:bool_expr, t}, {:bool_expr, e}} ->
+          {:bool_expr, {:ite_bool, cond, t, e}}
+
+        _ ->
+          :unsupported
+      end)
+
+    if Enum.any?(merged, &(&1 == :unsupported)) do
+      {:unsupported, "IF/ELSE branches produce incompatible types — cannot merge"}
+    else
+      {:ok, merged}
+    end
   end
 end

@@ -322,7 +322,7 @@ PROVE withdraw_buggy
 #      counterexample: p0 = 1, p1 = 0
 ```
 
-PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ), all comparisons, logic ops, and stack manipulation. For functions using lists, maps, loops, or IF/ELSE, PROVE returns UNKNOWN and suggests using VERIFY instead.
+PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ, ABS, MIN, MAX), IF/ELSE branching, all comparisons, logic ops, and stack manipulation. IF/ELSE branches are encoded as SMT-LIB `ite` nodes so Z3 handles case analysis natively. For functions using lists, maps, or loops, PROVE returns UNKNOWN and suggests using VERIFY instead.
 
 ### Higher-Order Operations
 
@@ -663,7 +663,7 @@ Errors are reported with position information and the checker continues after er
 
 ### PROVE Solver
 
-`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. Functions with unsupported operations (lists, maps, loops, IF/ELSE) gracefully return UNKNOWN.
+`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Functions with unsupported operations (lists, maps, loops) gracefully return UNKNOWN.
 
 The content-addressed DAG (ETS-backed) is in place for future use in multi-agent workflows and compilation to BEAM bytecode.
 

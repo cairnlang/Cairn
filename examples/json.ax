@@ -211,7 +211,52 @@ DEF parse_value : [str] -> [str] json
   END
 END
 
-# --- Demo ---
+# --- Practical helpers ---
+
+# Extract the str payload from a JStr; return "" for any other json variant.
+DEF jstr_val : json -> str
+  MATCH
+  JNull { "" }
+  JBool { DROP "" }
+  JNum  { DROP "" }
+  JStr  { }
+  JArr  { DROP "" }
+  JObj  { DROP "" }
+  END
+END
+
+# Given a JObj with "first" and "last" string fields, return the full name.
+# Stack inside JObj branch: person_map on top.
+DEF full_name : json -> str
+  MATCH
+  JNull { "" }
+  JBool { DROP "" }
+  JNum  { DROP "" }
+  JStr  { }
+  JArr  { DROP "" }
+  JObj  {
+    DUP "last"  GET jstr_val   # [last_str,  person_map]
+    SWAP                        # [person_map, last_str]
+    "first" GET jstr_val        # [first_str, last_str]
+    " " CONCAT                  # ["first ",  last_str]
+    SWAP CONCAT                 # "first " <> last_str  =  "First Last"
+  }
+  END
+END
+
+# Given a JArr of JObj person records, return a [str] list of full names.
+DEF names_of : json -> [str]
+  MATCH
+  JArr  { { full_name } MAP }
+  JNull { [] }
+  JBool { DROP [] }
+  JNum  { DROP [] }
+  JStr  { DROP [] }
+  JObj  { DROP [] }
+  END
+END
+
+# --- Demo: low-level parse check ---
 # Each call: parse, print the json value, discard remaining chars.
 
 "null"             CHARS parse_value DROP SAY DROP
@@ -225,3 +270,10 @@ END
 "[1.0,2.0,3.0]"   CHARS parse_value DROP SAY DROP
 "{}"               CHARS parse_value DROP SAY DROP
 "{\"x\":1.0}"      CHARS parse_value DROP SAY DROP
+
+# --- Demo: practical — extract full names from a JSON people array ---
+
+"[{\"first\":\"Alice\",\"last\":\"Smith\"},{\"first\":\"Bob\",\"last\":\"Jones\"},{\"first\":\"Carol\",\"last\":\"White\"}]"
+CHARS parse_value DROP
+names_of
+"\n" JOIN SAY DROP

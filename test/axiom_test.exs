@@ -1440,4 +1440,66 @@ defmodule AxiomTest do
       assert output =~ "PROVEN"
     end
   end
+
+  # ── PROVE with function inlining ──
+
+  describe "PROVE with function call inlining" do
+    test "PROVE function that calls another function (distance via abs)" do
+      source = """
+      DEF my_abs : int -> int
+        DUP 0 LT IF NEG END
+      END
+
+      DEF distance : int int -> int
+        SUB my_abs
+        POST DUP 0 GTE
+      END
+      PROVE distance
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        Axiom.eval(source)
+      end)
+      assert output =~ "PROVEN"
+    end
+
+    test "PROVE chained function calls" do
+      source = """
+      DEF double : int -> int
+        DUP ADD
+      END
+
+      DEF quadruple : int -> int
+        double double
+        POST DUP 0 GTE
+      END
+      PROVE quadruple
+      """
+
+      # quadruple(x) = 4x, which is NOT always >= 0 (negative inputs)
+      assert_raise Axiom.ContractError, ~r/DISPROVEN/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "PROVE with PRE makes chained calls provable" do
+      source = """
+      DEF double : int -> int
+        DUP ADD
+      END
+
+      DEF quadruple : int -> int
+        PRE { DUP 0 GTE }
+        double double
+        POST DUP 0 GTE
+      END
+      PROVE quadruple
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        Axiom.eval(source)
+      end)
+      assert output =~ "PROVEN"
+    end
+  end
 end

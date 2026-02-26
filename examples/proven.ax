@@ -1,0 +1,65 @@
+# proven.ax — Compositional proofs via function inlining
+#
+# PROVE can inline function calls during symbolic execution,
+# so properties proved about helpers propagate to callers.
+# Every PROVE below is checked by Z3 for ALL possible inputs.
+
+# --- Building blocks ---
+
+DEF my_abs : int -> int
+  DUP 0 LT IF NEG END
+  POST DUP 0 GTE
+END
+
+DEF negate : int -> int
+  NEG
+END
+
+DEF double : int -> int
+  DUP ADD
+END
+
+# --- Composed functions, proven via inlining ---
+
+# Distance is always non-negative (inlines my_abs)
+DEF distance : int int -> int
+  SUB my_abs
+  POST DUP 0 GTE
+END
+
+# Clamp a value to be at least 0
+# Stack: val hi  (hi on top, hi > 0)
+# Result: min(hi, max(val, 0))
+DEF clamp_pos : int int -> int
+  PRE { DUP 0 GT }
+  SWAP 0 MAX   # -> hi max(val,0)
+  MIN           # -> min(hi, max(val,0))
+  POST DUP 0 GTE
+END
+
+# Absolute difference is symmetric: |a-b| = |b-a|
+# We prove this by showing |a-b| - |b-a| = 0
+DEF abs_diff_symmetric : int int -> int
+  OVER OVER        # a b a b
+  SUB my_abs       # a b |a-b|
+  ROT ROT          # |a-b| a b
+  SWAP SUB my_abs  # |a-b| |b-a|
+  SUB              # |a-b| - |b-a|
+  POST DUP 0 EQ
+END
+
+# Double then negate: result has opposite sign to double
+# For non-negative input: double is non-negative, negate flips it
+DEF double_neg : int -> int
+  PRE { DUP 0 GTE }
+  double negate
+  POST DUP 0 LTE
+END
+
+# --- Run the proofs ---
+
+PROVE my_abs
+PROVE distance
+PROVE clamp_pos
+PROVE abs_diff_symmetric
+PROVE double_neg

@@ -103,7 +103,7 @@ defmodule Axiom do
         raise Axiom.RuntimeError, "PROVE: undefined function '#{name}'"
 
       %Axiom.Types.Function{} = func ->
-        case Prove.prove(func) do
+        case Prove.prove(func, env) do
           {:proven, _msg} ->
             IO.puts("PROVE #{name}: PROVEN — POST holds for all inputs satisfying PRE")
 

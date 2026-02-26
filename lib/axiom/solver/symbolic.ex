@@ -13,15 +13,19 @@ defmodule Axiom.Solver.Symbolic do
           {:ok, [Formula.sym_val()]}
           | {:unsupported, String.t()}
 
+  @max_inline_depth 10
+
   @doc """
   Symbolically execute a list of tokens starting from the given symbolic stack.
 
   Returns `{:ok, stack}` on success or `{:unsupported, reason}` if the token
   list contains operations we can't handle symbolically.
+
+  The optional `env` parameter provides function definitions for inlining calls.
   """
-  @spec execute([Axiom.Types.token()], [Formula.sym_val()]) :: result()
-  def execute(tokens, stack) do
-    walk(tokens, stack)
+  @spec execute([Axiom.Types.token()], [Formula.sym_val()], map()) :: result()
+  def execute(tokens, stack, env \\ %{}) do
+    walk(tokens, stack, env, 0)
   end
 
   @doc """
@@ -60,150 +64,152 @@ defmodule Axiom.Solver.Symbolic do
   def extract_bool_constraint([]), do: {:error, "stack is empty after condition execution"}
 
   # --- Token walker ---
+  # env: map of function names to %Function{} structs for inlining
+  # depth: recursion depth counter for inlining limit
 
-  defp walk([], stack), do: {:ok, stack}
+  defp walk([], stack, _env, _depth), do: {:ok, stack}
 
   # Integer literal
-  defp walk([{:int_lit, n, _} | rest], stack) do
-    walk(rest, [{:int_expr, {:const, n}} | stack])
+  defp walk([{:int_lit, n, _} | rest], stack, env, depth) do
+    walk(rest, [{:int_expr, {:const, n}} | stack], env, depth)
   end
 
   # Boolean literal
-  defp walk([{:bool_lit, true, _} | rest], stack) do
-    walk(rest, [{:bool_expr, true} | stack])
+  defp walk([{:bool_lit, true, _} | rest], stack, env, depth) do
+    walk(rest, [{:bool_expr, true} | stack], env, depth)
   end
 
-  defp walk([{:bool_lit, false, _} | rest], stack) do
-    walk(rest, [{:bool_expr, false} | stack])
+  defp walk([{:bool_lit, false, _} | rest], stack, env, depth) do
+    walk(rest, [{:bool_expr, false} | stack], env, depth)
   end
 
   # Arithmetic: ADD, SUB, MUL, DIV, MOD
-  defp walk([{:op, :add, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:int_expr, {:add, b, a}} | stack])
+  defp walk([{:op, :add, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:int_expr, {:add, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :sub, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:int_expr, {:sub, b, a}} | stack])
+  defp walk([{:op, :sub, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:int_expr, {:sub, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :mul, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:int_expr, {:mul, b, a}} | stack])
+  defp walk([{:op, :mul, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:int_expr, {:mul, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :div, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:int_expr, {:div, b, a}} | stack])
+  defp walk([{:op, :div, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:int_expr, {:div, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :mod, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:int_expr, {:mod, b, a}} | stack])
+  defp walk([{:op, :mod, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:int_expr, {:mod, b, a}} | stack], env, depth)
   end
 
   # Unary: NEG
-  defp walk([{:op, :neg, _} | rest], [{:int_expr, a} | stack]) do
-    walk(rest, [{:int_expr, {:neg, a}} | stack])
+  defp walk([{:op, :neg, _} | rest], [{:int_expr, a} | stack], env, depth) do
+    walk(rest, [{:int_expr, {:neg, a}} | stack], env, depth)
   end
 
   # SQ: a -> a*a
-  defp walk([{:op, :sq, _} | rest], [{:int_expr, a} | stack]) do
-    walk(rest, [{:int_expr, {:mul, a, a}} | stack])
+  defp walk([{:op, :sq, _} | rest], [{:int_expr, a} | stack], env, depth) do
+    walk(rest, [{:int_expr, {:mul, a, a}} | stack], env, depth)
   end
 
   # Comparisons: GTE, GT, LTE, LT, EQ, NEQ
-  defp walk([{:op, :gte, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:gte, b, a}} | stack])
+  defp walk([{:op, :gte, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:gte, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :gt, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:gt, b, a}} | stack])
+  defp walk([{:op, :gt, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:gt, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :lte, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:lte, b, a}} | stack])
+  defp walk([{:op, :lte, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:lte, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :lt, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:lt, b, a}} | stack])
+  defp walk([{:op, :lt, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:lt, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :eq, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:eq, b, a}} | stack])
+  defp walk([{:op, :eq, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:eq, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :neq, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:neq, b, a}} | stack])
+  defp walk([{:op, :neq, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:neq, b, a}} | stack], env, depth)
   end
 
   # Boolean EQ/NEQ (compare two booleans)
-  defp walk([{:op, :eq, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack]) do
+  defp walk([{:op, :eq, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack], env, depth) do
     # a EQ b is equivalent to (a AND b) OR (NOT a AND NOT b)
     equiv = {:or, {:and, b, a}, {:and, {:not, b}, {:not, a}}}
-    walk(rest, [{:bool_expr, equiv} | stack])
+    walk(rest, [{:bool_expr, equiv} | stack], env, depth)
   end
 
-  defp walk([{:op, :neq, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack]) do
+  defp walk([{:op, :neq, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack], env, depth) do
     # a NEQ b is NOT (a EQ b)
     equiv = {:not, {:or, {:and, b, a}, {:and, {:not, b}, {:not, a}}}}
-    walk(rest, [{:bool_expr, equiv} | stack])
+    walk(rest, [{:bool_expr, equiv} | stack], env, depth)
   end
 
   # Logic: AND, OR, NOT
-  defp walk([{:op, :and, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:and, b, a}} | stack])
+  defp walk([{:op, :and, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:and, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :or, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack]) do
-    walk(rest, [{:bool_expr, {:or, b, a}} | stack])
+  defp walk([{:op, :or, _} | rest], [{:bool_expr, a}, {:bool_expr, b} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:or, b, a}} | stack], env, depth)
   end
 
-  defp walk([{:op, :not, _} | rest], [{:bool_expr, a} | stack]) do
-    walk(rest, [{:bool_expr, {:not, a}} | stack])
+  defp walk([{:op, :not, _} | rest], [{:bool_expr, a} | stack], env, depth) do
+    walk(rest, [{:bool_expr, {:not, a}} | stack], env, depth)
   end
 
   # Stack manipulation: DUP, DROP, SWAP, OVER, ROT
-  defp walk([{:op, :dup, _} | rest], [top | _] = stack) do
-    walk(rest, [top | stack])
+  defp walk([{:op, :dup, _} | rest], [top | _] = stack, env, depth) do
+    walk(rest, [top | stack], env, depth)
   end
 
-  defp walk([{:op, :drop, _} | rest], [_ | stack]) do
-    walk(rest, stack)
+  defp walk([{:op, :drop, _} | rest], [_ | stack], env, depth) do
+    walk(rest, stack, env, depth)
   end
 
-  defp walk([{:op, :swap, _} | rest], [a, b | stack]) do
-    walk(rest, [b, a | stack])
+  defp walk([{:op, :swap, _} | rest], [a, b | stack], env, depth) do
+    walk(rest, [b, a | stack], env, depth)
   end
 
-  defp walk([{:op, :over, _} | rest], [_a, b | _] = stack) do
-    walk(rest, [b | stack])
+  defp walk([{:op, :over, _} | rest], [_a, b | _] = stack, env, depth) do
+    walk(rest, [b | stack], env, depth)
   end
 
-  defp walk([{:op, :rot, _} | rest], [a, b, c | stack]) do
-    walk(rest, [c, a, b | stack])
+  defp walk([{:op, :rot, _} | rest], [a, b, c | stack], env, depth) do
+    walk(rest, [c, a, b | stack], env, depth)
   end
 
   # ROT4: [a, b, c, d | rest] -> [d, a, b, c | rest]
-  defp walk([{:op, :rot4, _} | rest], [a, b, c, d | stack]) do
-    walk(rest, [d, a, b, c | stack])
+  defp walk([{:op, :rot4, _} | rest], [a, b, c, d | stack], env, depth) do
+    walk(rest, [d, a, b, c | stack], env, depth)
   end
 
   # ABS: ite(a < 0, -a, a)
-  defp walk([{:op, :abs, _} | rest], [{:int_expr, a} | stack]) do
+  defp walk([{:op, :abs, _} | rest], [{:int_expr, a} | stack], env, depth) do
     result = {:int_expr, {:ite, {:lt, a, {:const, 0}}, {:neg, a}, a}}
-    walk(rest, [result | stack])
+    walk(rest, [result | stack], env, depth)
   end
 
   # MIN: ite(b < a, b, a) — b is deeper, a is top
-  defp walk([{:op, :min, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
+  defp walk([{:op, :min, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
     result = {:int_expr, {:ite, {:lt, b, a}, b, a}}
-    walk(rest, [result | stack])
+    walk(rest, [result | stack], env, depth)
   end
 
   # MAX: ite(b > a, b, a) — b is deeper, a is top
-  defp walk([{:op, :max, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack]) do
+  defp walk([{:op, :max, _} | rest], [{:int_expr, a}, {:int_expr, b} | stack], env, depth) do
     result = {:int_expr, {:ite, {:gt, b, a}, b, a}}
-    walk(rest, [result | stack])
+    walk(rest, [result | stack], env, depth)
   end
 
-  defp walk([{:op, op, _} | _], _stack)
+  defp walk([{:op, op, _} | _], _stack, _env, _depth)
        when op in [
               :filter,
               :map,
@@ -242,58 +248,80 @@ defmodule Axiom.Solver.Symbolic do
   end
 
   # Float literals are unsupported
-  defp walk([{:float_lit, _, _} | _], _stack) do
+  defp walk([{:float_lit, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "float literals are not supported by PROVE"}
   end
 
   # String literals are unsupported
-  defp walk([{:str_lit, _, _} | _], _stack) do
+  defp walk([{:str_lit, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "string literals are not supported by PROVE"}
   end
 
   # List/map literals are unsupported
-  defp walk([{:list_open, _, _} | _], _stack) do
+  defp walk([{:list_open, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "list operations are not supported by PROVE — use VERIFY instead"}
   end
 
-  defp walk([{:list_lit, _, _} | _], _stack) do
+  defp walk([{:list_lit, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "list operations are not supported by PROVE — use VERIFY instead"}
   end
 
-  defp walk([{:map_open, _, _} | _], _stack) do
+  defp walk([{:map_open, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "map operations are not supported by PROVE — use VERIFY instead"}
   end
 
-  defp walk([{:map_lit, _, _} | _], _stack) do
+  defp walk([{:map_lit, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "map operations are not supported by PROVE — use VERIFY instead"}
   end
 
   # IF/ELSE path-splitting: symbolically execute both branches and merge with ite
-  defp walk([{:if_kw, _, _} | rest], [{:bool_expr, cond} | stack]) do
+  defp walk([{:if_kw, _, _} | rest], [{:bool_expr, cond} | stack], env, depth) do
     {then_tokens, else_tokens, remaining} = split_if_branches(rest)
 
-    with {:ok, then_stack} <- walk(then_tokens, stack),
+    with {:ok, then_stack} <- walk(then_tokens, stack, env, depth),
          {:ok, else_stack} <-
-           if(else_tokens, do: walk(else_tokens, stack), else: {:ok, stack}) do
+           if(else_tokens, do: walk(else_tokens, stack, env, depth), else: {:ok, stack}) do
       case merge_stacks(cond, then_stack, else_stack) do
-        {:ok, merged} -> walk(remaining, merged)
+        {:ok, merged} -> walk(remaining, merged, env, depth)
         {:unsupported, _} = err -> err
       end
     end
   end
 
   # Block literals are unsupported
-  defp walk([{:block_open, _, _} | _], _stack) do
+  defp walk([{:block_open, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "block literals are not supported by PROVE — use VERIFY instead"}
   end
 
-  # Function calls are unsupported
-  defp walk([{:ident, name, _} | _], _stack) do
-    {:unsupported, "function call '#{name}' is not supported by PROVE — use VERIFY instead"}
+  # Function call inlining: look up in env, pop args, execute body, push results
+  defp walk([{:ident, name, _} | rest], stack, env, depth) do
+    case Map.get(env, name) do
+      %Axiom.Types.Function{} = func when depth < @max_inline_depth ->
+        arity = length(func.param_types)
+        {args, remaining_stack} = Enum.split(stack, arity)
+
+        if length(args) < arity do
+          {:unsupported, "function call '#{name}' requires #{arity} args, stack has #{length(args)}"}
+        else
+          case walk(func.body, args, env, depth + 1) do
+            {:ok, result_stack} ->
+              walk(rest, result_stack ++ remaining_stack, env, depth)
+
+            {:unsupported, _} = err ->
+              err
+          end
+        end
+
+      %Axiom.Types.Function{} ->
+        {:unsupported, "function call '#{name}' exceeds maximum inlining depth (#{@max_inline_depth})"}
+
+      nil ->
+        {:unsupported, "function call '#{name}' is not supported by PROVE — use VERIFY instead"}
+    end
   end
 
   # Catch-all: unsupported token
-  defp walk([token | _], _stack) do
+  defp walk([token | _], _stack, _env, _depth) do
     {:unsupported, "unsupported token #{inspect(token)} in PROVE"}
   end
 

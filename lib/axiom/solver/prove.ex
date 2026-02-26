@@ -25,13 +25,13 @@ defmodule Axiom.Solver.Prove do
   6. Generate SMT-LIB script and query Z3
   7. Return result
   """
-  @spec prove(Function.t()) :: prove_result()
-  def prove(%Function{} = func) do
+  @spec prove(Function.t(), map()) :: prove_result()
+  def prove(%Function{} = func, env \\ %{}) do
     with :ok <- check_z3_available(),
          {:ok, initial_stack, vars} <- Symbolic.build_initial_stack(func.param_types),
-         {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack),
-         {:ok, result_stack} <- execute_body(func, body_stack),
-         {:ok, post_constraint} <- execute_post(func, result_stack) do
+         {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, env),
+         {:ok, result_stack} <- execute_body(func, body_stack, env),
+         {:ok, post_constraint} <- execute_post(func, result_stack, env) do
       query_z3(vars, pre_constraint, post_constraint, func)
     else
       {:unsupported, reason} -> {:unknown, reason}
@@ -48,12 +48,12 @@ defmodule Axiom.Solver.Prove do
   end
 
   # Execute PRE condition symbolically. If no PRE, use `true`.
-  defp execute_pre(%Function{pre_condition: nil}, initial_stack) do
+  defp execute_pre(%Function{pre_condition: nil}, initial_stack, _env) do
     {:ok, true, initial_stack}
   end
 
-  defp execute_pre(%Function{pre_condition: pre_tokens}, initial_stack) do
-    case Symbolic.execute(pre_tokens, initial_stack) do
+  defp execute_pre(%Function{pre_condition: pre_tokens}, initial_stack, env) do
+    case Symbolic.execute(pre_tokens, initial_stack, env) do
       {:ok, pre_stack} ->
         case Symbolic.extract_bool_constraint(pre_stack) do
           {:ok, constraint} -> {:ok, constraint, initial_stack}
@@ -66,20 +66,20 @@ defmodule Axiom.Solver.Prove do
   end
 
   # Execute body symbolically
-  defp execute_body(%Function{body: body}, stack) do
-    case Symbolic.execute(body, stack) do
+  defp execute_body(%Function{body: body}, stack, env) do
+    case Symbolic.execute(body, stack, env) do
       {:ok, _} = result -> result
       {:unsupported, _} = result -> result
     end
   end
 
   # Execute POST condition symbolically. If no POST, use `true` (vacuously true).
-  defp execute_post(%Function{post_condition: nil}, _result_stack) do
+  defp execute_post(%Function{post_condition: nil}, _result_stack, _env) do
     {:ok, true}
   end
 
-  defp execute_post(%Function{post_condition: post_tokens}, result_stack) do
-    case Symbolic.execute(post_tokens, result_stack) do
+  defp execute_post(%Function{post_condition: post_tokens}, result_stack, env) do
+    case Symbolic.execute(post_tokens, result_stack, env) do
       {:ok, post_stack} ->
         case Symbolic.extract_bool_constraint(post_stack) do
           {:ok, constraint} -> {:ok, constraint}

@@ -859,6 +859,63 @@ defmodule Axiom.SolverTest do
     end
   end
 
+  describe "Prove.prove — function call inlining" do
+    test "proves function that calls another function" do
+      abs_func = %Function{
+        name: "my_abs",
+        param_types: [:int],
+        return_types: [:int],
+        body: [
+          {:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :lt, 2},
+          {:if_kw, "IF", 3}, {:op, :neg, 4}, {:fn_end, "END", 5}
+        ],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      dist_func = %Function{
+        name: "distance",
+        param_types: [:int, :int],
+        return_types: [:int],
+        body: [{:op, :sub, 0}, {:ident, "my_abs", 1}],
+        pre_condition: nil,
+        post_condition: [{:op, :dup, 0}, {:int_lit, 0, 1}, {:op, :gte, 2}]
+      }
+
+      env = %{"my_abs" => abs_func, "distance" => dist_func}
+      assert {:proven, _} = Prove.prove(dist_func, env)
+    end
+
+    test "inlining unknown function returns unsupported" do
+      func = %Function{
+        name: "caller",
+        param_types: [:int],
+        return_types: [:int],
+        body: [{:ident, "unknown_fn", 0}],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      assert {:unknown, reason} = Prove.prove(func, %{})
+      assert reason =~ "unknown_fn"
+    end
+
+    test "deep recursion returns unsupported" do
+      rec_func = %Function{
+        name: "rec",
+        param_types: [:int],
+        return_types: [:int],
+        body: [{:ident, "rec", 0}],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      env = %{"rec" => rec_func}
+      assert {:unknown, reason} = Prove.prove(rec_func, env)
+      assert reason =~ "inlining depth"
+    end
+  end
+
   describe "Prove.prove — MUL provable (nonlinear arithmetic)" do
     test "DUP MUL with POST DUP 0 GTE is proven (squares are non-negative)" do
       func = %Function{

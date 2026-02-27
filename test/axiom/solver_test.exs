@@ -1178,6 +1178,45 @@ defmodule Axiom.SolverTest do
       result = Prove.format_counterexample(%{"p0" => 5, "p1" => -3}, func)
       assert result == "p0 = 5, p1 = -3"
     end
+
+    test "formats option/result params as constructor-shaped values" do
+      func = %Function{
+        name: "test_sum_types",
+        param_types: [{:user_type, "option"}, {:user_type, "result"}],
+        return_types: [:int],
+        body: [],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      model = %{"p0_tag" => 1, "p0_val" => 7, "p1_tag" => 0}
+      result = Prove.format_counterexample(model, func)
+      assert result == "p0 = Some(7), p1 = Err(_)"
+    end
+
+    test "formats generic user ADT params using ctor tag + payload vars" do
+      func = %Function{
+        name: "shape_test",
+        param_types: [{:user_type, "shape"}],
+        return_types: [:int],
+        body: [],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      env = %{
+        "__types__" => %{
+          "shape" => %Axiom.Types.TypeDef{
+            name: "shape",
+            variants: %{"Circle" => [:int], "Square" => [:int]}
+          }
+        }
+      }
+
+      model = %{"p0_tag" => 1, "p0_Square_0" => -3}
+      result = Prove.format_counterexample(model, func, env)
+      assert result == "p0 = Square(-3)"
+    end
   end
 
   # ============================================================
@@ -1228,6 +1267,26 @@ defmodule Axiom.SolverTest do
       """
 
       assert_raise Axiom.ContractError, ~r/DISPROVEN/, fn ->
+        Axiom.eval(source)
+      end
+    end
+
+    test "PROVE generic ADT failure prints decoded constructor counterexample" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF bad_shape_nonneg : shape -> int
+        MATCH
+          Circle { }
+          Square { }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE bad_shape_nonneg
+      """
+
+      assert_raise Axiom.ContractError, ~r/counterexample: p0 = (Circle|Square)\(-?[0-9]+\)/, fn ->
         Axiom.eval(source)
       end
     end

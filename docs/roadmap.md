@@ -115,6 +115,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/proven_shape.ax` and solver coverage for generic ADT MATCH proving
 - `PROVE` now passes full type environment into symbolic parameter generation
 
+### v0.6.0d — ADT Counterexample Decoding
+- PROVE now decodes ADT model variables into constructor-shaped counterexamples
+- Counterexample formatting now handles `option`, `result`, and generic user ADTs
+- Added `examples/proven_shape_buggy.ax` to demonstrate decoded ADT failure output
+- Added solver coverage for ADT counterexample formatting and failing generic MATCH proofs
+
 ---
 
 ## Next Up
@@ -126,7 +132,6 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 **Deliverables:**
 
 - **PRE-driven branch pruning** — leverage PRE constraints to prove constructor impossibility and simplify MATCH obligations
-- **Counterexample UX for ADTs** — decode model tag/payload values back into readable constructor-shaped counterexamples
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
 **Why now:** generic ADT MATCH proving is in place; the next gains are quality-of-proof and usability improvements.

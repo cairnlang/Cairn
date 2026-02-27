@@ -32,7 +32,7 @@ defmodule Axiom.Solver.Prove do
          {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, env),
          {:ok, result_stack} <- execute_body(func, body_stack, env),
          {:ok, post_constraint} <- execute_post(func, result_stack, env) do
-      query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func)
+      query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env)
     else
       {:unsupported, reason} -> {:unknown, reason}
       {:error, reason} -> {:error, reason}
@@ -92,7 +92,7 @@ defmodule Axiom.Solver.Prove do
   end
 
   # Generate SMT-LIB, query Z3, interpret result
-  defp query_z3(vars, pre_constraint, post_constraint, func) do
+  defp query_z3(vars, pre_constraint, post_constraint, func, env) do
     script = SmtLib.build_script(vars, pre_constraint, post_constraint)
 
     case Z3.query(script) do
@@ -100,7 +100,7 @@ defmodule Axiom.Solver.Prove do
         {:proven, "POST holds for all inputs satisfying PRE"}
 
       {:sat, model} ->
-        {:disproven, format_counterexample(model, func), model}
+        {:disproven, format_counterexample(model, func, env), model}
 
       {:error, reason} ->
         {:error, reason}
@@ -112,17 +112,66 @@ defmodule Axiom.Solver.Prove do
 
   Maps variable names (p0, p1, ...) back to parameter positions.
   """
-  @spec format_counterexample(%{String.t() => integer()}, Function.t()) :: String.t()
-  def format_counterexample(model, %Function{param_types: param_types}) do
+  @spec format_counterexample(%{String.t() => integer()}, Function.t(), map()) :: String.t()
+  def format_counterexample(model, %Function{param_types: param_types}, env \\ %{}) do
     param_types
     |> Enum.with_index()
-    |> Enum.map(fn {_type, i} ->
-      var = "p#{i}"
-      val = Map.get(model, var, "?")
-      "#{var} = #{val}"
+    |> Enum.map(fn {type, i} ->
+      "p#{i} = #{format_param_value(type, i, model, env)}"
     end)
     |> Enum.join(", ")
   end
+
+  defp format_param_value(:int, i, model, _env) do
+    Map.get(model, "p#{i}", "?")
+  end
+
+  defp format_param_value({:user_type, "option"}, i, model, _env) do
+    case Map.get(model, "p#{i}_tag", 0) do
+      1 -> "Some(#{Map.get(model, "p#{i}_val", "?")})"
+      _ -> "None"
+    end
+  end
+
+  defp format_param_value({:user_type, "result"}, i, model, _env) do
+    case Map.get(model, "p#{i}_tag", 0) do
+      1 -> "Ok(#{Map.get(model, "p#{i}_ok", "?")})"
+      _ -> "Err(_)"
+    end
+  end
+
+  defp format_param_value({:user_type, type_name}, i, model, env) do
+    types = Map.get(env, "__types__", %{})
+
+    case Map.get(types, type_name) do
+      %Axiom.Types.TypeDef{} = typedef ->
+        ctors = typedef.variants |> Map.keys() |> Enum.sort()
+        tag = Map.get(model, "p#{i}_tag", 0)
+
+        case Enum.at(ctors, tag) do
+          nil ->
+            "#{type_name}(tag=#{tag})"
+
+          ctor ->
+            fields = Map.get(typedef.variants, ctor, [])
+
+            values =
+              fields
+              |> Enum.with_index()
+              |> Enum.map(fn {_field_type, field_i} ->
+                Map.get(model, "p#{i}_#{ctor}_#{field_i}", "?")
+              end)
+              |> Enum.join(", ")
+
+            if values == "", do: ctor, else: "#{ctor}(#{values})"
+        end
+
+      _ ->
+        "#{type_name}(?)"
+    end
+  end
+
+  defp format_param_value(_type, _i, _model, _env), do: "?"
 
   defp combine_constraints(true, c), do: c
   defp combine_constraints(c, true), do: c

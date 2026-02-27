@@ -1,0 +1,16 @@
+# proven_shape_buggy.ax — demonstrates ADT counterexample formatting (v0.6.0d slice)
+
+TYPE shape = Circle int | Square int
+
+# Intentionally buggy: returns raw size and claims it's non-negative.
+# PROVE should fail and print a decoded ADT counterexample, e.g.:
+#   counterexample: p0 = Circle(-1)
+DEF bad_shape_nonneg : shape -> int
+  MATCH
+    Circle { }
+    Square { }
+  END
+  POST DUP 0 GTE
+END
+
+PROVE bad_shape_nonneg

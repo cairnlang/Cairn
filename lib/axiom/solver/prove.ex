@@ -350,35 +350,53 @@ defmodule Axiom.Solver.Prove do
   end
 
   defp do_assumption_map_from_constraint({:eq, {:var, var}, {:const, value}}) when is_integer(value) do
-    %{var => %{eq: value, neq: MapSet.new()}}
+    %{var => new_tag_assumption(eq: value)}
   end
 
   defp do_assumption_map_from_constraint({:eq, {:const, value}, {:var, var}}) when is_integer(value) do
-    %{var => %{eq: value, neq: MapSet.new()}}
+    %{var => new_tag_assumption(eq: value)}
   end
 
   defp do_assumption_map_from_constraint({:neq, {:var, var}, {:const, value}}) when is_integer(value) do
-    %{var => %{eq: nil, neq: MapSet.new([value])}}
+    %{var => new_tag_assumption(neq: MapSet.new([value]))}
   end
 
   defp do_assumption_map_from_constraint({:neq, {:const, value}, {:var, var}}) when is_integer(value) do
-    %{var => %{eq: nil, neq: MapSet.new([value])}}
+    %{var => new_tag_assumption(neq: MapSet.new([value]))}
+  end
+
+  defp do_assumption_map_from_constraint({op, left, right}) when op in [:gt, :gte, :lt, :lte] do
+    case normalize_comparison(op, left, right) do
+      {:ok, {normalized_op, var, value}} ->
+        assumption =
+          case normalized_op do
+            :gt -> new_tag_assumption(min: value, min_inclusive: false)
+            :gte -> new_tag_assumption(min: value, min_inclusive: true)
+            :lt -> new_tag_assumption(max: value, max_inclusive: false)
+            :lte -> new_tag_assumption(max: value, max_inclusive: true)
+          end
+
+        %{var => assumption}
+
+      :error ->
+        %{}
+    end
   end
 
   defp do_assumption_map_from_constraint({:not, {:eq, {:var, var}, {:const, value}}}) when is_integer(value) do
-    %{var => %{eq: nil, neq: MapSet.new([value])}}
+    %{var => new_tag_assumption(neq: MapSet.new([value]))}
   end
 
   defp do_assumption_map_from_constraint({:not, {:eq, {:const, value}, {:var, var}}}) when is_integer(value) do
-    %{var => %{eq: nil, neq: MapSet.new([value])}}
+    %{var => new_tag_assumption(neq: MapSet.new([value]))}
   end
 
   defp do_assumption_map_from_constraint({:not, {:neq, {:var, var}, {:const, value}}}) when is_integer(value) do
-    %{var => %{eq: value, neq: MapSet.new()}}
+    %{var => new_tag_assumption(eq: value)}
   end
 
   defp do_assumption_map_from_constraint({:not, {:neq, {:const, value}, {:var, var}}}) when is_integer(value) do
-    %{var => %{eq: value, neq: MapSet.new()}}
+    %{var => new_tag_assumption(eq: value)}
   end
 
   defp do_assumption_map_from_constraint({:not, {:not, inner}}) do
@@ -409,11 +427,11 @@ defmodule Axiom.Solver.Prove do
     keys
     |> Enum.uniq()
     |> Enum.reduce(%{}, fn key, acc ->
-      la = Map.get(left, key, %{eq: nil, neq: MapSet.new()})
-      ra = Map.get(right, key, %{eq: nil, neq: MapSet.new()})
+      la = Map.get(left, key, new_tag_assumption())
+      ra = Map.get(right, key, new_tag_assumption())
       merged = merge_tag_assumption(la, ra, mode)
 
-      if merged.eq == nil and MapSet.size(merged.neq) == 0 do
+      if empty_tag_assumption?(merged) do
         acc
       else
         Map.put(acc, key, merged)
@@ -432,16 +450,24 @@ defmodule Axiom.Solver.Prove do
       end
 
     neq = MapSet.union(left.neq, right.neq)
+    lower = tighter_lower_bound(left, right)
+    upper = tighter_upper_bound(left, right)
 
     cond do
       eq == :conflict ->
-        %{eq: nil, neq: MapSet.new()}
+        new_tag_assumption()
 
       is_integer(eq) and MapSet.member?(neq, eq) ->
-        %{eq: nil, neq: MapSet.new()}
+        new_tag_assumption()
+
+      bounds_contradiction?(lower, upper) ->
+        new_tag_assumption()
+
+      is_integer(eq) and not eq_satisfies_bounds?(eq, lower, upper) ->
+        new_tag_assumption()
 
       true ->
-        %{eq: eq, neq: neq}
+        new_tag_assumption(eq: eq, neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
     end
   end
 
@@ -453,12 +479,136 @@ defmodule Axiom.Solver.Prove do
       end
 
     neq = MapSet.intersection(left.neq, right.neq)
+    lower = weaker_lower_bound(left, right)
+    upper = weaker_upper_bound(left, right)
 
-    if is_integer(eq) and MapSet.member?(neq, eq) do
-      %{eq: nil, neq: neq}
-    else
-      %{eq: eq, neq: neq}
+    cond do
+      is_integer(eq) and MapSet.member?(neq, eq) ->
+        new_tag_assumption(neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
+
+      is_integer(eq) and not eq_satisfies_bounds?(eq, lower, upper) ->
+        new_tag_assumption(neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
+
+      true ->
+        new_tag_assumption(eq: eq, neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
     end
+  end
+
+  defp normalize_comparison(op, {:var, var}, {:const, value}) when is_integer(value), do: {:ok, {op, var, value}}
+
+  defp normalize_comparison(op, {:const, value}, {:var, var}) when is_integer(value) do
+    {:ok, {flip_comparison(op), var, value}}
+  end
+
+  defp normalize_comparison(_op, _left, _right), do: :error
+
+  defp flip_comparison(:gt), do: :lt
+  defp flip_comparison(:gte), do: :lte
+  defp flip_comparison(:lt), do: :gt
+  defp flip_comparison(:lte), do: :gte
+
+  defp new_tag_assumption(fields \\ []) do
+    %{
+      eq: Keyword.get(fields, :eq, nil),
+      neq: Keyword.get(fields, :neq, MapSet.new()),
+      min: Keyword.get(fields, :min, nil),
+      min_inclusive: Keyword.get(fields, :min_inclusive, true),
+      max: Keyword.get(fields, :max, nil),
+      max_inclusive: Keyword.get(fields, :max_inclusive, true)
+    }
+  end
+
+  defp empty_tag_assumption?(assumption) do
+    assumption.eq == nil and MapSet.size(assumption.neq) == 0 and assumption.min == nil and assumption.max == nil
+  end
+
+  defp tighter_lower_bound(left, right) do
+    pick_tighter_lower({left.min, left.min_inclusive}, {right.min, right.min_inclusive})
+  end
+
+  defp tighter_upper_bound(left, right) do
+    pick_tighter_upper({left.max, left.max_inclusive}, {right.max, right.max_inclusive})
+  end
+
+  defp weaker_lower_bound(left, right) do
+    pick_weaker_lower({left.min, left.min_inclusive}, {right.min, right.min_inclusive})
+  end
+
+  defp weaker_upper_bound(left, right) do
+    pick_weaker_upper({left.max, left.max_inclusive}, {right.max, right.max_inclusive})
+  end
+
+  defp pick_tighter_lower({nil, _}, b), do: b
+  defp pick_tighter_lower(a, {nil, _}), do: a
+
+  defp pick_tighter_lower({av, ai}, {bv, bi}) do
+    cond do
+      av > bv -> {av, ai}
+      bv > av -> {bv, bi}
+      true -> {av, ai and bi}
+    end
+  end
+
+  defp pick_tighter_upper({nil, _}, b), do: b
+  defp pick_tighter_upper(a, {nil, _}), do: a
+
+  defp pick_tighter_upper({av, ai}, {bv, bi}) do
+    cond do
+      av < bv -> {av, ai}
+      bv < av -> {bv, bi}
+      true -> {av, ai and bi}
+    end
+  end
+
+  defp pick_weaker_lower({nil, _}, _b), do: {nil, true}
+  defp pick_weaker_lower(_a, {nil, _}), do: {nil, true}
+
+  defp pick_weaker_lower({av, ai}, {bv, bi}) do
+    cond do
+      av < bv -> {av, ai}
+      bv < av -> {bv, bi}
+      true -> {av, ai or bi}
+    end
+  end
+
+  defp pick_weaker_upper({nil, _}, _b), do: {nil, true}
+  defp pick_weaker_upper(_a, {nil, _}), do: {nil, true}
+
+  defp pick_weaker_upper({av, ai}, {bv, bi}) do
+    cond do
+      av > bv -> {av, ai}
+      bv > av -> {bv, bi}
+      true -> {av, ai or bi}
+    end
+  end
+
+  defp bounds_contradiction?({nil, _}, _upper), do: false
+  defp bounds_contradiction?(_lower, {nil, _}), do: false
+
+  defp bounds_contradiction?({min, min_inc}, {max, max_inc}) do
+    cond do
+      min < max -> false
+      min > max -> true
+      true -> not (min_inc and max_inc)
+    end
+  end
+
+  defp eq_satisfies_bounds?(value, {min, min_inc}, {max, max_inc}) do
+    lower_ok =
+      case min do
+        nil -> true
+        m when min_inc -> value >= m
+        m -> value > m
+      end
+
+    upper_ok =
+      case max do
+        nil -> true
+        m when max_inc -> value <= m
+        m -> value < m
+      end
+
+    lower_ok and upper_ok
   end
 
   defp trace_level(env) do

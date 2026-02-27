@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.6.0x**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, and enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.6.0y**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, and extended tag-assumption bounds (`gt/gte/lt/lte`) in MATCH-pruning internals), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -60,6 +60,9 @@ mix axiom.run examples/prove/proven_shape_distribute.ax
 # Consensus reduction in PRE conjunctions (new v0.6.0w slice)
 mix axiom.run examples/prove/proven_shape_consensus.ax
 
+# Tag-bound constructor narrowing demo (new v0.6.0y slice)
+mix axiom.run examples/prove/proven_shape_tag_bounds.ax
+
 # PROVE trace diagnostics for pruning + PRE rewrites (v0.6.0x)
 AXIOM_PROVE_TRACE=summary mix axiom.run examples/prove/proven_shape_trace.ax
 AXIOM_PROVE_TRACE=verbose mix axiom.run examples/prove/proven_shape_trace.ax
@@ -81,7 +84,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (715 tests)
+# Run tests (717 tests)
 mix test
 ```
 
@@ -828,7 +831,7 @@ Errors are reported with position information and the checker continues after er
 
 ### PROVE Solver
 
-`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x` supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs, with constructor-shaped counterexample decoding for ADT params, PRE-driven branch pruning (including richer PRE boolean forms, helper-boolean equality refinement, composed-helper normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization, bounded DeMorgan/comparison-negation pushdown, local contradiction/tautology pruning for comparison pairs, interval-merge bound tightening, bounded shared-conjunct factoring, guarded one-step distribution, bounded consensus reduction, and rewrite-aware trace diagnostics), and optional trace diagnostics via `AXIOM_PROVE_TRACE=summary|verbose|json` (or per-call `__prove_trace__` in API mode).
+`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y` supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs, with constructor-shaped counterexample decoding for ADT params, PRE-driven branch pruning (including richer PRE boolean forms, helper-boolean equality refinement, composed-helper normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization, bounded DeMorgan/comparison-negation pushdown, local contradiction/tautology pruning for comparison pairs, interval-merge bound tightening, bounded shared-conjunct factoring, guarded one-step distribution, bounded consensus reduction, rewrite-aware trace diagnostics, and extended tag-assumption bounds), and optional trace diagnostics via `AXIOM_PROVE_TRACE=summary|verbose|json` (or per-call `__prove_trace__` in API mode).
 
 `AXIOM_PROVE_TRACE=json` emits structured stderr events. Event kinds include:
 - `prove_run_start` / `prove_run_end` (run metadata, counts, elapsed time)
@@ -875,8 +878,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.0u** (complete): PRE normalization adds bounded shared-conjunct factoring in disjunctive guard shapes to expose narrowing opportunities
 - **v0.6.0v** (complete): PRE normalization adds guarded one-step distribution (`A OR (B AND C)`) to expose implication collapses in generated guard shapes
 - **v0.6.0w** (complete): PRE normalization adds bounded consensus reduction (`(A OR B) AND (A OR NOT B) => A`) for noisy generated conjunctions
-- **v0.6.0x** (current): JSON trace adds `rewrite_applied` events, rewrite summary metadata, and PRE raw/normalized snapshots on MATCH decisions
-- **v0.6.x** (next): Broader constructor/refinement inference patterns
+- **v0.6.0x** (complete): JSON trace adds `rewrite_applied` events, rewrite summary metadata, and PRE raw/normalized snapshots on MATCH decisions
+- **v0.6.0y** (current): MATCH pruning internals add tag-bound assumptions (`min/max` from comparison constraints) alongside existing eq/neq assumptions
+- **v0.6.x** (next): Surface-level constructor/refinement inference patterns that more often produce direct tag-bound constraints
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation
 - **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration

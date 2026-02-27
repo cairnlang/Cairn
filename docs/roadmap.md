@@ -235,6 +235,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added PRE context snapshots to `match_decision` events (`pre_raw`, `pre_normalized`, `pre_rewrite_summary`)
 - Added run-end rewrite aggregates (`rewrite_event_count`, `rewrite_summary`) and a focused trace example: `examples/prove/proven_shape_trace_rewrites.ax`
 
+### v0.6.0y — Tag-Bound Assumption Support
+- Extended PROVE tag assumptions to carry optional min/max bounds (inclusive/exclusive) alongside existing `eq`/`neq`
+- MATCH candidate filtering now respects these bounds when assumptions are present, and trace assumption snapshots include bound fields
+- Added coverage in solver tests plus `examples/prove/proven_shape_tag_bounds.ax`
+
 ---
 
 ## Next Up
@@ -245,11 +250,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 **Deliverables:**
 
-- **Broader constructor inference** — recognize additional refinement-like PRE patterns around MATCH helpers
+- **Broader constructor inference** — recognize and reduce more helper-generated PRE patterns into direct tag constraints (including bounded forms)
 - **Richer structured diagnostics** — add stable schemas and richer event context beyond current rewrite/lifecycle coverage
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** rewrite-aware JSON trace is now covered; next gains are deeper constructor inference and proof-context breadth.
+**Why now:** tag-bound assumption plumbing is now covered; next gains are more source-level inference paths that produce those bounds.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

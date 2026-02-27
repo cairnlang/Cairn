@@ -981,14 +981,8 @@ defmodule Axiom.Solver.Symbolic do
     assumption = get_tag_assumption(var_name, env)
 
     candidates =
-      cond do
-        is_integer(assumption.eq) and assumption.eq >= 0 and assumption.eq < arity ->
-          [assumption.eq]
-
-        true ->
-          Enum.to_list(0..(arity - 1))
-          |> Enum.reject(&MapSet.member?(assumption.neq, &1))
-      end
+      Enum.to_list(0..(arity - 1))
+      |> Enum.filter(fn idx -> tag_candidate_allowed?(idx, assumption) end)
 
     if candidates == [], do: Enum.to_list(0..(arity - 1)), else: candidates
   end
@@ -1000,13 +994,16 @@ defmodule Axiom.Solver.Symbolic do
 
     case Map.get(assumptions, var_name) do
       value when is_integer(value) ->
-        %{eq: value, neq: MapSet.new()}
+        %{eq: value, neq: MapSet.new(), min: nil, min_inclusive: true, max: nil, max_inclusive: true}
+
+      %{eq: eq, neq: neq, min: min, min_inclusive: min_inc, max: max, max_inclusive: max_inc} ->
+        %{eq: eq, neq: neq, min: min, min_inclusive: min_inc, max: max, max_inclusive: max_inc}
 
       %{eq: eq, neq: neq} ->
-        %{eq: eq, neq: neq}
+        %{eq: eq, neq: neq, min: nil, min_inclusive: true, max: nil, max_inclusive: true}
 
       _ ->
-        %{eq: nil, neq: MapSet.new()}
+        %{eq: nil, neq: MapSet.new(), min: nil, min_inclusive: true, max: nil, max_inclusive: true}
     end
   end
 
@@ -1018,6 +1015,9 @@ defmodule Axiom.Solver.Symbolic do
     cond do
       is_integer(assumption.eq) ->
         "eq"
+
+      assumption.min != nil or assumption.max != nil ->
+        "bounds"
 
       MapSet.size(assumption.neq) > 0 ->
         "neq"
@@ -1068,10 +1068,10 @@ defmodule Axiom.Solver.Symbolic do
 
   defp assumption_snapshot({:var, var_name}, env) do
     a = get_tag_assumption(var_name, env)
-    %{eq: a.eq, neq: Enum.sort(MapSet.to_list(a.neq))}
+    %{eq: a.eq, neq: Enum.sort(MapSet.to_list(a.neq)), min: a.min, min_inclusive: a.min_inclusive, max: a.max, max_inclusive: a.max_inclusive}
   end
 
-  defp assumption_snapshot(_tag, _env), do: %{eq: nil, neq: []}
+  defp assumption_snapshot(_tag, _env), do: %{eq: nil, neq: [], min: nil, min_inclusive: true, max: nil, max_inclusive: true}
 
   defp trace_match_decision(env, type_name, explored, pruned, reason, details) do
     if Map.get(env, "__prove_trace_enabled__", false) do
@@ -1094,6 +1094,32 @@ defmodule Axiom.Solver.Symbolic do
 
       append_trace_event(event)
     end
+  end
+
+  defp tag_candidate_allowed?(idx, assumption) do
+    eq_ok =
+      case assumption.eq do
+        nil -> true
+        value -> idx == value
+      end
+
+    neq_ok = not MapSet.member?(assumption.neq, idx)
+
+    min_ok =
+      case assumption.min do
+        nil -> true
+        value when assumption.min_inclusive -> idx >= value
+        value -> idx > value
+      end
+
+    max_ok =
+      case assumption.max do
+        nil -> true
+        value when assumption.max_inclusive -> idx <= value
+        value -> idx < value
+      end
+
+    eq_ok and neq_ok and min_ok and max_ok
   end
 
   defp append_trace_event(event) do

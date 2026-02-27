@@ -261,6 +261,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added a relaxed runtime budget guard for `examples/prove/all_proven.ax` to catch severe performance regressions
 - Documented rule-admission criteria and locked this slice to guardrails (no broad speculative inference expansion)
 
+### v0.6.0ad — Tactical PRE Freeze
+- Marked `Axiom.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
+- Added explicit rule-admission process doc: `docs/prove-rule-admission.md`
+- Added rewrite-metadata catalog guardrails via `PreNormalize.rewrite_rule_catalog/0` and tests that keep emitted rule names within the frozen catalog
+
 ---
 
 ## Next Up
@@ -268,15 +273,6 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ### Transition Plan (v0.6.x -> v0.7)
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
-
-### v0.6.0ad — Tactical PRE Freeze
-**Goal:** Freeze `Axiom.Solver.PreNormalize` feature growth (bugfix-only) and prevent unbounded tactic accretion.
-
-**Deliverables:**
-- Mark PRE normalization as feature-frozen in roadmap/docs (bugfix + refactor only)
-- Add lightweight RFC path for any new inference rule:
-  problem shape, formal rewrite, perf impact, test evidence
-- Keep existing PROVE capabilities stable; focus on maintainability and diagnostics polish only
 
 ### v0.6.1 — Practical Language Usability Release
 **Goal:** Shift active development from solver tactics to practical language ergonomics.
@@ -304,7 +300,7 @@ The current PROVE MATCH refinement line has delivered substantial gains, but PRE
 - Inductive-proof strategy for selected recursive patterns
 - Clear boundary between production solver behavior and research prototypes
 
-**Why now:** stabilization guardrails are now in place; next gains come from freezing tactic growth and prioritizing practical-language momentum.
+**Why now:** tactical freeze controls are now in place; next gains come from practical-language momentum and usability.
 
 ### v0.7.0 — Typed BEAM Concurrency
 

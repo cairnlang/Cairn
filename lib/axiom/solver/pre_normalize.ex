@@ -6,6 +6,28 @@ defmodule Axiom.Solver.PreNormalize do
   `Axiom.Solver.Prove` is resilient to noisy/generated boolean structure.
   """
 
+  @rewrite_rule_catalog [
+    "and_merge_intervals",
+    "and_contradiction",
+    "and_reduce_implication",
+    "and_reduce_consensus",
+    "and_absorption",
+    "and_complement_pair",
+    "and_pair_short_circuit",
+    "or_pair_reduction",
+    "or_absorption",
+    "or_complement_pair",
+    "or_pair_short_circuit"
+  ]
+
+  @doc """
+  Frozen rewrite-rule catalog for PRE normalization metadata.
+  Any expansion should follow the rule-admission process documented in
+  `docs/prove-rule-admission.md`.
+  """
+  @spec rewrite_rule_catalog() :: [String.t()]
+  def rewrite_rule_catalog, do: @rewrite_rule_catalog
+
   @spec normalize(term()) :: term()
   def normalize({:and, a, b}) do
     [normalize(a), normalize(b)]

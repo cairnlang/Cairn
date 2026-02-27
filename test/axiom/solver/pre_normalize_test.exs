@@ -185,4 +185,26 @@ defmodule Axiom.Solver.PreNormalizeTest do
     assert once == twice
     assert twice == thrice
   end
+
+  test "rewrite metadata rules stay within frozen catalog" do
+    inputs = [
+      {:and, {:or, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:gt, {:var, "x"}, {:const, 0}}},
+       {:or, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:not, {:gt, {:var, "x"}, {:const, 0}}}}},
+      {:or, {:and, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:gt, {:var, "x"}, {:const, 0}}},
+       {:and, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:lte, {:var, "x"}, {:const, 0}}}},
+      {:and, {:gt, {:var, "x"}, {:const, 5}}, {:lte, {:var, "x"}, {:const, 3}}}
+    ]
+
+    rules =
+      inputs
+      |> Enum.flat_map(fn input ->
+        {_normalized, rewrites} = PreNormalize.normalize_with_rewrites(input)
+        Enum.map(rewrites, &Map.get(&1, :rule))
+      end)
+      |> Enum.uniq()
+
+    catalog = MapSet.new(PreNormalize.rewrite_rule_catalog())
+    assert rules != []
+    assert Enum.all?(rules, &MapSet.member?(catalog, &1))
+  end
 end

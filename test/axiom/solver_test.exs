@@ -1591,6 +1591,59 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_pair_pruned: PROVEN"
     end
 
+    test "merged singleton interval in PRE unlocks implication narrowing" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF eq5 : int -> bool
+        DUP 5 GTE
+        SWAP 5 LTE
+        AND
+      END
+
+      DEF neq5 : int -> bool
+        5 NEQ
+      END
+
+      # PRE computes:
+      # (amount >= 5 AND amount <= 5) AND ((amount != 5) OR is_square(shape))
+      # Interval merge yields amount == 5, which collapses implication branch to is_square(shape).
+      DEF square_only_abs_interval_merge : int shape -> int
+        PRE {
+          DUP
+          eq5
+          SWAP
+          DUP
+          neq5
+          ROT4
+          is_square
+          OR
+          SWAP DROP
+          AND
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_interval_merge
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_interval_merge: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

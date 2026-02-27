@@ -207,6 +207,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Supports non-complement constant cases (e.g. `x > 5 AND x <= 3` => false, `x > 5 OR x <= 7` => true)
 - Added `examples/prove/proven_shape_pair_prune.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
 
+### v0.6.0t — Interval-Merge Bound Tightening
+- Added conjunction-time interval merging for same-expression integer bounds (`>`, `>=`, `<`, `<=`) in PRE normalization
+- Collapses closed singletons to equality (e.g. `x >= 5 AND x <= 5` => `x == 5`) and detects empty merged intervals early
+- Added `examples/prove/proven_shape_interval_merge.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
+
 ---
 
 ## Next Up
@@ -221,7 +226,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** local comparison-pair pruning is now covered; next gains are deeper inference coverage and broader proof context.
+**Why now:** interval merge tightening is now covered; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

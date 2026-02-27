@@ -85,4 +85,19 @@ defmodule Axiom.Solver.PreNormalizeTest do
     input = {:and, {:eq, {:var, "x"}, {:const, 2}}, {:lt, {:var, "x"}, {:const, 2}}}
     assert PreNormalize.normalize(input) == false
   end
+
+  test "merges compatible lower bounds to tighter one" do
+    input = {:and, {:gt, {:var, "x"}, {:const, 3}}, {:gte, {:var, "x"}, {:const, 5}}}
+    assert PreNormalize.normalize(input) == {:gte, {:var, "x"}, {:const, 5}}
+  end
+
+  test "collapses closed singleton interval to equality" do
+    input = {:and, {:gte, {:var, "x"}, {:const, 5}}, {:lte, {:var, "x"}, {:const, 5}}}
+    assert PreNormalize.normalize(input) == {:eq, {:var, "x"}, {:const, 5}}
+  end
+
+  test "detects contradiction after interval merge" do
+    input = {:and, {:gte, {:var, "x"}, {:const, 5}}, {:lt, {:var, "x"}, {:const, 5}}}
+    assert PreNormalize.normalize(input) == false
+  end
 end

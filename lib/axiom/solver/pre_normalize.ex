@@ -68,20 +68,30 @@ defmodule Axiom.Solver.PreNormalize do
         false
 
       true ->
-        terms
-        |> Enum.reject(&(&1 == true))
-        |> canonical_terms()
-        |> reduce_implication_terms()
-        |> remove_absorbed_terms(:and)
-        |> flatten_terms(:and)
-        |> canonical_terms()
-        |> then(fn canonical ->
-          cond do
-            has_complement_pair?(canonical) -> false
-            pair_short_circuit?(canonical, :and) -> false
-            true -> build_constraint(:and, canonical)
-          end
-        end)
+        simplified =
+          terms
+          |> Enum.reject(&(&1 == true))
+          |> canonical_terms()
+          |> merge_interval_terms()
+
+        case simplified do
+          :contradiction ->
+            false
+
+          merged_terms ->
+            merged_terms
+            |> reduce_implication_terms()
+            |> remove_absorbed_terms(:and)
+            |> flatten_terms(:and)
+            |> canonical_terms()
+            |> then(fn canonical ->
+              cond do
+                has_complement_pair?(canonical) -> false
+                pair_short_circuit?(canonical, :and) -> false
+                true -> build_constraint(:and, canonical)
+              end
+            end)
+        end
     end
   end
 
@@ -154,6 +164,169 @@ defmodule Axiom.Solver.PreNormalize do
         end
       end)
     end)
+  end
+
+  defp merge_interval_terms(terms) do
+    {comp_terms, other_terms} = Enum.split_with(terms, &match?({op, _, _} when op in [:eq, :neq, :gt, :gte, :lt, :lte], &1))
+
+    grouped =
+      Enum.reduce(comp_terms, %{}, fn term, acc ->
+        case normalized_cmp(term) do
+          {:ok, {_op, expr, _k}} ->
+            Map.update(acc, expr, [term], fn current -> [term | current] end)
+
+          :error ->
+            acc
+        end
+      end)
+
+    Enum.reduce_while(grouped, {:ok, other_terms}, fn {expr, expr_terms}, {:ok, acc_terms} ->
+      case merge_expr_comparison_terms(expr, expr_terms) do
+        :contradiction ->
+          {:halt, :contradiction}
+
+        merged_expr_terms ->
+          {:cont, {:ok, merged_expr_terms ++ acc_terms}}
+      end
+    end)
+    |> case do
+      :contradiction -> :contradiction
+      {:ok, merged} -> canonical_terms(merged)
+    end
+  end
+
+  defp merge_expr_comparison_terms(expr, terms) do
+    parsed =
+      terms
+      |> Enum.map(fn term ->
+        {:ok, {op, _expr, k}} = normalized_cmp(term)
+        {op, k}
+      end)
+
+    eq_values = parsed |> Enum.filter(fn {op, _k} -> op == :eq end) |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+    neq_values = parsed |> Enum.filter(fn {op, _k} -> op == :neq end) |> Enum.map(&elem(&1, 1)) |> MapSet.new()
+    lowers = parsed |> Enum.filter(fn {op, _k} -> op in [:gt, :gte] end)
+    uppers = parsed |> Enum.filter(fn {op, _k} -> op in [:lt, :lte] end)
+
+    cond do
+      length(eq_values) > 1 ->
+        :contradiction
+
+      true ->
+        eq_value = List.first(eq_values)
+        lower = tightest_lower(lowers)
+        upper = tightest_upper(uppers)
+
+        cond do
+          eq_value != nil and (not satisfies_lower?(eq_value, lower) or not satisfies_upper?(eq_value, upper)) ->
+            :contradiction
+
+          eq_value != nil and MapSet.member?(neq_values, eq_value) ->
+            :contradiction
+
+          eq_value != nil ->
+            [{:eq, expr, {:const, eq_value}} | emit_neq_terms(expr, neq_values, eq_value)]
+
+          interval_empty?(lower, upper) ->
+            :contradiction
+
+          lower != nil and upper != nil and interval_singleton?(lower, upper) ->
+            v = elem(lower, 1)
+
+            if MapSet.member?(neq_values, v) do
+              :contradiction
+            else
+              [{:eq, expr, {:const, v}} | emit_neq_terms(expr, neq_values, v)]
+            end
+
+          true ->
+            emit_bound_terms(expr, lower, upper) ++ emit_neq_terms(expr, neq_values, nil)
+        end
+    end
+  end
+
+  defp tightest_lower([]), do: nil
+
+  defp tightest_lower(lowers) do
+    Enum.reduce(lowers, nil, fn {op, k}, acc ->
+      choose_tighter_lower(acc, {op, k})
+    end)
+  end
+
+  defp tightest_upper([]), do: nil
+
+  defp tightest_upper(uppers) do
+    Enum.reduce(uppers, nil, fn {op, k}, acc ->
+      choose_tighter_upper(acc, {op, k})
+    end)
+  end
+
+  defp choose_tighter_lower(nil, candidate), do: candidate
+
+  defp choose_tighter_lower({op1, k1}, {op2, k2}) do
+    cond do
+      k2 > k1 -> {op2, k2}
+      k1 > k2 -> {op1, k1}
+      true -> {if(op1 == :gt or op2 == :gt, do: :gt, else: :gte), k1}
+    end
+  end
+
+  defp choose_tighter_upper(nil, candidate), do: candidate
+
+  defp choose_tighter_upper({op1, k1}, {op2, k2}) do
+    cond do
+      k2 < k1 -> {op2, k2}
+      k1 < k2 -> {op1, k1}
+      true -> {if(op1 == :lt or op2 == :lt, do: :lt, else: :lte), k1}
+    end
+  end
+
+  defp satisfies_lower?(_value, nil), do: true
+  defp satisfies_lower?(value, {:gt, k}), do: value > k
+  defp satisfies_lower?(value, {:gte, k}), do: value >= k
+
+  defp satisfies_upper?(_value, nil), do: true
+  defp satisfies_upper?(value, {:lt, k}), do: value < k
+  defp satisfies_upper?(value, {:lte, k}), do: value <= k
+
+  defp interval_empty?(nil, _upper), do: false
+  defp interval_empty?(_lower, nil), do: false
+
+  defp interval_empty?({lop, lk}, {uop, uk}) do
+    cond do
+      lk < uk -> false
+      lk > uk -> true
+      true -> not (lop == :gte and uop == :lte)
+    end
+  end
+
+  defp interval_singleton?({:gte, k1}, {:lte, k2}), do: k1 == k2
+  defp interval_singleton?(_, _), do: false
+
+  defp emit_bound_terms(_expr, nil, nil), do: []
+
+  defp emit_bound_terms(expr, lower, upper) do
+    lower_term =
+      case lower do
+        nil -> []
+        {op, k} -> [{op, expr, {:const, k}}]
+      end
+
+    upper_term =
+      case upper do
+        nil -> []
+        {op, k} -> [{op, expr, {:const, k}}]
+      end
+
+    lower_term ++ upper_term
+  end
+
+  defp emit_neq_terms(expr, neq_values, skip_value) do
+    neq_values
+    |> MapSet.to_list()
+    |> Enum.reject(fn v -> skip_value != nil and v == skip_value end)
+    |> Enum.sort()
+    |> Enum.map(fn v -> {:neq, expr, {:const, v}} end)
   end
 
   defp pair_relation(left, right) do

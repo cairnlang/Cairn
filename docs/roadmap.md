@@ -162,6 +162,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - `prove_run_end` now includes `unknown_reason` / `error_reason` and compact run stats (`body_stack_depth`, counts, elapsed time)
 - Added solver coverage for lifecycle event presence and UNKNOWN-run metadata behavior
 
+### v0.6.0l — Helper-Boolean Refinement Inference
+- Broadened PRE inference by normalizing boolean-equivalence forms used by helper predicates (e.g. `helper_bool T EQ`)
+- This allows MATCH pruning from helper-derived booleans beyond direct tag comparisons
+- Added `examples/prove/proven_shape_refine.ax` and coverage for helper-equality narrowing proofs
+
 ---
 
 ## Next Up
@@ -176,7 +181,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** lifecycle metadata is in place; next gains are deeper inference and broader proof context.
+**Why now:** helper-boolean refinement is in place; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

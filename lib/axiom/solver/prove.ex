@@ -313,67 +313,153 @@ defmodule Axiom.Solver.Prove do
     end
   end
 
-  defp assumption_map_from_constraint({:and, a, b}) do
-    merge_assumption_maps(assumption_map_from_constraint(a), assumption_map_from_constraint(b), :and)
+  defp assumption_map_from_constraint(constraint) do
+    constraint
+    |> normalize_constraint()
+    |> do_assumption_map_from_constraint()
   end
 
-  defp assumption_map_from_constraint({:or, a, b}) do
-    merge_assumption_maps(assumption_map_from_constraint(a), assumption_map_from_constraint(b), :or)
+  defp do_assumption_map_from_constraint({:and, a, b}) do
+    merge_assumption_maps(do_assumption_map_from_constraint(a), do_assumption_map_from_constraint(b), :and)
   end
 
-  defp assumption_map_from_constraint({:eq, {:var, var}, {:const, value}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:or, a, b}) do
+    merge_assumption_maps(do_assumption_map_from_constraint(a), do_assumption_map_from_constraint(b), :or)
+  end
+
+  defp do_assumption_map_from_constraint({:eq, {:var, var}, {:const, value}}) when is_integer(value) do
     %{var => %{eq: value, neq: MapSet.new()}}
   end
 
-  defp assumption_map_from_constraint({:eq, {:const, value}, {:var, var}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:eq, {:const, value}, {:var, var}}) when is_integer(value) do
     %{var => %{eq: value, neq: MapSet.new()}}
   end
 
-  defp assumption_map_from_constraint({:neq, {:var, var}, {:const, value}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:neq, {:var, var}, {:const, value}}) when is_integer(value) do
     %{var => %{eq: nil, neq: MapSet.new([value])}}
   end
 
-  defp assumption_map_from_constraint({:neq, {:const, value}, {:var, var}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:neq, {:const, value}, {:var, var}}) when is_integer(value) do
     %{var => %{eq: nil, neq: MapSet.new([value])}}
   end
 
-  defp assumption_map_from_constraint({:not, {:eq, {:var, var}, {:const, value}}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:not, {:eq, {:var, var}, {:const, value}}}) when is_integer(value) do
     %{var => %{eq: nil, neq: MapSet.new([value])}}
   end
 
-  defp assumption_map_from_constraint({:not, {:eq, {:const, value}, {:var, var}}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:not, {:eq, {:const, value}, {:var, var}}}) when is_integer(value) do
     %{var => %{eq: nil, neq: MapSet.new([value])}}
   end
 
-  defp assumption_map_from_constraint({:not, {:neq, {:var, var}, {:const, value}}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:not, {:neq, {:var, var}, {:const, value}}}) when is_integer(value) do
     %{var => %{eq: value, neq: MapSet.new()}}
   end
 
-  defp assumption_map_from_constraint({:not, {:neq, {:const, value}, {:var, var}}}) when is_integer(value) do
+  defp do_assumption_map_from_constraint({:not, {:neq, {:const, value}, {:var, var}}}) when is_integer(value) do
     %{var => %{eq: value, neq: MapSet.new()}}
   end
 
-  defp assumption_map_from_constraint({:not, {:not, inner}}) do
-    assumption_map_from_constraint(inner)
+  defp do_assumption_map_from_constraint({:not, {:not, inner}}) do
+    do_assumption_map_from_constraint(inner)
   end
 
-  defp assumption_map_from_constraint({:not, {:ite_bool, cond, true, false}}) do
-    assumption_map_from_constraint({:not, cond})
+  defp do_assumption_map_from_constraint({:not, {:ite_bool, cond, true, false}}) do
+    do_assumption_map_from_constraint({:not, cond})
   end
 
-  defp assumption_map_from_constraint({:not, {:ite_bool, cond, false, true}}) do
-    assumption_map_from_constraint(cond)
+  defp do_assumption_map_from_constraint({:not, {:ite_bool, cond, false, true}}) do
+    do_assumption_map_from_constraint(cond)
   end
 
-  defp assumption_map_from_constraint({:ite_bool, cond, true, false}) do
-    assumption_map_from_constraint(cond)
+  defp do_assumption_map_from_constraint({:ite_bool, cond, true, false}) do
+    do_assumption_map_from_constraint(cond)
   end
 
-  defp assumption_map_from_constraint({:ite_bool, cond, false, true}) do
-    assumption_map_from_constraint({:not, cond})
+  defp do_assumption_map_from_constraint({:ite_bool, cond, false, true}) do
+    do_assumption_map_from_constraint({:not, cond})
   end
 
-  defp assumption_map_from_constraint(_constraint), do: %{}
+  defp do_assumption_map_from_constraint(_constraint), do: %{}
+
+  defp normalize_constraint({:and, a, b}) do
+    a = normalize_constraint(a)
+    b = normalize_constraint(b)
+
+    cond do
+      a == true -> b
+      b == true -> a
+      a == false or b == false -> false
+      true -> {:and, a, b}
+    end
+  end
+
+  defp normalize_constraint({:or, a, b}) do
+    a = normalize_constraint(a)
+    b = normalize_constraint(b)
+    eq_reduced = reduce_bool_equivalence({:or, a, b})
+
+    cond do
+      eq_reduced != {:or, a, b} ->
+        normalize_constraint(eq_reduced)
+
+      a == false ->
+        b
+
+      b == false ->
+        a
+
+      a == true or b == true ->
+        true
+
+      true ->
+        {:or, a, b}
+    end
+  end
+
+  defp normalize_constraint({:not, c}) do
+    c = normalize_constraint(c)
+
+    cond do
+      c == true -> false
+      c == false -> true
+      match?({:not, _}, c) -> elem(c, 1)
+      true -> {:not, c}
+    end
+  end
+
+  defp normalize_constraint({:ite_bool, cond, true, false}) do
+    normalize_constraint(cond)
+  end
+
+  defp normalize_constraint({:ite_bool, cond, false, true}) do
+    normalize_constraint({:not, cond})
+  end
+
+  defp normalize_constraint(c), do: c
+
+  defp reduce_bool_equivalence({:or, {:and, l, r}, {:and, {:not, l2}, {:not, r2}}})
+       when l == l2 and r == r2 do
+    cond do
+      r == true -> l
+      l == true -> r
+      r == false -> {:not, l}
+      l == false -> {:not, r}
+      true -> {:or, {:and, l, r}, {:and, {:not, l2}, {:not, r2}}}
+    end
+  end
+
+  defp reduce_bool_equivalence({:or, {:and, l, r}, {:and, {:not, r2}, {:not, l2}}})
+       when l == l2 and r == r2 do
+    cond do
+      r == true -> l
+      l == true -> r
+      r == false -> {:not, l}
+      l == false -> {:not, r}
+      true -> {:or, {:and, l, r}, {:and, {:not, r2}, {:not, l2}}}
+    end
+  end
+
+  defp reduce_bool_equivalence(c), do: c
 
   defp merge_assumption_maps(left, right, mode) do
     keys = Map.keys(left) ++ Map.keys(right)

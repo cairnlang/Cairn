@@ -1,0 +1,23 @@
+# proven_shape_refine.ax — refinement-style PRE narrowing via helper booleans (v0.6.0l)
+
+TYPE shape = Circle int | Square int
+
+DEF is_square : shape -> bool
+  MATCH
+    Circle { DROP F }
+    Square { DROP T }
+  END
+END
+
+# PRE uses helper boolean equality. PROVE now normalizes this shape and
+# infers that only the Square branch is reachable.
+DEF square_only_abs_eq_true : shape -> int
+  PRE { is_square T EQ }
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs_eq_true

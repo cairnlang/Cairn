@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.6.0k**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader `AND`/`OR`/`NOT` inference, and leveled trace diagnostics on stderr including structured JSON lifecycle metadata), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.6.0l**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, and leveled trace diagnostics on stderr including structured JSON lifecycle metadata), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -27,7 +27,10 @@ mix axiom.run examples/prove/all_proven.ax
 # PRE-driven MATCH branch pruning in PROVE (new v0.6.0e slice)
 mix axiom.run examples/prove/proven_shape_pruned.ax
 
-# PROVE trace diagnostics for pruned/explored MATCH branches (v0.6.0k)
+# Helper-boolean PRE refinement for MATCH pruning (new v0.6.0l slice)
+mix axiom.run examples/prove/proven_shape_refine.ax
+
+# PROVE trace diagnostics for pruned/explored MATCH branches (v0.6.0l)
 AXIOM_PROVE_TRACE=summary mix axiom.run examples/prove/proven_shape_trace.ax
 AXIOM_PROVE_TRACE=verbose mix axiom.run examples/prove/proven_shape_trace.ax
 AXIOM_PROVE_TRACE=json mix axiom.run examples/prove/proven_shape_trace.ax
@@ -47,7 +50,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (680 tests)
+# Run tests (681 tests)
 mix test
 ```
 
@@ -794,7 +797,7 @@ Errors are reported with position information and the checker continues after er
 
 ### PROVE Solver
 
-`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c/d/e/f/g/h/i/j` supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs, with constructor-shaped counterexample decoding for ADT params, PRE-driven branch pruning (including richer PRE boolean forms), and optional trace diagnostics via `AXIOM_PROVE_TRACE=summary|verbose|json` (or per-call `__prove_trace__` in API mode).
+`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c/d/e/f/g/h/i/j/k/l` supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs, with constructor-shaped counterexample decoding for ADT params, PRE-driven branch pruning (including richer PRE boolean forms and helper-boolean equality refinement), and optional trace diagnostics via `AXIOM_PROVE_TRACE=summary|verbose|json` (or per-call `__prove_trace__` in API mode).
 
 `AXIOM_PROVE_TRACE=json` emits structured stderr events. Event kinds include:
 - `prove_run_start` / `prove_run_end` (run metadata, counts, elapsed time)
@@ -827,7 +830,8 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.0h** (complete): PROVE adds leveled trace controls (`summary`/`verbose`) and routes trace to stderr
 - **v0.6.0i** (complete): PROVE adds structured JSON trace output (`AXIOM_PROVE_TRACE=json`)
 - **v0.6.0j** (complete): JSON trace adds run start/end metadata, event indices, match site ids, and assumption snapshots
-- **v0.6.0k** (current): JSON trace adds proof lifecycle events and UNKNOWN/ERROR reason fields in run-end metadata
+- **v0.6.0k** (complete): JSON trace adds proof lifecycle events and UNKNOWN/ERROR reason fields in run-end metadata
+- **v0.6.0l** (current): PROVE broadens refinement inference to helper-boolean equality forms (`... T EQ`) for MATCH pruning
 - **v0.6.x** (next): Broader constructor/refinement inference patterns and richer structured proof context
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation

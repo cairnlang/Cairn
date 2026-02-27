@@ -167,6 +167,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This allows MATCH pruning from helper-derived booleans beyond direct tag comparisons
 - Added `examples/prove/proven_shape_refine.ax` and coverage for helper-equality narrowing proofs
 
+### v0.6.0m — Composed-Helper Boolean Normalization
+- Broadened PRE normalization with boolean identities useful for composed helpers:
+  idempotence (`a AND a`, `a OR a`), complements (`a AND !a`, `a OR !a`), and absorption (`a AND (a OR b)`, `a OR (a AND b)`)
+- This preserves constructor-tag narrowing when helper guards include logically dead composed branches
+- Added `examples/prove/proven_shape_composed.ax` and solver coverage for composed-helper narrowing plus a tautology-limit case
+
 ---
 
 ## Next Up
@@ -181,7 +187,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** helper-boolean refinement is in place; next gains are deeper inference coverage and broader proof context.
+**Why now:** composed-helper normalization is in place; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

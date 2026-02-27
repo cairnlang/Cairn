@@ -1271,6 +1271,79 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_eq_true: PROVEN"
     end
 
+    test "composed helper with dead boolean branch still infers constructor narrowing" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF impossible_square : shape -> bool
+        is_square
+        DUP NOT
+        AND
+      END
+
+      DEF square_by_composed_guard : shape -> bool
+        DUP is_square
+        SWAP impossible_square
+        OR
+      END
+
+      DEF square_only_abs_composed : shape -> int
+        PRE { square_by_composed_guard }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_composed
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_composed: PROVEN"
+    end
+
+    test "composed helper tautology does not narrow MATCH and remains UNKNOWN" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF any_shape : shape -> bool
+        DUP is_square
+        SWAP is_square NOT
+        OR
+      END
+
+      DEF square_only_abs_tautology : shape -> int
+        PRE { any_shape }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_tautology
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_tautology: UNKNOWN"
+      assert output =~ "LEN is not supported by PROVE"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

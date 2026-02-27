@@ -386,6 +386,10 @@ defmodule Axiom.Solver.Prove do
     b = normalize_constraint(b)
 
     cond do
+      a == b -> a
+      constraint_complements?(a, b) -> false
+      absorbs_and?(a, b) -> a
+      absorbs_and?(b, a) -> b
       a == true -> b
       b == true -> a
       a == false or b == false -> false
@@ -401,6 +405,18 @@ defmodule Axiom.Solver.Prove do
     cond do
       eq_reduced != {:or, a, b} ->
         normalize_constraint(eq_reduced)
+
+      a == b ->
+        a
+
+      constraint_complements?(a, b) ->
+        true
+
+      absorbs_or?(a, b) ->
+        a
+
+      absorbs_or?(b, a) ->
+        b
 
       a == false ->
         b
@@ -460,6 +476,16 @@ defmodule Axiom.Solver.Prove do
   end
 
   defp reduce_bool_equivalence(c), do: c
+
+  defp constraint_complements?(a, {:not, b}), do: a == b
+  defp constraint_complements?({:not, a}, b), do: a == b
+  defp constraint_complements?(_, _), do: false
+
+  defp absorbs_and?(a, {:or, x, y}), do: a == x or a == y
+  defp absorbs_and?(_, _), do: false
+
+  defp absorbs_or?(a, {:and, x, y}), do: a == x or a == y
+  defp absorbs_or?(_, _), do: false
 
   defp merge_assumption_maps(left, right, mode) do
     keys = Map.keys(left) ++ Map.keys(right)

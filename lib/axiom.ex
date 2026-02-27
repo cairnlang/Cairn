@@ -57,10 +57,33 @@ defmodule Axiom do
   @spec eval_file(String.t(), map(), list()) :: {list(), map()}
   def eval_file(path, env \\ %{}, stack \\ []) do
     env = with_prelude(env)
+    path = Path.expand(path)
 
-    case Loader.load_items(path) do
-      {:ok, items} -> eval_items(items, env, stack)
-      {:error, msg} -> raise Axiom.RuntimeError, msg
+    with {:ok, prelude_items} <- load_prelude_items(path),
+         {:ok, items} <- Loader.load_items(path) do
+      eval_items(prelude_items ++ items, env, stack)
+    else
+      {:error, msg} ->
+        raise Axiom.RuntimeError, msg
+    end
+  end
+
+  defp load_prelude_items(target_path) do
+    disable? = System.get_env("AXIOM_NO_PRELUDE") in ["1", "true", "TRUE"]
+    prelude_path = Path.expand("lib/prelude.ax", File.cwd!())
+
+    cond do
+      disable? ->
+        {:ok, []}
+
+      target_path == prelude_path ->
+        {:ok, []}
+
+      File.exists?(prelude_path) ->
+        Loader.load_items(prelude_path)
+
+      true ->
+        {:ok, []}
     end
   end
 

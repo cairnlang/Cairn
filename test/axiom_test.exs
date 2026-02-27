@@ -412,6 +412,13 @@ defmodule AxiomTest do
     test "repo import example runs end-to-end" do
       assert Axiom.eval_file("examples/imports/main.ax") |> elem(0) == []
     end
+
+    test "file mode auto-loads prelude helpers" do
+      dir = make_tmp_dir()
+      File.write!(Path.join(dir, "main.ax"), "0 \"42\" TO_INT result_unwrap_or")
+
+      assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [42]
+    end
   end
 
   # ── Iteration ──

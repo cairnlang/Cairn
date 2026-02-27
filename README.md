@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.5.3**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, and safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants.
+**v0.5.4**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and an auto-loaded file prelude.
 
 ## Quick Start
 
@@ -33,7 +33,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (652 tests)
+# Run tests (653 tests)
 mix test
 ```
 
@@ -50,6 +50,15 @@ IMPORT "lib/math.ax"
 Imports are resolved relative to the importing file, loaded recursively, deduplicated, and cycles are reported as runtime errors.
 
 See [`examples/imports/main.ax`](examples/imports/main.ax) and [`examples/imports/lib.ax`](examples/imports/lib.ax) for a minimal two-file example.
+
+### Prelude
+
+`mix axiom.run` / `Axiom.eval_file/3` auto-load `lib/prelude.ax` (disable with `AXIOM_NO_PRELUDE=1`).
+Current prelude helpers:
+
+- `result_is_ok`, `result_is_err`
+- `result_unwrap_or`
+- `to_int_or`, `to_float_or`, `read_file_or`, `ask_or`
 
 ## Language Reference
 
@@ -782,8 +791,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.5.0**: LET bindings, ASK (prompted input), RANDOM, number guessing game example
 - **v0.5.1**: FMT string formatting and SAID destructive print
 - **v0.5.2**: IMPORT "file.ax" multi-file loading with recursive resolution, dedup, and cycle errors
-- **v0.5.3** (current): Safe-by-default fallible ops (`READ_FILE`, `WRITE_FILE`, `TO_INT`, `TO_FLOAT`, `ASK`) returning built-in `result`; explicit `!` unsafe variants
-- **v0.5.x** (next): Remaining practical feature — standard library/prelude extraction
+- **v0.5.3**: Safe-by-default fallible ops (`READ_FILE`, `WRITE_FILE`, `TO_INT`, `TO_FLOAT`, `ASK`) returning built-in `result`; explicit `!` unsafe variants
+- **v0.5.4** (current): Auto-loaded file prelude (`lib/prelude.ax`) with initial `result` utility helpers
+- **v0.5.x** (next): Expand prelude/stdlib modules and migrate reusable patterns out of examples
 - **v0.6.0**: PROVE for MATCH/algebraic types, refinement-style reasoning
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation

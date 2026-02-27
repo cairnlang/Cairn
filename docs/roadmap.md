@@ -81,19 +81,28 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Explicit fail-fast variants: `READ_FILE!`, `WRITE_FILE!`, `TO_INT!`, `TO_FLOAT!`, `ASK!`
 - Existing examples updated to use `!` where crash-on-error behavior is intended
 
+### v0.5.4 — Prelude Bootstrap
+- Added `lib/prelude.ax`, auto-loaded by `Axiom.eval_file/3` / `mix axiom.run`
+- Initial helpers for result ergonomics: `result_is_ok`, `result_is_err`, `result_unwrap_or`
+- Convenience wrappers: `to_int_or`, `to_float_or`, `read_file_or`, `ask_or`
+- `AXIOM_NO_PRELUDE=1` opt-out for deterministic/debug runs
+- `examples/option.ax` updated to use prelude result helpers
+
 ---
 
 ## Next Up
 
-### v0.5.x — Remaining Practical Language Features
+### v0.5.x — Prelude Expansion
 
-**Goal:** Finish practical ergonomics after IMPORT and safe fallible ops.
+**Goal:** Grow the prelude into a practical stdlib surface.
 
 **Deliverables:**
 
-- **Standard library extraction** — move common patterns (abs, max, min, clamp, etc.) from inline definitions into a prelude that's always available
+- **Module split** — break prelude into focused files (`prelude/result.ax`, `prelude/option.ax`, `prelude/str.ax`, etc.)
+- **Extract common helpers** — move reusable patterns from examples into prelude modules
+- **Stability policy** — document which prelude APIs are stable vs experimental
 
-**Why now:** Axiom now has multi-file composition and recoverable Result-based fallible operations. A standard prelude is the next missing piece for larger real-world programs.
+**Why now:** The bootstrap prelude exists and is auto-loaded; now it needs breadth, structure, and API stability to support larger programs.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

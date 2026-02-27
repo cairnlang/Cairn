@@ -1,7 +1,7 @@
 # option.ax — Algebraic Data Types + Pattern Matching (Milestone 3)
 #
-# Demonstrates TYPE declarations (sum types) and MATCH (pattern dispatch).
-# Two classic types: option and result.
+# Demonstrates TYPE declarations (sum types), MATCH (pattern dispatch),
+# and built-in prelude result helpers.
 #
 # Stack convention: param_types[0] is the TOP of stack (first popped).
 # To call `f : option int -> int`, push int first, then option last.
@@ -26,9 +26,6 @@ DEF is_some : option -> bool
   END
 END
 
-# --- Result type ---
-TYPE result = Ok int | Err str
-
 # safe_div: divide two ints, returning Ok(result) or Err("division by zero")
 # Signature: int int -> result  (divisor on top, dividend below)
 DEF safe_div : int int -> result
@@ -37,14 +34,6 @@ DEF safe_div : int int -> result
     DROP DROP "division by zero" Err
   ELSE
     DIV Ok
-  END
-END
-
-# unwrap_result: extract int from Ok, or return -1 on Err
-DEF unwrap_result : result -> int
-  MATCH
-    Ok  { }
-    Err { DROP -1 }
   END
 END
 
@@ -58,5 +47,6 @@ END
 None    is_some SAID       # → false
 
 # Result usage
-10 2 safe_div unwrap_result SAID   # → 5
-10 0 safe_div unwrap_result SAID   # → -1 (division by zero)
+-1 10 2 safe_div result_unwrap_or SAID   # → 5
+-1 10 0 safe_div result_unwrap_or SAID   # → -1 (division by zero)
+10 0 safe_div result_is_err SAID         # → true

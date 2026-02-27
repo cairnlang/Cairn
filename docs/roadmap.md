@@ -202,6 +202,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added comparison-negation flips (`NOT EQ => NEQ`, `NOT GT => LTE`, etc.) and complement-aware rewrites so prior inference remains stable
 - Added `examples/prove/proven_shape_demorgan.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
 
+### v0.6.0s — Local Comparison Pair Pruning
+- Added local contradiction/tautology detection for pairwise comparisons over the same expression with integer constants
+- Supports non-complement constant cases (e.g. `x > 5 AND x <= 3` => false, `x > 5 OR x <= 7` => true)
+- Added `examples/prove/proven_shape_pair_prune.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
+
 ---
 
 ## Next Up
@@ -216,7 +221,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** PRE negation pushdown is now covered; next gains are deeper inference coverage and broader proof context.
+**Why now:** local comparison-pair pruning is now covered; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

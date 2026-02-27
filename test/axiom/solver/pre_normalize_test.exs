@@ -70,4 +70,19 @@ defmodule Axiom.Solver.PreNormalizeTest do
     assert PreNormalize.normalize({:not, {:lte, {:var, "x"}, {:const, 0}}}) ==
              {:gt, {:var, "x"}, {:const, 0}}
   end
+
+  test "detects non-complement contradictory comparison conjunctions" do
+    input = {:and, {:gt, {:var, "x"}, {:const, 5}}, {:lte, {:var, "x"}, {:const, 3}}}
+    assert PreNormalize.normalize(input) == false
+  end
+
+  test "detects non-complement tautological comparison disjunctions" do
+    input = {:or, {:gt, {:var, "x"}, {:const, 5}}, {:lte, {:var, "x"}, {:const, 7}}}
+    assert PreNormalize.normalize(input) == true
+  end
+
+  test "detects contradictory eq and strict bound conjunction" do
+    input = {:and, {:eq, {:var, "x"}, {:const, 2}}, {:lt, {:var, "x"}, {:const, 2}}}
+    assert PreNormalize.normalize(input) == false
+  end
 end

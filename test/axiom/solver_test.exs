@@ -1551,6 +1551,46 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_demorgan: PROVEN"
     end
 
+    test "non-complement contradictory comparison branch in PRE is pruned for narrowing" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      # PRE computes:
+      #   ((amount > 5) AND (amount <= 3)) OR is_square(shape)
+      # first branch is contradictory and normalizes to false.
+      DEF square_only_abs_pair_pruned : int shape -> int
+        PRE {
+          DUP 5 GT
+          OVER 3 LTE
+          AND
+          ROT
+          is_square
+          OR
+          SWAP DROP
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_pair_pruned
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_pair_pruned: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

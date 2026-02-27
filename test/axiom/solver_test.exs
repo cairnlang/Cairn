@@ -1344,6 +1344,55 @@ defmodule Axiom.SolverTest do
       assert output =~ "LEN is not supported by PROVE"
     end
 
+    test "boolean split alias form in composed helper still narrows constructor" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF has_pos_payload : shape -> bool
+        MATCH
+          Circle { 0 GT }
+          Square { 0 GT }
+        END
+      END
+
+      DEF split_alias : bool bool -> bool
+        OVER OVER AND
+        ROT
+        NOT
+        AND
+        OR
+      END
+
+      DEF square_guard_split : shape -> bool
+        DUP is_square
+        SWAP has_pos_payload
+        SWAP
+        split_alias
+      END
+
+      DEF square_only_abs_split : shape -> int
+        PRE { square_guard_split }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_split
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_split: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

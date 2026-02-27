@@ -173,6 +173,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This preserves constructor-tag narrowing when helper guards include logically dead composed branches
 - Added `examples/prove/proven_shape_composed.ax` and solver coverage for composed-helper narrowing plus a tautology-limit case
 
+### v0.6.0n — Split-Guard Alias Reduction
+- Broadened PRE normalization for split aliases of boolean guards:
+  `(a AND b) OR (a AND !b) => a` (plus symmetric variants)
+- This preserves constructor narrowing when helper guards are expressed via split branches
+- Added `examples/prove/proven_shape_split.ax` and solver coverage for split-guard narrowing
+
 ---
 
 ## Next Up
@@ -187,7 +193,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** composed-helper normalization is in place; next gains are deeper inference coverage and broader proof context.
+**Why now:** split-guard alias reduction is in place; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

@@ -401,10 +401,14 @@ defmodule Axiom.Solver.Prove do
     a = normalize_constraint(a)
     b = normalize_constraint(b)
     eq_reduced = reduce_bool_equivalence({:or, a, b})
+    split_reduced = reduce_split_disjunction({:or, a, b})
 
     cond do
       eq_reduced != {:or, a, b} ->
         normalize_constraint(eq_reduced)
+
+      split_reduced != {:or, a, b} ->
+        normalize_constraint(split_reduced)
 
       a == b ->
         a
@@ -476,6 +480,28 @@ defmodule Axiom.Solver.Prove do
   end
 
   defp reduce_bool_equivalence(c), do: c
+
+  # (a AND b) OR (a AND NOT b) => a (and symmetric variants)
+  defp reduce_split_disjunction({:or, left, right}) do
+    case {and_terms(left), and_terms(right)} do
+      {{:ok, {l1, l2}}, {:ok, {r1, r2}}} ->
+        cond do
+          l1 == r1 and constraint_complements?(l2, r2) -> l1
+          l1 == r2 and constraint_complements?(l2, r1) -> l1
+          l2 == r1 and constraint_complements?(l1, r2) -> l2
+          l2 == r2 and constraint_complements?(l1, r1) -> l2
+          true -> {:or, left, right}
+        end
+
+      _ ->
+        {:or, left, right}
+    end
+  end
+
+  defp reduce_split_disjunction(c), do: c
+
+  defp and_terms({:and, x, y}), do: {:ok, {x, y}}
+  defp and_terms(_), do: :error
 
   defp constraint_complements?(a, {:not, b}), do: a == b
   defp constraint_complements?({:not, a}, b), do: a == b

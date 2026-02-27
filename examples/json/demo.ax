@@ -1,0 +1,36 @@
+# json/demo.ax — demonstration program for JSON parser/encoder
+IMPORT "core.ax"
+
+# --- Demo: low-level parse check ---
+# Each call: parse, print the json value, discard remaining chars.
+
+"null"             CHARS parse_value DROP SAID
+"true"             CHARS parse_value DROP SAID
+"false"            CHARS parse_value DROP SAID
+"42.5"             CHARS parse_value DROP SAID
+"-7.0"             CHARS parse_value DROP SAID
+"\"hello\""        CHARS parse_value DROP SAID
+"  null"           CHARS parse_value DROP SAID
+"[]"               CHARS parse_value DROP SAID
+"[1.0,2.0,3.0]"   CHARS parse_value DROP SAID
+"{}"               CHARS parse_value DROP SAID
+"{\"x\":1.0}"      CHARS parse_value DROP SAID
+
+# --- Demo: practical — extract full names from a JSON people array ---
+
+"[{\"first\":\"Alice\",\"last\":\"Smith\"},{\"first\":\"Bob\",\"last\":\"Jones\"},{\"first\":\"Carol\",\"last\":\"White\"}]"
+CHARS parse_value DROP
+names_of
+"\n" JOIN SAID
+
+# --- Demo: encoder ---
+
+JNull encode SAID
+T JBool encode SAID
+42.5 JNum encode SAID
+"hello" JStr encode SAID
+[ 1.0 JNum 2.0 JNum 3.0 JNum ] JArr encode SAID
+
+# Round-trip: parse then re-encode
+"{\"name\":\"Alice\",\"score\":99.5}"
+CHARS parse_value DROP encode SAID

@@ -5,7 +5,7 @@ defmodule Axiom do
   Public API for compiling and evaluating Axiom source code.
   """
 
-  alias Axiom.{Lexer, Parser, Evaluator, Checker, Verify}
+  alias Axiom.{Lexer, Parser, Evaluator, Checker, Verify, Loader}
   alias Axiom.Solver.Prove
 
   @doc """
@@ -32,45 +32,30 @@ defmodule Axiom do
   @spec eval_with_env(String.t(), map(), list()) :: {list(), map()}
   def eval_with_env(source, env \\ %{}, stack \\ []) do
     with {:ok, tokens} <- Lexer.tokenize(source),
-         {:ok, items} <- Parser.parse(tokens),
-         :ok <- Checker.check(items, env) do
-      Enum.reduce(items, {stack, env}, fn
-        {:expr, expr_tokens}, {stack, env} ->
-          Evaluator.eval_tokens_with_env(expr_tokens, stack, env)
+         {:ok, items} <- Parser.parse(tokens) do
+      if Enum.any?(items, &match?({:import, _}, &1)) do
+        raise Axiom.RuntimeError, "IMPORT requires file mode; use Axiom.eval_file/3 or mix axiom.run"
+      end
 
-        %Axiom.Types.Function{} = func, {stack, env} ->
-          {stack, Map.put(env, func.name, func)}
-
-        %Axiom.Types.TypeDef{} = typedef, {stack, env} ->
-          types = Map.get(env, "__types__", %{})
-          ctors = Map.get(env, "__constructors__", %{})
-
-          new_ctors =
-            Enum.reduce(typedef.variants, ctors, fn {ctor_name, field_types}, acc ->
-              Map.put(acc, ctor_name, {typedef.name, field_types})
-            end)
-
-          env =
-            env
-            |> Map.put("__types__", Map.put(types, typedef.name, typedef))
-            |> Map.put("__constructors__", new_ctors)
-
-          {stack, env}
-
-        {:verify, name, count}, {stack, env} ->
-          run_verify(name, count, env)
-          {stack, env}
-
-        {:prove, name}, {stack, env} ->
-          run_prove(name, env)
-          {stack, env}
-      end)
+      eval_items(items, env, stack)
     else
       {:error, errors} when is_list(errors) ->
         raise Axiom.StaticError, errors
 
       {:error, msg} ->
         raise Axiom.RuntimeError, msg
+    end
+  end
+
+  @doc """
+  Evaluates an Axiom source file and resolves recursive IMPORT statements.
+  Returns both stack and environment.
+  """
+  @spec eval_file(String.t(), map(), list()) :: {list(), map()}
+  def eval_file(path, env \\ %{}, stack \\ []) do
+    case Loader.load_items(path) do
+      {:ok, items} -> eval_items(items, env, stack)
+      {:error, msg} -> raise Axiom.RuntimeError, msg
     end
   end
 
@@ -119,6 +104,48 @@ defmodule Axiom do
           {:error, reason} ->
             raise Axiom.RuntimeError, "PROVE #{name}: ERROR — #{reason}"
         end
+    end
+  end
+
+  defp eval_items(items, env, stack) do
+    with :ok <- Checker.check(items, env) do
+      Enum.reduce(items, {stack, env}, fn
+        {:expr, expr_tokens}, {stack, env} ->
+          Evaluator.eval_tokens_with_env(expr_tokens, stack, env)
+
+        %Axiom.Types.Function{} = func, {stack, env} ->
+          {stack, Map.put(env, func.name, func)}
+
+        %Axiom.Types.TypeDef{} = typedef, {stack, env} ->
+          types = Map.get(env, "__types__", %{})
+          ctors = Map.get(env, "__constructors__", %{})
+
+          new_ctors =
+            Enum.reduce(typedef.variants, ctors, fn {ctor_name, field_types}, acc ->
+              Map.put(acc, ctor_name, {typedef.name, field_types})
+            end)
+
+          env =
+            env
+            |> Map.put("__types__", Map.put(types, typedef.name, typedef))
+            |> Map.put("__constructors__", new_ctors)
+
+          {stack, env}
+
+        {:verify, name, count}, {stack, env} ->
+          run_verify(name, count, env)
+          {stack, env}
+
+        {:prove, name}, {stack, env} ->
+          run_prove(name, env)
+          {stack, env}
+
+        {:import, _path}, {stack, env} ->
+          {stack, env}
+      end)
+    else
+      {:error, errors} when is_list(errors) ->
+        raise Axiom.StaticError, errors
     end
   end
 

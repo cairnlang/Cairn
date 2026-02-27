@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.5.0**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), and a **JSON parser + encoder** written entirely in Axiom.
+**v0.5.2**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, and a **JSON parser + encoder** written entirely in Axiom.
 
 ## Quick Start
 
@@ -21,8 +21,11 @@ mix axiom.run examples/option.ax
 # Verify contracts with random testing + compile-time proof
 mix axiom.run examples/bank.ax
 
-# JSON parser + encoder (recursive sum types in action)
-mix axiom.run examples/json.ax
+# JSON parser + encoder demo (modular IMPORT example)
+mix axiom.run examples/json/demo.ax
+
+# Minimal 2-file IMPORT demo
+mix axiom.run examples/imports/main.ax
 
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
@@ -30,9 +33,23 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (626 tests)
+# Run tests (648 tests)
 mix test
 ```
+
+### Imports
+
+Use `IMPORT "path.ax"` at top level to load another file before evaluation:
+
+```
+# main.ax
+IMPORT "lib/math.ax"
+5 double
+```
+
+Imports are resolved relative to the importing file, loaded recursively, deduplicated, and cycles are reported as runtime errors.
+
+See [`examples/imports/main.ax`](examples/imports/main.ax) and [`examples/imports/lib.ax`](examples/imports/lib.ax) for a minimal two-file example.
 
 ## Language Reference
 
@@ -601,7 +618,7 @@ mix axiom.run examples/freq.ax somefile.txt
 
 ### JSON Parser and Encoder
 
-A complete JSON parser and encoder written entirely in Axiom (`examples/json.ax`), demonstrating recursive sum types, character-level string processing, and the wildcard MATCH pattern:
+A complete JSON parser and encoder written entirely in Axiom (`examples/json/core.ax` + `examples/json/demo.ax`), demonstrating recursive sum types, character-level string processing, and the wildcard MATCH pattern:
 
 ```
 TYPE json = JNull | JBool bool | JNum float | JStr str | JArr [json] | JObj map[str json]
@@ -641,8 +658,11 @@ END
 ```
 
 ```bash
-mix axiom.run examples/json.ax
+mix axiom.run examples/json/demo.ax
 # Parses and prints JSON values, extracts names, round-trips through encode
+
+# Compatibility entrypoint (same output)
+mix axiom.run examples/json.ax
 ```
 
 ### Number Guessing Game
@@ -756,8 +776,10 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.3.0** (complete): Algebraic data types (TYPE/MATCH) — Option, Result, and user-defined sum types with exhaustiveness checking
 - **v0.4.0** (complete): JSON parser/encoder milestone — wildcard MATCH, string primitives, ROT4, PAIRS, NUM_STR, VERIFY for sum types
 - **v0.4.1**: PROVE for IF/ELSE branches (via SMT-LIB `ite`), ABS/MIN/MAX, function call inlining
-- **v0.5.0** (current): LET bindings, ASK (prompted input), RANDOM, number guessing game example
-- **v0.5.x** (next): Practical language features — IMPORT/modules, error handling, standard library
+- **v0.5.0**: LET bindings, ASK (prompted input), RANDOM, number guessing game example
+- **v0.5.1**: FMT string formatting and SAID destructive print
+- **v0.5.2** (current): IMPORT "file.ax" multi-file loading with recursive resolution, dedup, and cycle errors
+- **v0.5.x** (next): Remaining practical features — error handling and standard library
 - **v0.6.0**: PROVE for MATCH/algebraic types, refinement-style reasoning
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation

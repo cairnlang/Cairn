@@ -168,6 +168,9 @@ defmodule Axiom.Checker do
   # PROVE items are runtime-only, skip in static checker
   defp check_item({:prove, _name}, state), do: state
 
+  # IMPORT items are resolved before checking in file mode
+  defp check_item({:import, _path}, state), do: state
+
   # Check return shape of a function body
   defp check_return_shape(%{return_types: [:void]} = func, state) do
     depth = Stack.depth(state.stack)

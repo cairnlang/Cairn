@@ -89,6 +89,7 @@ defmodule Axiom.Lexer do
   defp classify("ELSE"), do: {:ok, {:else_kw, "ELSE"}}
   defp classify("VERIFY"), do: {:ok, {:verify_kw, "VERIFY"}}
   defp classify("PROVE"), do: {:ok, {:prove_kw, "PROVE"}}
+  defp classify("IMPORT"), do: {:ok, {:import_kw, "IMPORT"}}
   defp classify("TYPE"), do: {:ok, {:type_kw, "TYPE"}}
   defp classify("MATCH"), do: {:ok, {:match_kw, "MATCH"}}
   defp classify("LET"), do: {:ok, {:let_kw, "LET"}}

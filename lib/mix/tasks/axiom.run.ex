@@ -26,31 +26,24 @@ defmodule Mix.Tasks.Axiom.Run do
   end
 
   defp run_file(path) do
-    case File.read(path) do
-      {:ok, source} ->
-        try do
-          {stack, _env} = Axiom.eval_with_env(source)
+    try do
+      {stack, _env} = Axiom.eval_file(path)
 
-          stack
-          |> Enum.reverse()
-          |> Enum.each(fn val -> IO.puts(format_value(val)) end)
-        rescue
-          e in Axiom.StaticError ->
-            Mix.shell().error("Static type error: #{e.message}")
-            System.halt(1)
+      stack
+      |> Enum.reverse()
+      |> Enum.each(fn val -> IO.puts(format_value(val)) end)
+    rescue
+      e in Axiom.StaticError ->
+        Mix.shell().error("Static type error: #{e.message}")
+        System.halt(1)
 
-          e in Axiom.RuntimeError ->
-            Mix.shell().error("Runtime error: #{e.message}")
-            System.halt(1)
+      e in Axiom.RuntimeError ->
+        Mix.shell().error("Runtime error: #{e.message}")
+        System.halt(1)
 
-          e in Axiom.ContractError ->
-            Mix.shell().error("Contract violation: #{e.message}")
-            Mix.shell().error("  stack: #{inspect(e.stack)}")
-            System.halt(1)
-        end
-
-      {:error, reason} ->
-        Mix.shell().error("Cannot read #{path}: #{reason}")
+      e in Axiom.ContractError ->
+        Mix.shell().error("Contract violation: #{e.message}")
+        Mix.shell().error("  stack: #{inspect(e.stack)}")
         System.halt(1)
     end
   end

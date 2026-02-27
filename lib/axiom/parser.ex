@@ -46,6 +46,13 @@ defmodule Axiom.Parser do
     end
   end
 
+  defp parse_top([{:import_kw, _, _} | rest], acc) do
+    case parse_import(rest) do
+      {:ok, import_item, remaining} -> parse_top(remaining, [import_item | acc])
+      {:error, _} = err -> err
+    end
+  end
+
   defp parse_top([{:type_kw, _, _} | rest], acc) do
     case parse_type_def(rest) do
       {:ok, typedef, remaining} -> parse_top(remaining, [typedef | acc])
@@ -55,7 +62,7 @@ defmodule Axiom.Parser do
 
   defp parse_top(tokens, acc) do
     {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} ->
-      type not in [:fn_def, :verify_kw, :prove_kw, :type_kw]
+      type not in [:fn_def, :verify_kw, :prove_kw, :import_kw, :type_kw]
     end)
 
     if expr_tokens == [] do
@@ -161,6 +168,15 @@ defmodule Axiom.Parser do
 
   defp parse_prove(_) do
     {:error, "PROVE requires a function name"}
+  end
+
+  # IMPORT "path.ax"
+  defp parse_import([{:str_lit, path, _} | rest]) do
+    {:ok, {:import, path}, rest}
+  end
+
+  defp parse_import(_) do
+    {:error, "IMPORT requires a quoted path string, e.g. IMPORT \"lib.ax\""}
   end
 
   defp expect_ident([{:ident, name, _} | rest]), do: {:ok, name, rest}

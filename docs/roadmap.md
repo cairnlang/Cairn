@@ -39,7 +39,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - String primitives: CHARS, SPLIT, TRIM, STARTS_WITH, SLICE, TO_INT, TO_FLOAT, JOIN
 - ROT4 (4-element stack rotation), PAIRS (map to key-value list), NUM_STR
 - VERIFY support for user-defined sum types (StreamData.tree depth-limited generation)
-- Complete JSON parser + encoder written in Axiom (`examples/json.ax`)
+- Complete JSON parser + encoder written in Axiom (`examples/json/core.ax` + `examples/json/demo.ax`, with `examples/json.ax` compatibility entrypoint)
 
 ### v0.4.1 — PROVE: Branches + Function Inlining
 - PROVE handles IF/ELSE via `ite` (if-then-else) nodes in SMT-LIB
@@ -58,10 +58,6 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - `examples/guess.ax` — Tim Hartnell number guessing game using all three features
 - 626 tests passing
 
----
-
-## Next Up
-
 ### v0.5.1 — FMT + SAID
 - `FMT` operator: pop format string, pop one value per `{}` placeholder, auto-convert, push result
 - Auto-conversion: int/float→to_string, bool→"T"/"F", else→inspect
@@ -71,19 +67,29 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - All examples updated to use FMT and SAID
 - 639 tests passing
 
-### v0.5.x — More Practical Language Features
+### v0.5.2 — Minimal IMPORT / File Modules
+- `IMPORT "path.ax"` top-level statement for multi-file programs
+- Relative import resolution from the importing file's directory
+- Recursive import loading (imports of imports)
+- Import deduplication (each file loaded once per run)
+- Import cycle detection with explicit error path
+- `Axiom.eval_file/3` and `mix axiom.run` execute with import resolution
 
-**Goal:** Continue making Axiom usable for real programs beyond toy examples.
+---
+
+## Next Up
+
+### v0.5.x — Remaining Practical Language Features
+
+**Goal:** Finish practical ergonomics after IMPORT.
 
 **Deliverables:**
 
 - **Error handling beyond contracts** — currently the only error mechanism is contract violations crashing. Need TRY/CATCH or Result-based error flow for I/O, parsing, and other fallible operations.
 
-- **IMPORT / module system** — no way to split code across files. Every example is a single monolithic `.ax` file. A working language needs `IMPORT "file.ax"` or similar.
-
 - **Standard library extraction** — move common patterns (abs, max, min, clamp, etc.) from inline definitions into a prelude that's always available
 
-**Why now:** Axiom has a JSON parser, algebraic types, a type checker, VERIFY, and PROVE — but you still can't split code across files or handle errors gracefully. These gaps block any project larger than a single-file example.
+**Why now:** Axiom now supports multi-file composition via IMPORT, but robust recoverable errors and a standard prelude are still needed for larger real-world programs.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

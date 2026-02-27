@@ -23,6 +23,7 @@ defmodule Axiom.Types do
           | :arrow
           | :if_kw
           | :else_kw
+          | :import_kw
           | :type_kw
           | :match_kw
           | :pipe

@@ -52,6 +52,11 @@ defmodule AxiomTest do
              ]
     end
 
+    test "tokenizes import statement" do
+      assert {:ok, [{:import_kw, "IMPORT", 0}, {:str_lit, "lib.ax", 1}]} =
+               Axiom.Lexer.tokenize("IMPORT \"lib.ax\"")
+    end
+
     test "tokenizes type annotations" do
       assert {:ok, [{:type, :int, 0}]} = Axiom.Lexer.tokenize("int")
       assert {:ok, [{:type, :float, 0}]} = Axiom.Lexer.tokenize("float")
@@ -102,6 +107,11 @@ defmodule AxiomTest do
       assert length(items) == 2
       assert %Axiom.Types.Function{} = hd(items)
       assert {:expr, _} = List.last(items)
+    end
+
+    test "parses import statement" do
+      {:ok, tokens} = Axiom.Lexer.tokenize("IMPORT \"lib.ax\"")
+      {:ok, [{:import, "lib.ax"}]} = Axiom.Parser.parse(tokens)
     end
   end
 
@@ -343,6 +353,64 @@ defmodule AxiomTest do
       [ 1 2 3 4 5 6 7 8 9 10 ] ssq
       """
       assert Axiom.eval(source) == [165]
+    end
+  end
+
+  describe "IMPORT" do
+    test "imports a sibling file and uses its definitions" do
+      dir = make_tmp_dir()
+      File.write!(Path.join(dir, "math.ax"), "DEF double : int -> int DUP ADD END")
+      File.write!(Path.join(dir, "main.ax"), "IMPORT \"math.ax\" 5 double")
+
+      assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [10]
+    end
+
+    test "imports are recursive and path resolution is relative to importing file" do
+      dir = make_tmp_dir()
+      File.mkdir_p!(Path.join(dir, "lib"))
+
+      File.write!(Path.join(dir, "lib/math.ax"), "DEF inc : int -> int 1 ADD END")
+      File.write!(Path.join(dir, "lib/helpers.ax"), "IMPORT \"math.ax\" DEF inc2 : int -> int inc inc END")
+      File.write!(Path.join(dir, "main.ax"), "IMPORT \"lib/helpers.ax\" 5 inc2")
+
+      assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [7]
+    end
+
+    test "duplicate imports are deduplicated" do
+      dir = make_tmp_dir()
+      File.write!(Path.join(dir, "shared.ax"), "1")
+      File.write!(Path.join(dir, "main.ax"), "IMPORT \"shared.ax\" IMPORT \"shared.ax\"")
+
+      assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [1]
+    end
+
+    test "import cycles raise a runtime error" do
+      dir = make_tmp_dir()
+      File.write!(Path.join(dir, "a.ax"), "IMPORT \"b.ax\"")
+      File.write!(Path.join(dir, "b.ax"), "IMPORT \"a.ax\"")
+
+      assert_raise Axiom.RuntimeError, ~r/IMPORT cycle detected/, fn ->
+        Axiom.eval_file(Path.join(dir, "a.ax"))
+      end
+    end
+
+    test "missing imported file raises a runtime error" do
+      dir = make_tmp_dir()
+      File.write!(Path.join(dir, "main.ax"), "IMPORT \"missing.ax\"")
+
+      assert_raise Axiom.RuntimeError, ~r/IMPORT failed to read/, fn ->
+        Axiom.eval_file(Path.join(dir, "main.ax"))
+      end
+    end
+
+    test "IMPORT in source-string mode is rejected" do
+      assert_raise Axiom.RuntimeError, ~r/Axiom.eval_file\/3/, fn ->
+        Axiom.eval("IMPORT \"foo.ax\"")
+      end
+    end
+
+    test "repo import example runs end-to-end" do
+      assert Axiom.eval_file("examples/imports/main.ax") |> elem(0) == []
     end
   end
 
@@ -754,10 +822,20 @@ defmodule AxiomTest do
     end
   end
 
-  # Full JSON scalar parser source (TYPE + helpers + parsers, no demo expressions)
-  @json_parser File.read!("examples/json.ax")
-               |> String.split("\n# --- Demo ---\n")
-               |> hd()
+  # Full JSON parser/encoder core source (no demo expressions)
+  @json_parser File.read!("examples/json/core.ax")
+
+  defp make_tmp_dir do
+    dir =
+      Path.join(
+        System.tmp_dir!(),
+        "axiom_import_test_#{System.unique_integer([:positive, :monotonic])}"
+      )
+
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+    dir
+  end
 
   defp jv(tag, fields), do: {:variant, "json", tag, fields}
 
@@ -915,10 +993,8 @@ defmodule AxiomTest do
     end
   end
 
-  # Full json.ax source including encoder (no demo expressions)
-  @json_full File.read!("examples/json.ax")
-             |> String.split("\n# --- Demo:")
-             |> hd()
+  # Full parser/encoder source (no demo expressions)
+  @json_full File.read!("examples/json/core.ax")
 
   describe "JSON encoder" do
     test "encode JNull" do

@@ -266,6 +266,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`
 - Added rewrite-metadata catalog guardrails via `PreNormalize.rewrite_rule_catalog/0` and tests that keep emitted rule names within the frozen catalog
 
+### v0.6.1a — Practical Language Usability (CLI/Diagnostics Pass 1)
+- Added clearer `PROVE ... UNKNOWN` hints with actionable guidance (use VERIFY or simplify proof surface)
+- Added contextual PROVE error hints for common setup/runtime failures (missing Z3, temp-file failures)
+- Added `mix axiom.run` run-summary diagnostics on stderr (status, value count, elapsed ms)
+- Added CLI/solver coverage for summary output and UNKNOWN hint behavior
+
 ---
 
 ## Next Up
@@ -274,12 +280,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.6.1 — Practical Language Usability Release
+### v0.6.1b — Practical Language Usability Release
 **Goal:** Shift active development from solver tactics to practical language ergonomics.
 
 **Deliverables:**
-- CLI/dev UX improvements (clearer `run/test/prove` output, better failure surfaces)
-- Error message and diagnostics quality pass (type/runtime/prove unknown paths)
+- CLI/dev UX improvements (clearer `run/test/prove` output, better failure surfaces beyond v0.6.1a)
+- Error message and diagnostics quality pass (type/runtime/prove paths)
 - Standard library/prelude usability expansion and discoverability
 - Documentation consolidation for everyday usage (non-research path first)
 

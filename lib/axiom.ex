@@ -128,10 +128,52 @@ defmodule Axiom do
 
           {:unknown, reason} ->
             IO.puts("PROVE #{name}: UNKNOWN — #{reason}")
+            maybe_print_prove_hint(reason)
 
           {:error, reason} ->
-            raise Axiom.RuntimeError, "PROVE #{name}: ERROR — #{reason}"
+            hint = prove_error_hint(reason)
+
+            message =
+              if hint do
+                "PROVE #{name}: ERROR — #{reason}\n  hint: #{hint}"
+              else
+                "PROVE #{name}: ERROR — #{reason}"
+              end
+
+            raise Axiom.RuntimeError, message
         end
+    end
+  end
+
+  defp maybe_print_prove_hint(reason) do
+    if hint = prove_unknown_hint(reason) do
+      IO.puts("  hint: #{hint}")
+    end
+  end
+
+  defp prove_unknown_hint(reason) do
+    cond do
+      String.contains?(reason, "not supported") ->
+        "Try VERIFY for this function, or simplify PRE/body to PROVE-supported operators."
+
+      String.contains?(reason, "inline depth") or String.contains?(reason, "recursive") ->
+        "Refactor into non-recursive helper steps or smaller contracts, then PROVE each step."
+
+      true ->
+        "Run with AXIOM_PROVE_TRACE=summary|verbose|json to inspect proof shape and pruning decisions."
+    end
+  end
+
+  defp prove_error_hint(reason) do
+    cond do
+      String.contains?(reason, "z3 not found") ->
+        "Install Z3 and ensure `z3` is available on PATH."
+
+      String.contains?(reason, "failed to open file") ->
+        "Retry the run; if this persists, check write permissions for temporary files."
+
+      true ->
+        nil
     end
   end
 

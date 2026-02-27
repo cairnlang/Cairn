@@ -2604,6 +2604,7 @@ defmodule Axiom.SolverTest do
         Axiom.eval(source)
       end)
       assert output =~ "UNKNOWN"
+      assert output =~ "hint:"
     end
 
     test "PROVE on undefined function raises error" do

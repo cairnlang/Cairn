@@ -26,24 +26,35 @@ defmodule Mix.Tasks.Axiom.Run do
   end
 
   defp run_file(path) do
+    started_at_ms = System.monotonic_time(:millisecond)
+
     try do
       {stack, _env} = Axiom.eval_file(path)
 
       stack
       |> Enum.reverse()
       |> Enum.each(fn val -> IO.puts(format_value(val)) end)
+
+      elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
+      IO.puts(:stderr, "RUN SUMMARY: status=ok values=#{length(stack)} elapsed_ms=#{elapsed_ms}")
     rescue
       e in Axiom.StaticError ->
         Mix.shell().error("Static type error: #{e.message}")
+        elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
+        IO.puts(:stderr, "RUN SUMMARY: status=error kind=static elapsed_ms=#{elapsed_ms}")
         System.halt(1)
 
       e in Axiom.RuntimeError ->
         Mix.shell().error("Runtime error: #{e.message}")
+        elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
+        IO.puts(:stderr, "RUN SUMMARY: status=error kind=runtime elapsed_ms=#{elapsed_ms}")
         System.halt(1)
 
       e in Axiom.ContractError ->
         Mix.shell().error("Contract violation: #{e.message}")
         Mix.shell().error("  stack: #{inspect(e.stack)}")
+        elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
+        IO.puts(:stderr, "RUN SUMMARY: status=error kind=contract elapsed_ms=#{elapsed_ms}")
         System.halt(1)
     end
   end

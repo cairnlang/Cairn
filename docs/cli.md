@@ -59,8 +59,13 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `mix axiom.run examples/practical/expenses.ax [optional/path.csv]`
    - `mix axiom.run examples/practical/cashflow.ax [optional/ledger.csv] [optional/expenses.csv]`
    - `mix axiom.run examples/practical/cashflow_alerts.ax [optional/ledger.csv] [optional/expenses.csv]`
-4. Inspect loaded prelude: `mix axiom.run --show-prelude examples/prelude/result_flow.ax`
-5. Try diagnostics JSON: `mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax`
-6. Run practical-only tests: `mix test.practical`
+4. Load typed-concurrency examples (static-only for now):
+   - `mix axiom.run examples/concurrency/ping_pong_types.ax`
+   - `mix axiom.run examples/concurrency/traffic_light_types.ax`
+5. Inspect loaded prelude: `mix axiom.run --show-prelude examples/prelude/result_flow.ax`
+6. Try diagnostics JSON: `mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax`
+7. Run practical-only tests: `mix test.practical`
+
+The concurrency examples currently validate parsing and static typing only; `SPAWN`, `SEND`, and `RECEIVE` are not implemented at runtime yet.
 
 See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

@@ -337,6 +337,13 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Polished practical examples for consistent usage headers and source/output marker conventions
 - Expanded practical smoke coverage to include `all_practical.ax` and deterministic marker checks across the full chain
 
+### v0.7.0a — Typed Concurrency Foundations
+- Added `pid[T]` to the type grammar, including nested use inside user-defined sum types
+- Added parser/type-checker support for `SPAWN MessageType { ... }`, `SEND`, and `RECEIVE ... END`
+- Kept concurrency runtime explicitly deferred with clear runtime errors for process ops
+- Added static-only example programs under `examples/concurrency/`
+- Expanded tests and examples index coverage for the typed-concurrency groundwork
+
 ---
 
 ## Next Up
@@ -345,14 +352,14 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.7.0 — Typed BEAM Concurrency
+### v0.7.0 — Typed BEAM Concurrency Runtime
 **Goal:** Type-safe message passing on the BEAM — the feature no other language has.
 
 Axiom already has algebraic types and contracts. Combining them with BEAM processes creates typed actors with provable state transition invariants.
 
 **Deliverables:**
-- `SPAWN`, `SEND`, `RECEIVE` primitives
-- `Pid<MessageType>` — typed process identifiers
+- Runtime implementation for `SPAWN`, `SEND`, `RECEIVE`
+- `pid[MessageType]` — typed process identifiers backed by real BEAM processes
 - `RECEIVE` with MATCH-style pattern dispatch on message type
 - State machine example with contract-checked transitions (traffic light)
 - Supervisor integration — contract violations crash the process, supervisor restarts

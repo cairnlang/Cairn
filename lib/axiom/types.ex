@@ -3,7 +3,17 @@ defmodule Axiom.Types do
   Type definitions for the Axiom language.
   """
 
-  @type axiom_type :: :int | :float | :bool | {:list, axiom_type} | {:map, axiom_type, axiom_type} | {:user_type, String.t()} | :any | :void | :str
+  @type axiom_type ::
+          :int
+          | :float
+          | :bool
+          | {:list, axiom_type}
+          | {:map, axiom_type, axiom_type}
+          | {:pid, axiom_type}
+          | {:user_type, String.t()}
+          | :any
+          | :void
+          | :str
 
   @type token_type ::
           :int_lit
@@ -26,6 +36,8 @@ defmodule Axiom.Types do
           | :import_kw
           | :type_kw
           | :match_kw
+          | :receive_kw
+          | :spawn_kw
           | :pipe
           | :equals
           | :constructor

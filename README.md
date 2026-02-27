@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.6.3**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, tag-assumption bounds (`gt/gte/lt/lte`), broader helper-comparison inference (including `eq/neq` and bounded affine/multiplicative constant wrappers over tag-boolean `ite` encodings), stabilization guardrails (PRE idempotence checks, trace ordering/schema stability, and all-proven performance budget checks), tactical PRE-freeze governance with rule-admission gating, clearer PROVE UNKNOWN/ERROR hints, CLI run-summary diagnostics, discoverable CLI/prelude guidance via `mix axiom.run --help` / `--show-prelude`, consistent structured diagnostics (`ERROR kind=...` plus optional `--json-errors`), categorized runnable example discovery via `mix axiom.run --examples`, practical mini-app examples under `examples/practical/`, curated example smoke coverage in tests, practical-programs milestone starters (ledger/todo end-to-end file workflows with IMPORT+prelude+VERIFY), stronger app-level assertions, report round-trip checks, argv-driven file-backed flows (`ledger_cli.ax`), larger module-split practical expenses workflow (`expenses.ax`) with deterministic smoke markers, composed cross-file cashflow + alerts workflows (`cashflow.ax` + `cashflow_alerts.ax`) with shared report/assert helpers, plus practical milestone consolidation (`all_practical.ax`, dedicated `mix test.practical`, and practical pipeline docs), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.7.0a**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, tag-assumption bounds (`gt/gte/lt/lte`), broader helper-comparison inference (including `eq/neq` and bounded affine/multiplicative constant wrappers over tag-boolean `ite` encodings), stabilization guardrails (PRE idempotence checks, trace ordering/schema stability, and all-proven performance budget checks), tactical PRE-freeze governance with rule-admission gating, clearer PROVE UNKNOWN/ERROR hints, CLI run-summary diagnostics, discoverable CLI/prelude guidance via `mix axiom.run --help` / `--show-prelude`, consistent structured diagnostics (`ERROR kind=...` plus optional `--json-errors`), categorized runnable example discovery via `mix axiom.run --examples`, practical mini-app examples under `examples/practical/`, curated example smoke coverage in tests, practical-programs milestone starters (ledger/todo end-to-end file workflows with IMPORT+prelude+VERIFY), stronger app-level assertions, report round-trip checks, argv-driven file-backed flows (`ledger_cli.ax`), larger module-split practical expenses workflow (`expenses.ax`) with deterministic smoke markers, composed cross-file cashflow + alerts workflows (`cashflow.ax` + `cashflow_alerts.ax`) with shared report/assert helpers, practical milestone consolidation (`all_practical.ax`, dedicated `mix test.practical`, and practical pipeline docs), plus typed-concurrency foundations (`pid[T]`, `SPAWN`, `SEND`, `RECEIVE`) with static-only examples, runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -95,6 +95,10 @@ mix axiom.run examples/practical/cashflow.ax examples/practical/data/ledger.csv 
 mix axiom.run examples/practical/cashflow_alerts.ax
 mix axiom.run examples/practical/cashflow_alerts.ax examples/practical/data/ledger.csv examples/practical/data/expenses.csv
 
+# Typed-concurrency groundwork (static-only examples; runtime ops are not implemented yet)
+mix axiom.run examples/concurrency/ping_pong_types.ax
+mix axiom.run examples/concurrency/traffic_light_types.ax
+
 # Prelude helpers demo (safe result flow + string helpers)
 mix axiom.run examples/prelude_demo.ax
 mix axiom.run --show-prelude examples/prelude/result_flow.ax
@@ -113,7 +117,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (733 tests)
+# Run tests (742 tests)
 mix test
 
 # Run practical-only pipeline tests
@@ -141,6 +145,7 @@ mix axiom.run examples/bank.ax
 
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
+Typed-concurrency groundwork examples live under `examples/concurrency/` and currently exercise parsing + static checking only.
 
 ### Practical Mini-Apps
 
@@ -978,8 +983,8 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.2c** (complete): Practical programs pass 3 (larger module-split expenses workflow with smoke markers)
 - **v0.6.2d** (complete): Practical programs pass 4 (cross-file cashflow composition + shared report/assert helpers)
 - **v0.6.2e** (complete): Practical programs pass 5 (cashflow-alerts pipeline stage with risk classification)
-- **v0.6.3** (current): Practical milestone consolidation (`all_practical`, practical-only test target, pipeline docs)
-- **v0.7.0** (next): Typed BEAM concurrency
+- **v0.7.0a** (current): Typed-concurrency foundations (`pid[T]`, static `SPAWN`/`SEND`/`RECEIVE`, type-only examples)
+- **v0.7.0** (next): Typed BEAM concurrency runtime
 - **v0.8.0**: BEAM bytecode compilation
 - **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration
 

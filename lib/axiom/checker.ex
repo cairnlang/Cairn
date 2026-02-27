@@ -316,6 +316,39 @@ defmodule Axiom.Checker do
     walk(remaining, %{state | stack: Stack.push(state.stack, {:block, block_tokens})})
   end
 
+  # SPAWN MessageType { ... } — static-only for now
+  defp walk([{:spawn_kw, _, pos}, type_token, {:block_open, _, _} | rest], state) do
+    case resolve_concurrency_type(type_token, state.types) do
+      {:ok, msg_type} ->
+        {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+        block_state = walk(block_tokens, %{state | stack: Stack.new()})
+
+        state = %{
+          state
+          | errors: merge_error_lists(state.errors, block_state.errors),
+            next_tvar: block_state.next_tvar
+        }
+
+        state =
+          if Stack.depth(block_state.stack) == 0 do
+            state
+          else
+            add_error(state, pos, "SPAWN block must leave an empty stack")
+          end
+
+        walk(remaining, %{state | stack: Stack.push(state.stack, {:pid, msg_type})})
+
+      {:error, msg} ->
+        state = add_error(state, pos, msg)
+        {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+        walk(remaining, state)
+    end
+  end
+
+  defp walk([{:spawn_kw, _, pos} | rest], state) do
+    walk(rest, add_error(state, pos, "SPAWN requires a message type and block: SPAWN msg { ... }"))
+  end
+
   # IF/ELSE/END
   defp walk([{:if_kw, _, pos} | rest], state) do
     case Stack.pop(state.stack) do
@@ -517,6 +550,29 @@ defmodule Axiom.Checker do
     end
   end
 
+  # SEND — pid[msg] msg SEND
+  defp walk([{:op, :send, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[msg_type, {:pid, expected_msg_type}], base} ->
+        state =
+          case Unify.unify(msg_type, expected_msg_type) do
+            {:ok, _} -> %{state | stack: base}
+            :error ->
+              add_error(%{state | stack: base}, pos,
+                "SEND expected #{format_type(expected_msg_type)}, got #{format_type(msg_type)}")
+          end
+
+        walk(rest, state)
+
+      {[msg_type, other], _base} ->
+        walk(rest, add_error(state, pos,
+          "SEND requires pid[msg] beneath the message, got #{format_type(other)} under #{format_type(msg_type)}"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "SEND requires a pid and message on the stack (stack underflow)"))
+    end
+  end
+
   # General operators - lookup effect
   defp walk([{:op, op, pos} | rest], state) do
     case Effects.lookup(op) do
@@ -691,6 +747,77 @@ defmodule Axiom.Checker do
 
       :underflow ->
         state = add_error(state, pos, "MATCH requires a value on the stack (stack underflow)")
+        walk(remaining, state)
+    end
+  end
+
+  # RECEIVE/END — pattern dispatch on the message type carried by pid[msg]
+  defp walk([{:receive_kw, _, pos} | rest], state) do
+    {arms, remaining} = collect_checker_match_arms(rest, [])
+
+    case Stack.pop(state.stack) do
+      {:ok, {:pid, {:user_type, type_name}}, base_stack} ->
+        state = %{state | stack: base_stack}
+        typedef = Map.get(state.types, type_name)
+        has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
+
+        state =
+          cond do
+            is_nil(typedef) ->
+              add_error(state, pos, "RECEIVE requires a pid of a known sum type, got #{type_name}")
+
+            has_wildcard ->
+              state
+
+            true ->
+              arm_names = MapSet.new(arms, fn {name, _} -> name end)
+              all_ctors = MapSet.new(Map.keys(typedef.variants))
+              missing = MapSet.difference(all_ctors, arm_names)
+
+              if MapSet.size(missing) > 0 do
+                add_error(state, pos,
+                  "RECEIVE on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
+              else
+                state
+              end
+          end
+
+        arm_states =
+          Enum.map(arms, fn
+            {:wildcard, arm_tokens} ->
+              walk(arm_tokens, %{state | stack: base_stack})
+
+            {ctor_name, arm_tokens} ->
+              field_types =
+                if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
+
+              arm_stack =
+                field_types
+                |> Enum.reverse()
+                |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+
+              walk(arm_tokens, %{state | stack: arm_stack})
+          end)
+
+        {result_stack, state} = unify_arm_stacks(arm_states, state, pos)
+        walk(remaining, %{state | stack: result_stack})
+
+      {:ok, {:pid, other}, _} ->
+        state =
+          add_error(state, pos,
+            "RECEIVE requires pid[user_type], got #{format_type({:pid, other})}")
+
+        walk(remaining, state)
+
+      {:ok, other, _} ->
+        state =
+          add_error(state, pos,
+            "RECEIVE requires a pid on the stack, got #{format_type(other)}")
+
+        walk(remaining, state)
+
+      :underflow ->
+        state = add_error(state, pos, "RECEIVE requires a pid on the stack (stack underflow)")
         walk(remaining, state)
     end
   end
@@ -1050,6 +1177,14 @@ defmodule Axiom.Checker do
     do_split_if(rest, depth + 1, [t | then_acc], else_acc)
   end
 
+  defp do_split_if([{:match_kw, _, _} = t | rest], depth, then_acc, else_acc) do
+    do_split_if(rest, depth + 1, [t | then_acc], else_acc)
+  end
+
+  defp do_split_if([{:receive_kw, _, _} = t | rest], depth, then_acc, else_acc) do
+    do_split_if(rest, depth + 1, [t | then_acc], else_acc)
+  end
+
   defp do_split_if([{:fn_end, _, _} = t | rest], depth, then_acc, else_acc) when depth > 0 do
     do_split_if(rest, depth - 1, [t | then_acc], else_acc)
   end
@@ -1067,6 +1202,14 @@ defmodule Axiom.Checker do
   end
 
   defp collect_else([{:if_kw, _, _} = t | rest], depth, then_branch, else_acc) do
+    collect_else(rest, depth + 1, then_branch, [t | else_acc])
+  end
+
+  defp collect_else([{:match_kw, _, _} = t | rest], depth, then_branch, else_acc) do
+    collect_else(rest, depth + 1, then_branch, [t | else_acc])
+  end
+
+  defp collect_else([{:receive_kw, _, _} = t | rest], depth, then_branch, else_acc) do
     collect_else(rest, depth + 1, then_branch, [t | else_acc])
   end
 
@@ -1183,12 +1326,27 @@ defmodule Axiom.Checker do
   defp format_type(:num), do: "num"
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
+  defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:block, _}), do: "block"
   defp format_type({:tvar, id}), do: "t#{id}"
   defp format_type({:user_type, name}), do: name
   defp format_type(other), do: inspect(other)
 
   defp format_op(op), do: String.upcase(to_string(op))
+
+  defp resolve_concurrency_type({:type, type, _}, _types), do: {:ok, type}
+
+  defp resolve_concurrency_type({:ident, name, _}, types) do
+    if Map.has_key?(types, name) do
+      {:ok, {:user_type, name}}
+    else
+      {:error, "SPAWN requires a known message type, got #{name}"}
+    end
+  end
+
+  defp resolve_concurrency_type(_token, _types) do
+    {:error, "SPAWN requires a valid message type before the block"}
+  end
 
   # Count {} placeholders in a format string, skipping {{ and }}
   defp count_fmt_placeholders(text), do: count_fmt_placeholders_acc(text, 0)

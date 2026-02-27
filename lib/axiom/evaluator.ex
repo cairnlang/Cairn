@@ -53,6 +53,21 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "LET at word #{pos + 1}: empty stack"
   end
 
+  # SPAWN is parsed and type-checked, but runtime support is deferred.
+  defp run([{:spawn_kw, _, pos}, _type_token, {:block_open, _, _} | rest], _stack, _env) do
+    {_block_tokens, _remaining} = collect_block(rest, 0, [])
+    raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: not implemented yet"
+  end
+
+  defp run([{:spawn_kw, _, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: not implemented yet"
+  end
+
+  # SEND is statically checked, but runtime support is deferred.
+  defp run([{:op, :send, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "SEND at word #{pos + 1}: not implemented yet"
+  end
+
   # Operators — delegate to Runtime
   defp run([{:op, op, _} | rest], stack, env), do: run(rest, Runtime.execute(op, stack), env)
 
@@ -105,6 +120,11 @@ defmodule Axiom.Evaluator do
 
   defp run([{:match_kw, _, pos} | _], [], _env) do
     raise Axiom.RuntimeError, "MATCH at word #{pos + 1}: empty stack"
+  end
+
+  # RECEIVE is parsed and type-checked, but runtime support is deferred.
+  defp run([{:receive_kw, _, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: not implemented yet"
   end
 
   # Identifiers — look up in environment
@@ -293,6 +313,14 @@ defmodule Axiom.Evaluator do
     split_if_branches(rest, depth + 1, [t | then_acc], else_acc)
   end
 
+  defp split_if_branches([{:match_kw, _, _} = t | rest], depth, then_acc, else_acc) do
+    split_if_branches(rest, depth + 1, [t | then_acc], else_acc)
+  end
+
+  defp split_if_branches([{:receive_kw, _, _} = t | rest], depth, then_acc, else_acc) do
+    split_if_branches(rest, depth + 1, [t | then_acc], else_acc)
+  end
+
   # Nested END decreases depth
   defp split_if_branches([{:fn_end, _, _} = t | rest], depth, then_acc, else_acc) when depth > 0 do
     split_if_branches(rest, depth - 1, [t | then_acc], else_acc)
@@ -311,6 +339,14 @@ defmodule Axiom.Evaluator do
   end
 
   defp collect_else_branch([{:if_kw, _, _} = t | rest], depth, then_branch, else_acc) do
+    collect_else_branch(rest, depth + 1, then_branch, [t | else_acc])
+  end
+
+  defp collect_else_branch([{:match_kw, _, _} = t | rest], depth, then_branch, else_acc) do
+    collect_else_branch(rest, depth + 1, then_branch, [t | else_acc])
+  end
+
+  defp collect_else_branch([{:receive_kw, _, _} = t | rest], depth, then_branch, else_acc) do
     collect_else_branch(rest, depth + 1, then_branch, [t | else_acc])
   end
 
@@ -404,11 +440,13 @@ defmodule Axiom.Evaluator do
   defp matches_type?(v, :str) when is_binary(v), do: true
   defp matches_type?(v, {:list, _}) when is_list(v), do: true
   defp matches_type?(v, {:map, _, _}) when is_map(v), do: true
+  defp matches_type?({:pid, inner}, {:pid, expected_inner}), do: matches_type?(inner, expected_inner)
   defp matches_type?({:variant, type_name, _, _}, {:user_type, type_name}), do: true
   defp matches_type?(_, _), do: false
 
   defp format_type({:list, inner}), do: "[#{inner}]"
   defp format_type({:map, k, v}), do: "map[#{k} #{v}]"
+  defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:user_type, name}), do: name
   defp format_type(type), do: to_string(type)
 

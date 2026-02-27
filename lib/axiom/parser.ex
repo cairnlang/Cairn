@@ -350,6 +350,11 @@ defmodule Axiom.Parser do
     collect_body(rest, [t | body_acc], post_acc, depth + 1)
   end
 
+  # RECEIVE increases nesting depth
+  defp collect_body([{:receive_kw, _, _} = t | rest], body_acc, post_acc, depth) do
+    collect_body(rest, [t | body_acc], post_acc, depth + 1)
+  end
+
   # POST at depth 0 = start of postcondition
   defp collect_body([{:post, _, _} | rest], body_acc, _post_acc, 0) do
     collect_post(rest, Enum.reverse(body_acc), [], 0)
@@ -376,6 +381,10 @@ defmodule Axiom.Parser do
   end
 
   defp collect_post([{:match_kw, _, _} = t | rest], body, post_acc, depth) do
+    collect_post(rest, body, [t | post_acc], depth + 1)
+  end
+
+  defp collect_post([{:receive_kw, _, _} = t | rest], body, post_acc, depth) do
     collect_post(rest, body, [t | post_acc], depth + 1)
   end
 

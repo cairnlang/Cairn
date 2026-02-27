@@ -53,6 +53,14 @@ defmodule Axiom.Checker.Unify do
     end
   end
 
+  # Pid unification
+  def unify({:pid, a}, {:pid, b}) do
+    case unify(a, b) do
+      {:ok, unified} -> {:ok, {:pid, unified}}
+      :error -> :error
+    end
+  end
+
   # Block types unify with each other
   def unify({:block, _} = a, {:block, _}), do: {:ok, a}
 

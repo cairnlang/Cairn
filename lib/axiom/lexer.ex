@@ -12,6 +12,7 @@ defmodule Axiom.Lexer do
                 SQ ABS NEG
                 TIMES WHILE APPLY
                 RANGE PRINT SAY
+                SEND
                 ARGV READ_FILE WRITE_FILE READ_FILE! WRITE_FILE! READ_LINE
                 WORDS LINES CONTAINS
                 CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT TO_INT! TO_FLOAT! NUM_STR JOIN
@@ -92,6 +93,8 @@ defmodule Axiom.Lexer do
   defp classify("IMPORT"), do: {:ok, {:import_kw, "IMPORT"}}
   defp classify("TYPE"), do: {:ok, {:type_kw, "TYPE"}}
   defp classify("MATCH"), do: {:ok, {:match_kw, "MATCH"}}
+  defp classify("RECEIVE"), do: {:ok, {:receive_kw, "RECEIVE"}}
+  defp classify("SPAWN"), do: {:ok, {:spawn_kw, "SPAWN"}}
   defp classify("LET"), do: {:ok, {:let_kw, "LET"}}
   defp classify("|"), do: {:ok, {:pipe, "|"}}
   defp classify("="), do: {:ok, {:equals, "="}}
@@ -124,6 +127,15 @@ defmodule Axiom.Lexer do
             {:ok, {:type, {:list, {:user_type, inner}}}}
           true ->
             {:error, "unknown list type: #{word}"}
+        end
+
+      # pid type like pid[int], pid[msg], or pid[map[str int]]
+      Regex.match?(~r/^pid\[.+\]$/, word) ->
+        inner = String.slice(word, 4..-2)
+
+        case parse_map_inner_type(inner) do
+          {:ok, t} -> {:ok, {:type, {:pid, t}}}
+          :error -> {:error, "unknown pid type: #{word}"}
         end
 
       # map type like map[str int]
@@ -176,6 +188,14 @@ defmodule Axiom.Lexer do
           case {parse_map_inner_type(k), parse_map_inner_type(v)} do
             {{:ok, kt}, {:ok, vt}} -> {:ok, {:map, kt, vt}}
             _ -> :error
+          end
+
+        Regex.match?(~r/^pid\[.+\]$/, s) ->
+          inner = String.slice(s, 4..-2)
+
+          case parse_map_inner_type(inner) do
+            {:ok, t} -> {:ok, {:pid, t}}
+            :error -> :error
           end
 
         Regex.match?(~r/^[a-z_][a-z0-9_]*$/, s) ->

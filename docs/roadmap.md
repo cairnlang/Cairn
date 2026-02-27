@@ -458,6 +458,59 @@ END
 
 **Bounded next slice inside v0.7.0:** before broader ergonomics, introduce a minimal protocol-checking layer (session-type-inspired, but practical) that statically validates finite two-party message order without touching the solver.
 
+### Practical Language Side Path (bounded, non-concurrency)
+These are worthwhile practicality slices that can be interleaved with the v0.7.0 concurrency track when we want fast, low-risk progress outside actor semantics. The ordering below is intentional.
+
+#### 1. Collection Helpers First
+**Goal:** Improve day-to-day scripting and data wrangling without adding major semantic weight.
+
+**First candidates:**
+- `ZIP`
+- `ENUMERATE`
+- `FLAT_MAP`
+- Possibly follow-up helpers like `FIND`, `TAKE`, or `DROP` if examples immediately justify them
+
+**Scope note:** without full parametric polymorphism, some of these will necessarily degrade to `any` in their result shape. That tradeoff is acceptable for a first practical slice if documented explicitly.
+
+**Why first:** highest value-per-effort, no deep architectural commitment, and directly useful for practical examples.
+
+#### 2. Float Math As Explicit Float Ops
+**Goal:** Add practical numeric capability without forcing a broader numeric-type redesign yet.
+
+**First candidates:**
+- `SIN`
+- `COS`
+- `EXP`
+- `LOG`
+- `SQRT`
+
+**Bounded scope:**
+- Treat these as `float -> float` operations in the checker
+- Require explicit conversion (`TO_FLOAT`) rather than introducing a global `num` supertype first
+- Make `PROVE` degrade cleanly to `UNKNOWN` for functions that use unsupported transcendental operations
+
+**Why second:** runtime support is cheap and the semantics are clear, but the checker and `PROVE` behavior still need a disciplined slice.
+
+#### 3. Narrow Elixir Interop As Escape Hatch
+**Goal:** Unlock selected practical integrations without turning Axiom into a thin syntax layer over Elixir.
+
+**Bounded scope:**
+- Keep the first version intentionally narrow and explicitly under-typed
+- Prefer small, explicit bridges or whitelisted calls over a fully generic open-ended FFI
+- Treat it as an escape hatch, not the default path for core language capability
+
+**Why third:** huge practical upside, but easy to overdo in ways that weaken the pressure to improve Axiom itself.
+
+#### 4. Defer Mutable State
+**Goal:** Avoid semantic and architectural churn until the concurrency direction is more settled.
+
+**Current stance:**
+- Do not prioritize implicit rebinding (`SETLET`-style outer-scope mutation)
+- Do not prioritize shared `REF` cells ahead of the typed-concurrency design
+- If state-threading ergonomics become necessary later, prefer explicit structured state-passing relief over true shared mutation
+
+**Why last:** highest semantic risk, most likely to conflict with the actor-first model, and easiest to regret if introduced too early.
+
 ### v0.8.0 — BEAM Bytecode Compilation
 
 **Goal:** Compile Axiom to native BEAM bytecode instead of interpreting.

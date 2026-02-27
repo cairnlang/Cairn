@@ -121,6 +121,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/proven_shape_buggy.ax` to demonstrate decoded ADT failure output
 - Added solver coverage for ADT counterexample formatting and failing generic MATCH proofs
 
+### v0.6.0e — PRE-Driven MATCH Branch Pruning
+- PROVE now carries simple constructor-tag assumptions inferred from PRE into symbolic body execution
+- Symbolic MATCH execution can prune unreachable arms for `option`, `result`, and generic ADTs
+- Added `examples/proven_shape_pruned.ax` showing an unreachable unsupported arm no longer blocks proof
+- Added solver coverage for pruning behavior and PRE-narrowed generic ADT proofs
+
 ---
 
 ## Next Up
@@ -131,10 +137,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 **Deliverables:**
 
-- **PRE-driven branch pruning** — leverage PRE constraints to prove constructor impossibility and simplify MATCH obligations
+- **Broader PRE inference** — infer constructor constraints from richer boolean forms beyond direct/ite-eq patterns
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
+- **Solver diagnostics** — report when a branch was pruned vs symbolically explored for easier proof debugging
 
-**Why now:** generic ADT MATCH proving is in place; the next gains are quality-of-proof and usability improvements.
+**Why now:** baseline PRE-driven pruning is implemented; the next gains are deeper inference and better visibility.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

@@ -30,8 +30,9 @@ defmodule Axiom.Solver.Prove do
     with :ok <- check_z3_available(),
          {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, env),
          {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, env),
-         {:ok, result_stack} <- execute_body(func, body_stack, env),
-         {:ok, post_constraint} <- execute_post(func, result_stack, env) do
+         prove_env <- enrich_env_with_pre_assumptions(env, pre_constraint),
+         {:ok, result_stack} <- execute_body(func, body_stack, prove_env),
+         {:ok, post_constraint} <- execute_post(func, result_stack, prove_env) do
       query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env)
     else
       {:unsupported, reason} -> {:unknown, reason}
@@ -172,6 +173,42 @@ defmodule Axiom.Solver.Prove do
   end
 
   defp format_param_value(_type, _i, _model, _env), do: "?"
+
+  defp enrich_env_with_pre_assumptions(env, pre_constraint) do
+    assumptions = collect_pre_tag_assumptions(pre_constraint, %{})
+
+    if map_size(assumptions) == 0 do
+      env
+    else
+      Map.put(env, "__prove_tag_assumptions__", assumptions)
+    end
+  end
+
+  defp collect_pre_tag_assumptions({:and, a, b}, acc) do
+    acc
+    |> then(&collect_pre_tag_assumptions(a, &1))
+    |> then(&collect_pre_tag_assumptions(b, &1))
+  end
+
+  defp collect_pre_tag_assumptions({:eq, {:var, var}, {:const, value}}, acc) when is_integer(value) do
+    Map.put_new(acc, var, value)
+  end
+
+  defp collect_pre_tag_assumptions({:eq, {:const, value}, {:var, var}}, acc) when is_integer(value) do
+    Map.put_new(acc, var, value)
+  end
+
+  defp collect_pre_tag_assumptions({:ite_bool, {:eq, {:var, var}, {:const, value}}, true, false}, acc)
+       when is_integer(value) do
+    Map.put_new(acc, var, value)
+  end
+
+  defp collect_pre_tag_assumptions({:ite_bool, {:eq, {:const, value}, {:var, var}}, true, false}, acc)
+       when is_integer(value) do
+    Map.put_new(acc, var, value)
+  end
+
+  defp collect_pre_tag_assumptions(_constraint, acc), do: acc
 
   defp combine_constraints(true, c), do: c
   defp combine_constraints(c, true), do: c

@@ -460,6 +460,43 @@ defmodule Axiom.SolverTest do
       assert {:ite, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:var, "p0_Square_0"},
               {:mul, {:var, "p0_Circle_0"}, {:var, "p0_Circle_0"}}} = result
     end
+
+    test "known constructor tag from PRE assumptions prunes unreachable unsupported branch" do
+      stack = [
+        {:variant_expr, "shape", {:var, "p0_tag"},
+         %{
+           "Circle" => [{:int_expr, {:var, "p0_Circle_0"}}],
+           "Square" => [{:int_expr, {:var, "p0_Square_0"}}]
+         }}
+      ]
+
+      tokens = [
+        {:match_kw, "MATCH", 0},
+        {:constructor, "Circle", 1},
+        {:block_open, "{", 2},
+        {:op, :len, 3},
+        {:block_close, "}", 4},
+        {:constructor, "Square", 5},
+        {:block_open, "{", 6},
+        {:op, :abs, 7},
+        {:block_close, "}", 8},
+        {:fn_end, "END", 9}
+      ]
+
+      env = %{
+        "__types__" => %{
+          "shape" => %Axiom.Types.TypeDef{
+            name: "shape",
+            variants: %{"Circle" => [:int], "Square" => [:int]}
+          }
+        },
+        "__prove_tag_assumptions__" => %{"p0_tag" => 1}
+      }
+
+      assert {:ok, [{:int_expr, {:ite, {:lt, {:var, "p0_Square_0"}, {:const, 0}},
+                                {:neg, {:var, "p0_Square_0"}}, {:var, "p0_Square_0"}}}]} =
+               Symbolic.execute(tokens, stack, env)
+    end
   end
 
   describe "Symbolic.execute — compound operations" do
@@ -1089,6 +1126,31 @@ defmodule Axiom.SolverTest do
 
       output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
       assert output =~ "PROVE size_nonneg: PROVEN"
+    end
+
+    test "PRE can prune unreachable MATCH branch during proving" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF square_only_abs : shape -> int
+        PRE {
+          MATCH
+            Circle { DROP F }
+            Square { DROP T }
+          END
+        }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs: PROVEN"
     end
   end
 

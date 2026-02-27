@@ -386,11 +386,25 @@ defmodule Axiom.Solver.Symbolic do
   defp walk([{:match_kw, _, _} | rest], [{:option_expr, tag, payload} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
 
-    with {:ok, some_tokens, none_tokens} <- resolve_option_arms(arms),
-         {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth),
-         {:ok, none_stack} <- walk(none_tokens, stack, env, depth),
-         {:ok, merged} <- merge_stacks({:eq, tag, {:const, 1}}, some_stack, none_stack) do
-      walk(remaining, merged, env, depth)
+    with {:ok, some_tokens, none_tokens} <- resolve_option_arms(arms) do
+      case known_tag_value(tag, env) do
+        1 ->
+          with {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth) do
+            walk(remaining, some_stack, env, depth)
+          end
+
+        0 ->
+          with {:ok, none_stack} <- walk(none_tokens, stack, env, depth) do
+            walk(remaining, none_stack, env, depth)
+          end
+
+        _ ->
+          with {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth),
+               {:ok, none_stack} <- walk(none_tokens, stack, env, depth),
+               {:ok, merged} <- merge_stacks({:eq, tag, {:const, 1}}, some_stack, none_stack) do
+            walk(remaining, merged, env, depth)
+          end
+      end
     end
   end
 
@@ -398,11 +412,25 @@ defmodule Axiom.Solver.Symbolic do
   defp walk([{:match_kw, _, _} | rest], [{:result_expr, tag, ok_payload, err_id} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
 
-    with {:ok, ok_tokens, err_tokens} <- resolve_result_arms(arms),
-         {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth),
-         {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth),
-         {:ok, merged} <- merge_stacks({:eq, tag, {:const, 1}}, ok_stack, err_stack) do
-      walk(remaining, merged, env, depth)
+    with {:ok, ok_tokens, err_tokens} <- resolve_result_arms(arms) do
+      case known_tag_value(tag, env) do
+        1 ->
+          with {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth) do
+            walk(remaining, ok_stack, env, depth)
+          end
+
+        0 ->
+          with {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth) do
+            walk(remaining, err_stack, env, depth)
+          end
+
+        _ ->
+          with {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth),
+               {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth),
+               {:ok, merged} <- merge_stacks({:eq, tag, {:const, 1}}, ok_stack, err_stack) do
+            walk(remaining, merged, env, depth)
+          end
+      end
     end
   end
 
@@ -691,36 +719,48 @@ defmodule Axiom.Solver.Symbolic do
   end
 
   defp execute_and_merge_generic_match(typedef, tag, payload_map, base_stack, arm_map, env, depth) do
-    ctor_order(typedef)
-    |> Enum.with_index()
-    |> Enum.reduce_while({:ok, nil}, fn {ctor, idx}, {:ok, acc_stack} ->
-      ctor_payload = Map.get(payload_map, ctor, [])
-      arm_tokens = Map.fetch!(arm_map, ctor)
-      branch_stack = Enum.reverse(ctor_payload) ++ base_stack
+    ctors = ctor_order(typedef)
 
-      case walk(arm_tokens, branch_stack, env, depth) do
-        {:ok, stack_out} ->
-          cond do
-            acc_stack == nil ->
-              {:cont, {:ok, stack_out}}
+    case known_tag_value(tag, env) do
+      idx when is_integer(idx) and idx >= 0 and idx < length(ctors) ->
+        ctor = Enum.at(ctors, idx)
+        ctor_payload = Map.get(payload_map, ctor, [])
+        arm_tokens = Map.fetch!(arm_map, ctor)
+        branch_stack = Enum.reverse(ctor_payload) ++ base_stack
+        walk(arm_tokens, branch_stack, env, depth)
 
-            true ->
-              cond_expr = {:eq, tag, {:const, idx}}
+      _ ->
+        ctors
+        |> Enum.with_index()
+        |> Enum.reduce_while({:ok, nil}, fn {ctor, idx}, {:ok, acc_stack} ->
+          ctor_payload = Map.get(payload_map, ctor, [])
+          arm_tokens = Map.fetch!(arm_map, ctor)
+          branch_stack = Enum.reverse(ctor_payload) ++ base_stack
 
-              case merge_stacks(cond_expr, stack_out, acc_stack) do
-                {:ok, merged} -> {:cont, {:ok, merged}}
-                {:unsupported, _} = err -> {:halt, err}
+          case walk(arm_tokens, branch_stack, env, depth) do
+            {:ok, stack_out} ->
+              cond do
+                acc_stack == nil ->
+                  {:cont, {:ok, stack_out}}
+
+                true ->
+                  cond_expr = {:eq, tag, {:const, idx}}
+
+                  case merge_stacks(cond_expr, stack_out, acc_stack) do
+                    {:ok, merged} -> {:cont, {:ok, merged}}
+                    {:unsupported, _} = err -> {:halt, err}
+                  end
               end
-          end
 
-        {:unsupported, _} = err ->
-          {:halt, err}
-      end
-    end)
-    |> case do
-      {:ok, nil} -> {:unsupported, "MATCH in PROVE has no constructor branches to merge"}
-      {:ok, merged} -> {:ok, merged}
-      {:unsupported, _} = err -> err
+            {:unsupported, _} = err ->
+              {:halt, err}
+          end
+        end)
+        |> case do
+          {:ok, nil} -> {:unsupported, "MATCH in PROVE has no constructor branches to merge"}
+          {:ok, merged} -> {:ok, merged}
+          {:unsupported, _} = err -> err
+        end
     end
   end
 
@@ -908,6 +948,15 @@ defmodule Axiom.Solver.Symbolic do
   end
 
   defp merge_symvals(_cond, _, _), do: {:unsupported, "incompatible payload symvals"}
+
+  defp known_tag_value({:const, value}, _env) when is_integer(value), do: value
+
+  defp known_tag_value({:var, var_name}, env) do
+    assumptions = Map.get(env, "__prove_tag_assumptions__", %{})
+    Map.get(assumptions, var_name)
+  end
+
+  defp known_tag_value(_tag_expr, _env), do: nil
 
   defp opaque_same?(a, b), do: a == b
 end

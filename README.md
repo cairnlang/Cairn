@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.6.0d**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, with decoded ADT counterexamples), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.6.0e**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, and PRE-driven MATCH branch pruning), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -30,6 +30,9 @@ mix axiom.run examples/proven_result.ax
 # Generic user ADT MATCH proofs (new PROVE v0.6.0c slice)
 mix axiom.run examples/proven_shape.ax
 
+# PRE-driven MATCH branch pruning in PROVE (new v0.6.0e slice)
+mix axiom.run examples/proven_shape_pruned.ax
+
 # JSON parser + encoder demo (modular IMPORT example)
 mix axiom.run examples/json/demo.ax
 
@@ -45,7 +48,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (670 tests)
+# Run tests (672 tests)
 mix test
 ```
 
@@ -408,7 +411,7 @@ PROVE withdraw_buggy
 
 For ADT params, counterexamples are now decoded in constructor form (see `examples/proven_shape_buggy.ax`), e.g. `p0 = Circle(-1)`.
 
-PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ, ABS, MIN, MAX), IF/ELSE branching, function calls (inlined up to depth 10), all comparisons, logic ops, and stack manipulation. IF/ELSE branches are encoded as SMT-LIB `ite` nodes so Z3 handles case analysis natively. Function calls are inlined during symbolic execution, enabling compositional proofs across helper functions. For functions using lists, maps, or loops, PROVE returns UNKNOWN and suggests using VERIFY instead.
+PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ, ABS, MIN, MAX), IF/ELSE branching, function calls (inlined up to depth 10), all comparisons, logic ops, and stack manipulation. IF/ELSE branches are encoded as SMT-LIB `ite` nodes so Z3 handles case analysis natively. Function calls are inlined during symbolic execution, enabling compositional proofs across helper functions. For ADT MATCH proofs, PRE-derived constructor constraints can prune unreachable MATCH branches. For functions using lists, maps, or loops in reachable symbolic paths, PROVE returns UNKNOWN and suggests using VERIFY instead.
 
 ### Higher-Order Operations
 
@@ -791,7 +794,7 @@ Errors are reported with position information and the checker continues after er
 
 ### PROVE Solver
 
-`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c/d` supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs, with constructor-shaped counterexample decoding for ADT params. Functions with unsupported operations or unsupported MATCH shapes gracefully return UNKNOWN.
+`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c/d/e` supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs, with constructor-shaped counterexample decoding for ADT params and PRE-driven branch pruning of unreachable MATCH arms.
 
 The content-addressed DAG (ETS-backed) is in place for future use in multi-agent workflows and compilation to BEAM bytecode.
 
@@ -812,8 +815,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.0a**: PROVE supports `MATCH` for `option` values (narrow slice) with `examples/proven_option.ax`
 - **v0.6.0b** (complete): PROVE supports `MATCH` for `result` values (narrow slice) with `examples/proven_result.ax`
 - **v0.6.0c** (complete): PROVE supports `MATCH` for generic non-recursive int-field user ADTs with `examples/proven_shape.ax`
-- **v0.6.0d** (current): PROVE decodes ADT counterexamples to constructor-shaped values (see `examples/proven_shape_buggy.ax`)
-- **v0.6.x** (next): Use PRE constraints to prune unreachable MATCH branches in ADT proofs
+- **v0.6.0d** (complete): PROVE decodes ADT counterexamples to constructor-shaped values (see `examples/proven_shape_buggy.ax`)
+- **v0.6.0e** (current): PROVE prunes unreachable ADT MATCH branches when PRE constrains constructor tags (see `examples/proven_shape_pruned.ax`)
+- **v0.6.x** (next): Extend PRE-based pruning coverage and refine unsupported-path diagnostics
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation
 - **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration

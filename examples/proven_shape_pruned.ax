@@ -1,0 +1,22 @@
+# proven_shape_pruned.ax — PRE-driven MATCH branch pruning in PROVE (v0.6.0e)
+
+TYPE shape = Circle int | Square int
+
+# PRE narrows the input to Square only.
+# The Circle MATCH arm uses LEN (unsupported by PROVE), but it is unreachable
+# under PRE, so PROVE can still prove the contract.
+DEF square_only_abs : shape -> int
+  PRE {
+    MATCH
+      Circle { DROP F }
+      Square { DROP T }
+    END
+  }
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs

@@ -210,6 +210,27 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert Enum.any?(errors, fn e -> e.message =~ "AWAIT requires a monitor on the stack" end)
   end
 
+  test "explicit supervision flow type-checks with monitor handles" do
+    check_ok("""
+    TYPE msg = Fail | Ready
+
+    DEF worker : pid[msg]
+      SPAWN msg {
+        SELF Ready SEND
+        RECEIVE
+          Fail { "nope" SWAP DROP EXIT }
+          Ready { "ok" SAID DROP }
+        END
+      }
+    END
+
+    DEF supervise : void
+      worker MONITOR AWAIT
+      "exit={}" FMT SAID
+    END
+    """)
+  end
+
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")
@@ -219,5 +240,6 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/counter.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/notifier.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/restart_once.ax")
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/supervisor_worker.ax")
   end
 end

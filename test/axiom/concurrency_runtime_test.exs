@@ -173,4 +173,17 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert output =~ "worker_restarted"
     assert output =~ "second_exit=normal"
   end
+
+  test "supervisor/worker example reports both observed exits explicitly" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/supervisor_worker.ax")
+      end)
+
+    assert output =~ "supervisor=watching_first"
+    assert output =~ "supervisor_seen=worker_failed"
+    assert output =~ "supervisor=restarting"
+    assert output =~ "worker_ready"
+    assert output =~ "supervisor_seen=normal"
+  end
 end

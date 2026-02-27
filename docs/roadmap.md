@@ -410,6 +410,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `block[T]` return-shape typing so helper functions can safely `APPLY` pid-producing blocks
 - Upgraded `examples/concurrency/lib/supervision.ax` to provide `watch_exit`, `await_exit`, and a reusable `restart_once` helper
 
+### v0.7.0m — Explicit Supervisor/Worker Example
+- Added `examples/concurrency/supervisor_worker.ax` as the first example that clearly separates supervisor flow from worker behavior
+- Kept the slice example-first: no new runtime semantics, just stronger coverage of the current lifecycle model
+- Expanded runnable example discovery plus type/runtime tests around the explicit supervisor/worker pattern
+
 ---
 
 ## Next Up

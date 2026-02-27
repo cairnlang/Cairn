@@ -1644,6 +1644,56 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_interval_merge: PROVEN"
     end
 
+    test "factoring shared conjunct in PRE disjunction unlocks narrowing" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF square_and_gt5 : int shape -> bool
+        SWAP is_square
+        SWAP 5 GT
+        AND
+      END
+
+      DEF square_and_lte5 : int shape -> bool
+        SWAP is_square
+        SWAP 5 LTE
+        AND
+      END
+
+      # PRE shape:
+      # (is_square(shape) AND amount > 5) OR (is_square(shape) AND amount <= 5)
+      # Factoring should expose is_square(shape) AND (amount > 5 OR amount <= 5).
+      DEF square_only_abs_factored : int shape -> int
+        PRE {
+          OVER OVER
+          square_and_gt5
+          ROT ROT
+          square_and_lte5
+          OR
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_factored
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_factored: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

@@ -1,0 +1,44 @@
+# proven_shape_factored.ax — shared-conjunct factoring in PRE disjunctions (v0.6.0u)
+
+TYPE shape = Circle int | Square int
+
+DEF is_square : shape -> bool
+  MATCH
+    Circle { DROP F }
+    Square { DROP T }
+  END
+END
+
+DEF square_and_gt5 : int shape -> bool
+  SWAP is_square
+  SWAP 5 GT
+  AND
+END
+
+DEF square_and_lte5 : int shape -> bool
+  SWAP is_square
+  SWAP 5 LTE
+  AND
+END
+
+# PRE shape:
+# (is_square(shape) AND amount > 5) OR (is_square(shape) AND amount <= 5)
+# Factoring should expose is_square(shape) AND (amount > 5 OR amount <= 5).
+DEF square_only_abs_factored : int shape -> int
+  PRE {
+    OVER OVER
+    square_and_gt5
+    ROT ROT
+    square_and_lte5
+    OR
+  }
+  SWAP
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  SWAP DROP
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs_factored

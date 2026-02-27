@@ -481,11 +481,13 @@ defmodule Axiom.Solver.PreNormalize do
 
       case Enum.find_value(right_candidates, fn {right, j} ->
              case reduce_or_pair(left, right) do
-               {:reduced, reduced} ->
-                 remaining =
-                   indexed
-                   |> Enum.reject(fn {_term, idx} -> idx == i or idx == j end)
-                   |> Enum.map(fn {term, _idx} -> term end)
+              {:reduced, reduced} ->
+                reduced = normalize(reduced)
+
+                remaining =
+                  indexed
+                  |> Enum.reject(fn {_term, idx} -> idx == i or idx == j end)
+                  |> Enum.map(fn {term, _idx} -> term end)
 
                  {:ok, [reduced | remaining]}
 
@@ -501,9 +503,13 @@ defmodule Axiom.Solver.PreNormalize do
 
   defp reduce_or_pair(left, right) do
     expr = {:or, left, right}
+    factored = factor_common_and_term(expr)
     eq_reduced = reduce_bool_equivalence(expr)
 
     cond do
+      factored != expr ->
+        {:reduced, factored}
+
       eq_reduced != expr ->
         {:reduced, eq_reduced}
 
@@ -517,6 +523,25 @@ defmodule Axiom.Solver.PreNormalize do
         end
     end
   end
+
+  # (a AND b) OR (a AND c) => a AND (b OR c) (pairwise, bounded)
+  defp factor_common_and_term({:or, left, right}) do
+    case {and_terms(left), and_terms(right)} do
+      {{:ok, {l1, l2}}, {:ok, {r1, r2}}} ->
+        cond do
+          l1 == r1 -> {:and, l1, {:or, l2, r2}}
+          l1 == r2 -> {:and, l1, {:or, l2, r1}}
+          l2 == r1 -> {:and, l2, {:or, l1, r2}}
+          l2 == r2 -> {:and, l2, {:or, l1, r1}}
+          true -> {:or, left, right}
+        end
+
+      _ ->
+        {:or, left, right}
+    end
+  end
+
+  defp factor_common_and_term(c), do: c
 
   defp remove_absorbed_terms(terms, :and) do
     set = MapSet.new(terms)

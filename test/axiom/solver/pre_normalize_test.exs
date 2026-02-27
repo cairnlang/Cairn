@@ -100,4 +100,23 @@ defmodule Axiom.Solver.PreNormalizeTest do
     input = {:and, {:gte, {:var, "x"}, {:const, 5}}, {:lt, {:var, "x"}, {:const, 5}}}
     assert PreNormalize.normalize(input) == false
   end
+
+  test "factors shared conjunct in disjunction of conjunctions" do
+    a = {:eq, {:var, "p0_tag"}, {:const, 1}}
+    b = {:gt, {:var, "x"}, {:const, 0}}
+    c = {:lte, {:var, "x"}, {:const, 0}}
+    input = {:or, {:and, a, b}, {:and, a, c}}
+
+    assert PreNormalize.normalize(input) == a
+  end
+
+  test "does not over-factor unrelated conjunction disjunction" do
+    a = {:eq, {:var, "p0_tag"}, {:const, 1}}
+    b = {:gt, {:var, "x"}, {:const, 0}}
+    c = {:lt, {:var, "y"}, {:const, 3}}
+    d = {:neq, {:var, "z"}, {:const, 2}}
+    input = {:or, {:and, a, b}, {:and, c, d}}
+
+    assert PreNormalize.normalize(input) == {:or, {:and, a, b}, {:and, c, d}}
+  end
 end

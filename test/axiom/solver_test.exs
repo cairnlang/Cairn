@@ -1244,7 +1244,7 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_not: PROVEN"
     end
 
-    test "trace mode prints pruned MATCH branch diagnostics when enabled" do
+    test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int
 
@@ -1266,16 +1266,83 @@ defmodule Axiom.SolverTest do
       PROVE square_only_abs_trace
       """
 
-      output =
+      stdout =
         ExUnit.CaptureIO.capture_io(fn ->
-          Axiom.eval_with_env(source, %{"__prove_trace__" => true})
+          Axiom.eval_with_env(source, %{"__prove_trace__" => :summary})
         end)
 
-      assert output =~ "PROVE square_only_abs_trace: PROVEN"
-      assert output =~ "PROVE TRACE square_only_abs_trace (PROVEN):"
-      assert output =~ "MATCH shape:"
-      assert output =~ "pruned="
-      assert output =~ "reason="
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          Axiom.eval_with_env(source, %{"__prove_trace__" => :summary})
+        end)
+
+      assert stdout =~ "PROVE square_only_abs_trace: PROVEN"
+      refute stdout =~ "PROVE TRACE"
+      assert stderr =~ "PROVE TRACE square_only_abs_trace (PROVEN, summary):"
+      assert stderr =~ "MATCH shape:"
+      refute stderr =~ "candidates="
+    end
+
+    test "trace verbose mode includes candidate details" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF square_only_abs_trace_verbose : shape -> int
+        PRE {
+          MATCH
+            Circle { DROP T }
+            Square { DROP F }
+          END
+          NOT
+        }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace_verbose
+      """
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          Axiom.eval_with_env(source, %{"__prove_trace__" => :verbose})
+        end)
+
+      assert stderr =~ "PROVE TRACE square_only_abs_trace_verbose (PROVEN, verbose):"
+      assert stderr =~ "candidates="
+      assert stderr =~ "tag="
+    end
+
+    test "trace is silent by default" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF square_only_abs_trace_default : shape -> int
+        PRE {
+          MATCH
+            Circle { DROP T }
+            Square { DROP F }
+          END
+          NOT
+        }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace_default
+      """
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          Axiom.eval(source)
+        end)
+
+      assert stderr == ""
     end
   end
 

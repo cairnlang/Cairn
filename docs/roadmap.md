@@ -138,6 +138,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Trace output reports explored branches, pruned branches, and pruning reason (`eq`, `neq`, `unknown`)
 - Added `examples/prove/proven_shape_trace.ax` and solver coverage for trace output
 
+### v0.6.0h — Trace Control Polish
+- PROVE trace now supports levels: `summary` and `verbose`
+- Trace can be enabled via `AXIOM_PROVE_TRACE=summary|verbose` or API env `__prove_trace__`
+- Trace output now routes to stderr so normal PROVE output on stdout stays clean
+- Added solver coverage for level behavior and stdout/stderr separation
+
 ---
 
 ## Next Up
@@ -149,10 +155,10 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 **Deliverables:**
 
 - **Broader constructor inference** — recognize additional refinement-like PRE patterns around MATCH helpers
-- **Trace control polish** — cleaner toggles/levels for diagnostic output without global env reliance
+- **Structured trace output** — optional machine-readable diagnostics for tools/CI
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** diagnostics are in place; next gains are deeper refinement inference and better UX control.
+**Why now:** trace controls are polished; next gains are deeper inference and better tooling integration.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

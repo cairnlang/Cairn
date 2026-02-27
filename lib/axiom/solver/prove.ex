@@ -27,28 +27,28 @@ defmodule Axiom.Solver.Prove do
   """
   @spec prove(Function.t(), map()) :: prove_result()
   def prove(%Function{} = func, env \\ %{}) do
-    trace_enabled = trace_enabled?(env)
+    trace_level = trace_level(env)
     clear_trace_events()
 
     with :ok <- check_z3_available(),
-         prove_env <- with_trace_flag(env, trace_enabled),
+         prove_env <- with_trace_flag(env, trace_level),
          {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, prove_env),
          {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, prove_env),
          prove_env <- enrich_env_with_pre_assumptions(prove_env, pre_constraint),
          {:ok, result_stack} <- execute_body(func, body_stack, prove_env),
          {:ok, post_constraint} <- execute_post(func, result_stack, prove_env) do
       result = query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env)
-      maybe_emit_trace(func.name, result, trace_enabled)
+      maybe_emit_trace(func.name, result, trace_level)
       result
     else
       {:unsupported, reason} ->
         result = {:unknown, reason}
-        maybe_emit_trace(func.name, result, trace_enabled)
+        maybe_emit_trace(func.name, result, trace_level)
         result
 
       {:error, reason} ->
         result = {:error, reason}
-        maybe_emit_trace(func.name, result, trace_enabled)
+        maybe_emit_trace(func.name, result, trace_level)
         result
     end
   end
@@ -317,16 +317,52 @@ defmodule Axiom.Solver.Prove do
     end
   end
 
-  defp trace_enabled?(env) do
-    Map.get(env, "__prove_trace__", false) or System.get_env("AXIOM_PROVE_TRACE") == "1"
+  defp trace_level(env) do
+    env_value = Map.get(env, "__prove_trace__", :unset)
+    sys_value = System.get_env("AXIOM_PROVE_TRACE")
+
+    case normalize_trace_value(env_value) do
+      :off ->
+        :off
+
+      :summary ->
+        :summary
+
+      :verbose ->
+        :verbose
+
+      :unset ->
+        normalize_trace_value(sys_value)
+    end
   end
 
-  defp with_trace_flag(env, true), do: Map.put(env, "__prove_trace_enabled__", true)
-  defp with_trace_flag(env, false), do: env
+  defp normalize_trace_value(:unset), do: :unset
+  defp normalize_trace_value(nil), do: :off
+  defp normalize_trace_value(false), do: :off
+  defp normalize_trace_value(true), do: :summary
+  defp normalize_trace_value(:off), do: :off
+  defp normalize_trace_value(:summary), do: :summary
+  defp normalize_trace_value(:verbose), do: :verbose
+  defp normalize_trace_value("0"), do: :off
+  defp normalize_trace_value("false"), do: :off
+  defp normalize_trace_value("off"), do: :off
+  defp normalize_trace_value("1"), do: :summary
+  defp normalize_trace_value("true"), do: :summary
+  defp normalize_trace_value("summary"), do: :summary
+  defp normalize_trace_value("verbose"), do: :verbose
+  defp normalize_trace_value(_), do: :off
 
-  defp maybe_emit_trace(_func_name, _result, false), do: :ok
+  defp with_trace_flag(env, :off), do: env
 
-  defp maybe_emit_trace(func_name, result, true) do
+  defp with_trace_flag(env, level) when level in [:summary, :verbose] do
+    env
+    |> Map.put("__prove_trace_enabled__", true)
+    |> Map.put("__prove_trace_level__", level)
+  end
+
+  defp maybe_emit_trace(_func_name, _result, :off), do: :ok
+
+  defp maybe_emit_trace(func_name, result, trace_level) when trace_level in [:summary, :verbose] do
     status =
       case result do
         {:proven, _} -> "PROVEN"
@@ -338,10 +374,10 @@ defmodule Axiom.Solver.Prove do
     events = get_trace_events()
 
     if events == [] do
-      IO.puts("PROVE TRACE #{func_name} (#{status}): no MATCH branch events")
+      IO.puts(:stderr, "PROVE TRACE #{func_name} (#{status}): no MATCH branch events")
     else
-      IO.puts("PROVE TRACE #{func_name} (#{status}):")
-      Enum.each(events, &IO.puts("  - " <> &1))
+      IO.puts(:stderr, "PROVE TRACE #{func_name} (#{status}, #{trace_level}):")
+      Enum.each(events, &IO.puts(:stderr, "  - " <> &1))
     end
 
     :ok

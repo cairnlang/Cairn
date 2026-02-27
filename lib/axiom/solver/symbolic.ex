@@ -385,25 +385,27 @@ defmodule Axiom.Solver.Symbolic do
   # MATCH support (narrow scope): option
   defp walk([{:match_kw, _, _} | rest], [{:option_expr, tag, payload} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
+    possible = possible_tag_indexes(tag, 2, env)
+    candidate_names = option_candidate_names(possible)
 
     with {:ok, some_tokens, none_tokens} <- resolve_option_arms(arms) do
-      case possible_tag_indexes(tag, 2, env) do
+      case possible do
         [1] ->
-          trace_match_decision(env, "option", "Some", [:none], reason_for_tag_prune(tag, env))
+          trace_match_decision(env, "option", "Some", ["None"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
 
           with {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth) do
             walk(remaining, some_stack, env, depth)
           end
 
         [0] ->
-          trace_match_decision(env, "option", "None", [:some], reason_for_tag_prune(tag, env))
+          trace_match_decision(env, "option", "None", ["Some"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
 
           with {:ok, none_stack} <- walk(none_tokens, stack, env, depth) do
             walk(remaining, none_stack, env, depth)
           end
 
         _ ->
-          trace_match_decision(env, "option", "Some+None", [], "unknown")
+          trace_match_decision(env, "option", "Some+None", [], "unknown", %{candidates: candidate_names, tag: inspect(tag)})
 
           with {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth),
                {:ok, none_stack} <- walk(none_tokens, stack, env, depth),
@@ -417,25 +419,27 @@ defmodule Axiom.Solver.Symbolic do
   # MATCH support (narrow scope): result
   defp walk([{:match_kw, _, _} | rest], [{:result_expr, tag, ok_payload, err_id} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
+    possible = possible_tag_indexes(tag, 2, env)
+    candidate_names = result_candidate_names(possible)
 
     with {:ok, ok_tokens, err_tokens} <- resolve_result_arms(arms) do
-      case possible_tag_indexes(tag, 2, env) do
+      case possible do
         [1] ->
-          trace_match_decision(env, "result", "Ok", [:err], reason_for_tag_prune(tag, env))
+          trace_match_decision(env, "result", "Ok", ["Err"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
 
           with {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth) do
             walk(remaining, ok_stack, env, depth)
           end
 
         [0] ->
-          trace_match_decision(env, "result", "Err", [:ok], reason_for_tag_prune(tag, env))
+          trace_match_decision(env, "result", "Err", ["Ok"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
 
           with {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth) do
             walk(remaining, err_stack, env, depth)
           end
 
         _ ->
-          trace_match_decision(env, "result", "Ok+Err", [], "unknown")
+          trace_match_decision(env, "result", "Ok+Err", [], "unknown", %{candidates: candidate_names, tag: inspect(tag)})
 
           with {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth),
                {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth),
@@ -735,7 +739,7 @@ defmodule Axiom.Solver.Symbolic do
     possible = possible_tag_indexes(tag, length(ctors), env)
     possible_ctors = Enum.map(possible, &Enum.at(ctors, &1))
     pruned_ctors = ctors -- possible_ctors
-    trace_match_decision(env, typedef.name, Enum.join(possible_ctors, "+"), pruned_ctors, reason_for_tag_prune(tag, env))
+    trace_match_decision(env, typedef.name, Enum.join(possible_ctors, "+"), pruned_ctors, reason_for_tag_prune(tag, env), %{candidates: possible_ctors, tag: inspect(tag)})
 
     case possible do
       [idx] when is_integer(idx) and idx >= 0 and idx < length(ctors) ->
@@ -1022,7 +1026,25 @@ defmodule Axiom.Solver.Symbolic do
 
   defp reason_for_tag_prune(_, _), do: "unknown"
 
-  defp trace_match_decision(env, type_name, explored, pruned, reason) do
+  defp option_candidate_names(candidates) do
+    candidates
+    |> Enum.map(fn
+      0 -> "None"
+      1 -> "Some"
+      n -> "tag#{n}"
+    end)
+  end
+
+  defp result_candidate_names(candidates) do
+    candidates
+    |> Enum.map(fn
+      0 -> "Err"
+      1 -> "Ok"
+      n -> "tag#{n}"
+    end)
+  end
+
+  defp trace_match_decision(env, type_name, explored, pruned, reason, details) do
     if Map.get(env, "__prove_trace_enabled__", false) do
       pruned_txt =
         if pruned == [] do
@@ -1033,7 +1055,18 @@ defmodule Axiom.Solver.Symbolic do
           |> Enum.join(",")
         end
 
-      msg = "MATCH #{type_name}: explored=#{explored} pruned=#{pruned_txt} reason=#{reason}"
+      base_msg = "MATCH #{type_name}: explored=#{explored} pruned=#{pruned_txt} reason=#{reason}"
+      level = Map.get(env, "__prove_trace_level__", :summary)
+
+      msg =
+        if level == :verbose do
+          candidates = Map.get(details, :candidates, [])
+          tag = Map.get(details, :tag, "?")
+          "#{base_msg} candidates=#{Enum.join(candidates, ",")} tag=#{tag}"
+        else
+          base_msg
+        end
+
       append_trace_event(msg)
     end
   end

@@ -362,6 +362,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Updated `examples/concurrency/self_boot.ax` to exercise `SELF` via a helper function instead of inline only
 - Expanded concurrency type tests to cover actor-required helper calls
 
+### v0.7.0e — Actor-Local RECEIVE
+- Added actor-local `RECEIVE` inside concrete actor contexts so handlers no longer need to juggle the self pid across sequential receives
+- Preserved explicit-pid `RECEIVE` as a fallback outside the actor-local path
+- Added `examples/concurrency/two_pings.ax` to demonstrate handling two messages in sequence
+- Expanded concurrency type/runtime tests and examples index coverage for repeated actor-local receives
+
 ---
 
 ## Next Up
@@ -376,7 +382,7 @@ The current PROVE MATCH refinement line has delivered substantial gains, but PRE
 Axiom already has algebraic types and contracts. Combining them with BEAM processes creates typed actors with provable state transition invariants.
 
 **Deliverables:**
-- Broader actor-context ergonomics beyond the current `SELF`/helper-call propagation model
+- Broader actor-context ergonomics beyond the current `SELF`/actor-local-`RECEIVE` propagation model
 - Richer `RECEIVE` forms (loop-friendly patterns, multi-message actor workflows)
 - `pid[MessageType]` — typed process identifiers with stronger runtime ergonomics
 - `RECEIVE` with MATCH-style pattern dispatch on message type across larger actor state machines

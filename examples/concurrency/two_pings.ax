@@ -1,0 +1,17 @@
+# examples/concurrency/two_pings.ax
+# Demonstrates implicit actor-local RECEIVE by handling two messages in sequence.
+
+TYPE msg = Ping
+
+SPAWN msg {
+  SELF Ping SEND
+  SELF Ping SEND
+  RECEIVE
+    Ping { "ping1" SAID }
+  END
+  RECEIVE
+    Ping { "ping2" SAID }
+  END
+  DROP
+}
+DROP

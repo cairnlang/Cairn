@@ -12,5 +12,6 @@ SPAWN msg {
   RECEIVE
     Boot { "booted" SAID }
   END
+  DROP
 }
 DROP

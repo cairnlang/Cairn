@@ -8,6 +8,7 @@ SPAWN msg {
     Ping { "got_ping" SAID }
     Pong { "got_pong" SAID }
   END
+  DROP
 }
 DUP Ping SEND
 DROP

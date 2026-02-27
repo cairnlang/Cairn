@@ -781,70 +781,13 @@ defmodule Axiom.Checker do
   defp walk([{:receive_kw, _, pos} | rest], state) do
     {arms, remaining} = collect_checker_match_arms(rest, [])
 
-    case Stack.pop(state.stack) do
-      {:ok, {:pid, {:user_type, type_name}}, base_stack} ->
-        state = %{state | stack: base_stack}
-        typedef = Map.get(state.types, type_name)
-        has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
-
-        state =
-          cond do
-            is_nil(typedef) ->
-              add_error(state, pos, "RECEIVE requires a pid of a known sum type, got #{type_name}")
-
-            has_wildcard ->
-              state
-
-            true ->
-              arm_names = MapSet.new(arms, fn {name, _} -> name end)
-              all_ctors = MapSet.new(Map.keys(typedef.variants))
-              missing = MapSet.difference(all_ctors, arm_names)
-
-              if MapSet.size(missing) > 0 do
-                add_error(state, pos,
-                  "RECEIVE on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
-              else
-                state
-              end
-          end
-
-        arm_states =
-          Enum.map(arms, fn
-            {:wildcard, arm_tokens} ->
-              walk(arm_tokens, %{state | stack: base_stack})
-
-            {ctor_name, arm_tokens} ->
-              field_types =
-                if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
-
-              arm_stack =
-                field_types
-                |> Enum.reverse()
-                |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
-
-              walk(arm_tokens, %{state | stack: arm_stack})
-          end)
-
-        {result_stack, state} = unify_arm_stacks(arm_states, state, pos)
+    case state.current_actor_type do
+      {:user_type, type_name} ->
+        {result_stack, state} = check_receive_arms(type_name, state.stack, arms, state, pos)
         walk(remaining, %{state | stack: result_stack})
 
-      {:ok, {:pid, other}, _} ->
-        state =
-          add_error(state, pos,
-            "RECEIVE requires pid[user_type], got #{format_type({:pid, other})}")
-
-        walk(remaining, state)
-
-      {:ok, other, _} ->
-        state =
-          add_error(state, pos,
-            "RECEIVE requires a pid on the stack, got #{format_type(other)}")
-
-        walk(remaining, state)
-
-      :underflow ->
-        state = add_error(state, pos, "RECEIVE requires a pid on the stack (stack underflow)")
-        walk(remaining, state)
+      _ ->
+        check_receive_with_explicit_pid(arms, remaining, state, pos)
     end
   end
 
@@ -1372,6 +1315,77 @@ defmodule Axiom.Checker do
 
   defp resolve_concurrency_type(_token, _types) do
     {:error, "SPAWN requires a valid message type before the block"}
+  end
+
+  defp check_receive_with_explicit_pid(arms, remaining, state, pos) do
+    case Stack.pop(state.stack) do
+      {:ok, {:pid, {:user_type, type_name}}, base_stack} ->
+        {result_stack, state} = check_receive_arms(type_name, base_stack, arms, state, pos)
+        walk(remaining, %{state | stack: result_stack})
+
+      {:ok, {:pid, other}, _} ->
+        state =
+          add_error(state, pos,
+            "RECEIVE requires pid[user_type], got #{format_type({:pid, other})}")
+
+        walk(remaining, state)
+
+      {:ok, other, _} ->
+        state =
+          add_error(state, pos,
+            "RECEIVE requires a pid on the stack, got #{format_type(other)}")
+
+        walk(remaining, state)
+
+      :underflow ->
+        state = add_error(state, pos, "RECEIVE requires a pid on the stack (stack underflow)")
+        walk(remaining, state)
+    end
+  end
+
+  defp check_receive_arms(type_name, base_stack, arms, state, pos) do
+    typedef = Map.get(state.types, type_name)
+    has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
+
+    state =
+      cond do
+        is_nil(typedef) ->
+          add_error(state, pos, "RECEIVE requires a pid of a known sum type, got #{type_name}")
+
+        has_wildcard ->
+          state
+
+        true ->
+          arm_names = MapSet.new(arms, fn {name, _} -> name end)
+          all_ctors = MapSet.new(Map.keys(typedef.variants))
+          missing = MapSet.difference(all_ctors, arm_names)
+
+          if MapSet.size(missing) > 0 do
+            add_error(state, pos,
+              "RECEIVE on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
+          else
+            state
+          end
+      end
+
+    arm_states =
+      Enum.map(arms, fn
+        {:wildcard, arm_tokens} ->
+          walk(arm_tokens, %{state | stack: base_stack})
+
+        {ctor_name, arm_tokens} ->
+          field_types =
+            if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
+
+          arm_stack =
+            field_types
+            |> Enum.reverse()
+            |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+
+          walk(arm_tokens, %{state | stack: arm_stack})
+      end)
+
+    unify_arm_stacks(arm_states, state, pos)
   end
 
   defp compute_actor_required_functions(items, type_env) do

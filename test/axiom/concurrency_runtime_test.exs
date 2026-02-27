@@ -13,6 +13,7 @@ defmodule Axiom.ConcurrencyRuntimeTest do
                      Ping { "got_ping" SAID }
                      Pong { "got_pong" SAID }
                    END
+                   DROP
                  }
                  DUP Ping SEND
                  DROP
@@ -51,5 +52,16 @@ defmodule Axiom.ConcurrencyRuntimeTest do
       end)
 
     assert output =~ "booted"
+  end
+
+  test "implicit actor-local RECEIVE can process multiple messages without pid juggling" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/two_pings.ax")
+        Process.sleep(30)
+      end)
+
+    assert output =~ "ping1"
+    assert output =~ "ping2"
   end
 end

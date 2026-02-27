@@ -146,9 +146,28 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert Enum.any?(errors, fn e -> e.message =~ "function 'send_boot' requires actor context" end)
   end
 
+  test "implicit actor-local RECEIVE can be used repeatedly inside SPAWN" do
+    check_ok("""
+    TYPE msg = Ping
+
+    DEF actor : pid[msg]
+      SPAWN msg {
+        RECEIVE
+          Ping { }
+        END
+        RECEIVE
+          Ping { }
+        END
+        DROP
+      }
+    END
+    """)
+  end
+
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/self_boot.ax")
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/two_pings.ax")
   end
 end

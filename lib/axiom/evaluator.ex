@@ -159,35 +159,23 @@ defmodule Axiom.Evaluator do
   end
 
   # RECEIVE — blocks for one message and dispatches by constructor.
-  defp run([{:receive_kw, _, pos} | rest], [{:pid, {:user_type, type_name}, pid_ref} | stack], env) do
-    if pid_ref != self() do
-      raise Axiom.RuntimeError,
-        "RECEIVE at word #{pos + 1}: pid must be the current process mailbox handle"
+  defp run([{:receive_kw, _, pos} | rest], stack, env) do
+    case Process.get(:axiom_self_type) do
+      {:user_type, type_name} ->
+        {arms, remaining} = collect_match_arms(rest, [], 0)
+
+        message =
+          receive do
+            msg -> msg
+          end
+
+        {field_stack, branch_tokens} = resolve_receive_branch!(message, type_name, arms, pos)
+        {stack, env} = run(branch_tokens, field_stack ++ stack, env)
+        run(remaining, stack, env)
+
+      _ ->
+        run_receive_explicit(rest, stack, env, pos)
     end
-
-    {arms, remaining} = collect_match_arms(rest, [], 0)
-
-    message =
-      receive do
-        msg -> msg
-      end
-
-    {field_stack, branch_tokens} = resolve_receive_branch!(message, type_name, arms, pos)
-    {stack, env} = run(branch_tokens, field_stack ++ stack, env)
-    run(remaining, stack, env)
-  end
-
-  defp run([{:receive_kw, _, pos} | _], [{:pid, other, _} | _], _env) do
-    raise Axiom.RuntimeError,
-      "RECEIVE at word #{pos + 1}: expected pid[user_type], got #{inspect({:pid, other})}"
-  end
-
-  defp run([{:receive_kw, _, pos} | _], [other | _], _env) do
-    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: expected pid on stack, got #{inspect(other)}"
-  end
-
-  defp run([{:receive_kw, _, pos} | _], [], _env) do
-    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: empty stack"
   end
 
   # Identifiers — look up in environment
@@ -247,6 +235,37 @@ defmodule Axiom.Evaluator do
 
   defp run([{type, val, pos} | _], _stack, _env) do
     raise Axiom.RuntimeError, "unexpected #{type} '#{inspect(val)}' at word #{pos + 1}"
+  end
+
+  defp run_receive_explicit(rest, [{:pid, {:user_type, type_name}, pid_ref} | stack], env, pos) do
+    if pid_ref != self() do
+      raise Axiom.RuntimeError,
+        "RECEIVE at word #{pos + 1}: pid must be the current process mailbox handle"
+    end
+
+    {arms, remaining} = collect_match_arms(rest, [], 0)
+
+    message =
+      receive do
+        msg -> msg
+      end
+
+    {field_stack, branch_tokens} = resolve_receive_branch!(message, type_name, arms, pos)
+    {stack, env} = run(branch_tokens, field_stack ++ stack, env)
+    run(remaining, stack, env)
+  end
+
+  defp run_receive_explicit(_rest, [{:pid, other, _} | _], _env, pos) do
+    raise Axiom.RuntimeError,
+      "RECEIVE at word #{pos + 1}: expected pid[user_type], got #{inspect({:pid, other})}"
+  end
+
+  defp run_receive_explicit(_rest, [other | _], _env, pos) do
+    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: expected pid on stack, got #{inspect(other)}"
+  end
+
+  defp run_receive_explicit(_rest, [], _env, pos) do
+    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: empty stack"
   end
 
   # Collect tokens inside [ ], evaluating them to produce list items

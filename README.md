@@ -27,6 +27,9 @@ mix axiom.run examples/json/demo.ax
 # Minimal 2-file IMPORT demo
 mix axiom.run examples/imports/main.ax
 
+# Prelude helpers demo (safe result flow + string helpers)
+mix axiom.run examples/prelude_demo.ax
+
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 

@@ -1,0 +1,17 @@
+# prelude_demo.ax — demonstrates helpers from the auto-loaded prelude
+
+# Result helpers with safe parsing
+"42" TO_INT result_is_ok SAID
+"oops" TO_INT result_is_err SAID
+
+0 "42" TO_INT result_unwrap_or SAID
+0 "oops" TO_INT result_unwrap_or SAID
+
+# Convenience wrappers
+99 "oops" to_int_or SAID
+0.0 "3.14" to_float_or SAID
+"missing file" "no/such/file.txt" read_file_or SAID
+
+# String helpers
+" a\n\n b \n\n" lines_nonempty SAID
+"1,2,3,4" csv_ints SUM SAID

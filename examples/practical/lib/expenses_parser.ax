@@ -1,0 +1,10 @@
+# examples/practical/lib/expenses_parser.ax — parse expense rows
+
+DEF parse_amount_line : str -> int
+  "," SPLIT TAIL HEAD TO_INT!
+END
+
+DEF parse_amounts : str -> [int]
+  lines_nonempty
+  { parse_amount_line } MAP
+END

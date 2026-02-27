@@ -97,4 +97,36 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert output =~ "notifier=queued"
     assert output =~ "notifier=sent"
   end
+
+  test "EXIT in an unlinked actor does not kill the caller" do
+    assert [] =
+             Axiom.eval("""
+             TYPE msg = Fail
+
+             SPAWN msg {
+               SELF Fail SEND
+               RECEIVE
+                 Fail { "child_failed" SWAP DROP EXIT }
+               END
+             }
+             DROP
+             """)
+
+    Process.sleep(30)
+  end
+
+  test "SPAWN_LINK propagates child EXIT to the linked caller" do
+    parent = self()
+
+    {pid, ref} =
+      spawn_monitor(fn ->
+        Axiom.eval_file("examples/concurrency/linked_failure.ax")
+        Process.sleep(100)
+        send(parent, :unexpected_survival)
+      end)
+
+    refute_receive :unexpected_survival, 150
+
+    assert_receive {:DOWN, ^ref, :process, ^pid, "child_failed"}, 200
+  end
 end

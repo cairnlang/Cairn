@@ -164,6 +164,24 @@ defmodule Axiom.ConcurrencyTypesTest do
     """)
   end
 
+  test "SPAWN_LINK and EXIT type-check inside actor context" do
+    check_ok("""
+    TYPE msg = Fail
+
+    DEF linked : pid[msg]
+      SPAWN_LINK msg {
+        SELF Fail SEND
+        RECEIVE
+          Fail { "child_failed" SWAP DROP EXIT }
+        END
+      }
+    END
+    """)
+
+    errors = check_errors("\"boom\" EXIT")
+    assert Enum.any?(errors, fn e -> e.message =~ "EXIT is only available inside a SPAWN or SPAWN_LINK block" end)
+  end
+
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")

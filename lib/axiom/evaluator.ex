@@ -55,26 +55,20 @@ defmodule Axiom.Evaluator do
 
   # SPAWN MessageType { ... } — starts the spawned block with its own typed pid on stack.
   defp run([{:spawn_kw, _, pos}, type_token, {:block_open, _, _} | rest], stack, env) do
-    {block_tokens, remaining} = collect_block(rest, 0, [])
-    msg_type = resolve_runtime_type!(type_token, env, pos)
-
-    pid =
-      spawn(fn ->
-        self_ref = {:pid, msg_type, self()}
-        Process.put(:axiom_self_type, msg_type)
-
-        try do
-          {_child_stack, _child_env} = run(block_tokens, [self_ref], env)
-        after
-          Process.delete(:axiom_self_type)
-        end
-      end)
-
-    run(remaining, [{:pid, msg_type, pid} | stack], env)
+    spawn_actor(:spawn, pos, type_token, rest, stack, env)
   end
 
   defp run([{:spawn_kw, _, pos} | _], _stack, _env) do
     raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: requires a message type and block"
+  end
+
+  # SPAWN_LINK MessageType { ... } — links actor lifecycle to the current process.
+  defp run([{:spawn_link_kw, _, pos}, type_token, {:block_open, _, _} | rest], stack, env) do
+    spawn_actor(:spawn_link, pos, type_token, rest, stack, env)
+  end
+
+  defp run([{:spawn_link_kw, _, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "SPAWN_LINK at word #{pos + 1}: requires a message type and block"
   end
 
   # SEND: pid[msg] msg SEND
@@ -102,6 +96,21 @@ defmodule Axiom.Evaluator do
       msg_type ->
         run(rest, [{:pid, msg_type, self()} | stack], env)
     end
+  end
+
+  # EXIT — actor-only explicit process termination with a reason.
+  defp run([{:op, :exit, pos} | _rest], [reason | _stack], _env) do
+    case Process.get(:axiom_self_type) do
+      nil ->
+        raise Axiom.RuntimeError, "EXIT at word #{pos + 1}: only available inside a SPAWN or SPAWN_LINK block"
+
+      _msg_type ->
+        exit(reason)
+    end
+  end
+
+  defp run([{:op, :exit, pos} | _rest], [], _env) do
+    raise Axiom.RuntimeError, "EXIT at word #{pos + 1}: requires a reason on the stack"
   end
 
   # Operators — delegate to Runtime
@@ -235,6 +244,30 @@ defmodule Axiom.Evaluator do
 
   defp run([{type, val, pos} | _], _stack, _env) do
     raise Axiom.RuntimeError, "unexpected #{type} '#{inspect(val)}' at word #{pos + 1}"
+  end
+
+  defp spawn_actor(kind, pos, type_token, rest, stack, env) do
+    {block_tokens, remaining} = collect_block(rest, 0, [])
+    msg_type = resolve_runtime_type!(type_token, env, pos)
+
+    spawn_fn = fn ->
+      self_ref = {:pid, msg_type, self()}
+      Process.put(:axiom_self_type, msg_type)
+
+      try do
+        {_child_stack, _child_env} = run(block_tokens, [self_ref], env)
+      after
+        Process.delete(:axiom_self_type)
+      end
+    end
+
+    pid =
+      case kind do
+        :spawn -> spawn(spawn_fn)
+        :spawn_link -> spawn_link(spawn_fn)
+      end
+
+    run(remaining, [{:pid, msg_type, pid} | stack], env)
   end
 
   defp run_receive_explicit(rest, [{:pid, {:user_type, type_name}, pid_ref} | stack], env, pos) do

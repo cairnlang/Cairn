@@ -11,7 +11,7 @@ defmodule Axiom.Lexer do
                 SORT REVERSE MIN MAX
                 SQ ABS NEG
                 TIMES WHILE APPLY
-                RANGE PRINT SAY SELF
+                RANGE PRINT SAY SELF EXIT
                 SEND
                 ARGV READ_FILE WRITE_FILE READ_FILE! WRITE_FILE! READ_LINE
                 WORDS LINES CONTAINS
@@ -95,6 +95,7 @@ defmodule Axiom.Lexer do
   defp classify("MATCH"), do: {:ok, {:match_kw, "MATCH"}}
   defp classify("RECEIVE"), do: {:ok, {:receive_kw, "RECEIVE"}}
   defp classify("SPAWN"), do: {:ok, {:spawn_kw, "SPAWN"}}
+  defp classify("SPAWN_LINK"), do: {:ok, {:spawn_link_kw, "SPAWN_LINK"}}
   defp classify("LET"), do: {:ok, {:let_kw, "LET"}}
   defp classify("|"), do: {:ok, {:pipe, "|"}}
   defp classify("="), do: {:ok, {:equals, "="}}

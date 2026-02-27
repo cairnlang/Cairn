@@ -38,6 +38,7 @@ defmodule Axiom.Types do
           | :match_kw
           | :receive_kw
           | :spawn_kw
+          | :spawn_link_kw
           | :pipe
           | :equals
           | :constructor

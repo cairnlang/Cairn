@@ -327,36 +327,20 @@ defmodule Axiom.Checker do
 
   # SPAWN MessageType { ... } — static-only for now
   defp walk([{:spawn_kw, _, pos}, type_token, {:block_open, _, _} | rest], state) do
-    case resolve_concurrency_type(type_token, state.types) do
-      {:ok, msg_type} ->
-        {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
-        block_stack = Stack.new() |> Stack.push({:pid, msg_type})
-        block_state = walk(block_tokens, %{state | stack: block_stack, current_actor_type: msg_type})
-
-        state = %{
-          state
-          | errors: merge_error_lists(state.errors, block_state.errors),
-            next_tvar: block_state.next_tvar
-        }
-
-        state =
-          if Stack.depth(block_state.stack) == 0 do
-            state
-          else
-            add_error(state, pos, "SPAWN block must consume its self pid and leave an empty stack")
-          end
-
-        walk(remaining, %{state | stack: Stack.push(state.stack, {:pid, msg_type})})
-
-      {:error, msg} ->
-        state = add_error(state, pos, msg)
-        {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
-        walk(remaining, state)
-    end
+    check_spawn_form(rest, state, pos, type_token)
   end
 
   defp walk([{:spawn_kw, _, pos} | rest], state) do
     walk(rest, add_error(state, pos, "SPAWN requires a message type and block: SPAWN msg { ... }"))
+  end
+
+  # SPAWN_LINK MessageType { ... } — same static rules as SPAWN
+  defp walk([{:spawn_link_kw, _, pos}, type_token, {:block_open, _, _} | rest], state) do
+    check_spawn_form(rest, state, pos, type_token)
+  end
+
+  defp walk([{:spawn_link_kw, _, pos} | rest], state) do
+    walk(rest, add_error(state, pos, "SPAWN_LINK requires a message type and block: SPAWN_LINK msg { ... }"))
   end
 
   # IF/ELSE/END
@@ -567,6 +551,27 @@ defmodule Axiom.Checker do
 
   defp walk([{:op, :self, _pos} | rest], %{current_actor_type: msg_type} = state) do
     walk(rest, %{state | stack: Stack.push(state.stack, {:pid, msg_type})})
+  end
+
+  # EXIT — actor-only; consumes an exit reason and does not return at runtime.
+  defp walk([{:op, :exit, pos} | rest], %{current_actor_type: nil} = state) do
+    case Stack.pop(state.stack) do
+      {:ok, _reason_type, base} ->
+        walk(rest, add_error(%{state | stack: base}, pos, "EXIT is only available inside a SPAWN or SPAWN_LINK block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "EXIT requires a reason on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :exit, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, _reason_type, base} ->
+        walk(rest, %{state | stack: base})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "EXIT requires a reason on the stack (stack underflow)"))
+    end
   end
 
   # SEND — pid[msg] msg SEND
@@ -794,6 +799,35 @@ defmodule Axiom.Checker do
   # Catch-all for unhandled token types during checking
   defp walk([_token | rest], state) do
     walk(rest, state)
+  end
+
+  defp check_spawn_form(rest, state, pos, type_token) do
+    case resolve_concurrency_type(type_token, state.types) do
+      {:ok, msg_type} ->
+        {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+        block_stack = Stack.new() |> Stack.push({:pid, msg_type})
+        block_state = walk(block_tokens, %{state | stack: block_stack, current_actor_type: msg_type})
+
+        state = %{
+          state
+          | errors: merge_error_lists(state.errors, block_state.errors),
+            next_tvar: block_state.next_tvar
+        }
+
+        state =
+          if Stack.depth(block_state.stack) == 0 do
+            state
+          else
+            add_error(state, pos, "SPAWN block must consume its self pid and leave an empty stack")
+          end
+
+        walk(remaining, %{state | stack: Stack.push(state.stack, {:pid, msg_type})})
+
+      {:error, msg} ->
+        state = add_error(state, pos, msg)
+        {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+        walk(remaining, state)
+    end
   end
 
   # --- Higher-order operation checking ---

@@ -392,6 +392,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/concurrency/notifier.ax` as a more practical notifier-style actor workflow
 - Expanded concurrency runtime coverage and docs for the shared helper layer plus practical actor example
 
+### v0.7.0j — Linked Actor Lifecycle Basics
+- Added `SPAWN_LINK` for linked actor startup
+- Added actor-only `EXIT` for explicit actor termination with a reason
+- Added `examples/concurrency/linked_failure.ax` as an intentionally failing lifecycle example
+- Expanded runtime tests to contrast unlinked actor failure vs linked failure propagation
+
 ---
 
 ## Next Up

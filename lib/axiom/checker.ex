@@ -50,7 +50,8 @@ defmodule Axiom.Checker do
       env: type_env,
       errors: [],
       next_tvar: 0,
-      types: types
+      types: types,
+      current_actor_type: nil
     }
 
     state = Enum.reduce(items, state, &check_item/2)
@@ -322,7 +323,7 @@ defmodule Axiom.Checker do
       {:ok, msg_type} ->
         {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
         block_stack = Stack.new() |> Stack.push({:pid, msg_type})
-        block_state = walk(block_tokens, %{state | stack: block_stack})
+        block_state = walk(block_tokens, %{state | stack: block_stack, current_actor_type: msg_type})
 
         state = %{
           state
@@ -549,6 +550,15 @@ defmodule Axiom.Checker do
         walk(rest, add_error(state, pos,
           "FMT requires a format string on the stack (stack underflow)"))
     end
+  end
+
+  # SELF — available only while checking a SPAWN block.
+  defp walk([{:op, :self, pos} | rest], %{current_actor_type: nil} = state) do
+    walk(rest, add_error(state, pos, "SELF is only available inside a SPAWN block"))
+  end
+
+  defp walk([{:op, :self, _pos} | rest], %{current_actor_type: msg_type} = state) do
+    walk(rest, %{state | stack: Stack.push(state.stack, {:pid, msg_type})})
   end
 
   # SEND — pid[msg] msg SEND

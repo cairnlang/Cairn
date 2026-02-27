@@ -42,4 +42,14 @@ defmodule Axiom.ConcurrencyRuntimeTest do
 
     assert output =~ "got_ping"
   end
+
+  test "SELF can send a bootstrap message to the current actor" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/self_boot.ax")
+        Process.sleep(30)
+      end)
+
+    assert output =~ "booted"
+  end
 end

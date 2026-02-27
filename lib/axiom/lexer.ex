@@ -11,7 +11,7 @@ defmodule Axiom.Lexer do
                 SORT REVERSE MIN MAX
                 SQ ABS NEG
                 TIMES WHILE APPLY
-                RANGE PRINT SAY
+                RANGE PRINT SAY SELF
                 SEND
                 ARGV READ_FILE WRITE_FILE READ_FILE! WRITE_FILE! READ_LINE
                 WORDS LINES CONTAINS

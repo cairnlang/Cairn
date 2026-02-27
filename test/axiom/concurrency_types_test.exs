@@ -106,8 +106,22 @@ defmodule Axiom.ConcurrencyTypesTest do
            end)
   end
 
+  test "SELF is valid inside SPAWN blocks and invalid outside" do
+    check_ok("""
+    TYPE msg = Boot
+
+    DEF actor : pid[msg]
+      SPAWN msg { SELF DROP DROP }
+    END
+    """)
+
+    errors = check_errors("SELF")
+    assert Enum.any?(errors, fn e -> e.message =~ "SELF is only available inside a SPAWN block" end)
+  end
+
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/self_boot.ax")
   end
 end

@@ -1,0 +1,12 @@
+# examples/concurrency/self_boot.ax
+# Demonstrates SELF by sending the actor a bootstrap message to itself.
+
+TYPE msg = Boot
+
+SPAWN msg {
+  SELF Boot SEND
+  RECEIVE
+    Boot { "booted" SAID }
+  END
+}
+DROP

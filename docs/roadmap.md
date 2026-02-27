@@ -350,6 +350,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added runnable example `examples/concurrency/ping_once.ax` alongside the type-focused concurrency examples
 - Added direct runtime tests covering spawn/send/receive flow and the spawned self-pid contract
 
+### v0.7.0c — Actor Self Handle
+- Added `SELF` as a runtime operator returning the current actor's typed pid
+- Restricted `SELF` statically to `SPAWN` block checking contexts
+- Added `examples/concurrency/self_boot.ax` to demonstrate self-messaging bootstrap
+- Expanded concurrency runtime tests and examples index coverage for `SELF`
+
 ---
 
 ## Next Up
@@ -364,7 +370,7 @@ The current PROVE MATCH refinement line has delivered substantial gains, but PRE
 Axiom already has algebraic types and contracts. Combining them with BEAM processes creates typed actors with provable state transition invariants.
 
 **Deliverables:**
-- `SELF` and ergonomic self-mailbox access outside the implicit spawned-block handle
+- Ergonomic self-mailbox access outside the current block-local `SELF` restriction
 - Richer `RECEIVE` forms (loop-friendly patterns, multi-message actor workflows)
 - `pid[MessageType]` — typed process identifiers with stronger runtime ergonomics
 - `RECEIVE` with MATCH-style pattern dispatch on message type across larger actor state machines

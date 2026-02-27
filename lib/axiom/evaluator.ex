@@ -61,7 +61,13 @@ defmodule Axiom.Evaluator do
     pid =
       spawn(fn ->
         self_ref = {:pid, msg_type, self()}
-        {_child_stack, _child_env} = run(block_tokens, [self_ref], env)
+        Process.put(:axiom_self_type, msg_type)
+
+        try do
+          {_child_stack, _child_env} = run(block_tokens, [self_ref], env)
+        after
+          Process.delete(:axiom_self_type)
+        end
       end)
 
     run(remaining, [{:pid, msg_type, pid} | stack], env)
@@ -85,6 +91,17 @@ defmodule Axiom.Evaluator do
 
   defp run([{:op, :send, pos} | _], _stack, _env) do
     raise Axiom.RuntimeError, "SEND at word #{pos + 1}: stack underflow"
+  end
+
+  # SELF — push the current process's typed pid handle
+  defp run([{:op, :self, pos} | rest], stack, env) do
+    case Process.get(:axiom_self_type) do
+      nil ->
+        raise Axiom.RuntimeError, "SELF at word #{pos + 1}: only available inside a SPAWN block"
+
+      msg_type ->
+        run(rest, [{:pid, msg_type, self()} | stack], env)
+    end
   end
 
   # Operators — delegate to Runtime

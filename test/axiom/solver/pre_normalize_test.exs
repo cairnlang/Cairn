@@ -23,8 +23,8 @@ defmodule Axiom.Solver.PreNormalizeTest do
     rhs = {:eq, {:var, "p1_tag"}, {:const, 1}}
     implication = {:or, {:not, cond_expr}, rhs}
 
-    assert PreNormalize.normalize({:and, implication, cond_expr}) ==
-             {:and, rhs, cond_expr}
+    normalized = PreNormalize.normalize({:and, implication, cond_expr})
+    assert normalized in [{:and, rhs, cond_expr}, {:and, cond_expr, rhs}]
   end
 
   test "reduces split disjunction alias" do
@@ -40,5 +40,34 @@ defmodule Axiom.Solver.PreNormalizeTest do
     encoded = {:or, {:and, a, true}, {:and, {:not, a}, {:not, true}}}
 
     assert PreNormalize.normalize(encoded) == a
+  end
+
+  test "pushes NOT through OR via DeMorgan" do
+    a = {:eq, {:var, "p0_tag"}, {:const, 1}}
+    b = {:gt, {:var, "p1"}, {:const, 0}}
+    input = {:not, {:or, {:not, a}, {:not, b}}}
+
+    assert PreNormalize.normalize(input) == {:and, a, b}
+  end
+
+  test "pushes NOT through AND via DeMorgan" do
+    a = {:eq, {:var, "p0_tag"}, {:const, 1}}
+    b = {:gt, {:var, "p1"}, {:const, 0}}
+    input = {:not, {:and, a, b}}
+
+    normalized = PreNormalize.normalize(input)
+    assert normalized in [{:or, {:lte, {:var, "p1"}, {:const, 0}}, {:neq, {:var, "p0_tag"}, {:const, 1}}},
+                          {:or, {:neq, {:var, "p0_tag"}, {:const, 1}}, {:lte, {:var, "p1"}, {:const, 0}}}]
+  end
+
+  test "negates comparison operators" do
+    assert PreNormalize.normalize({:not, {:eq, {:var, "x"}, {:const, 1}}}) ==
+             {:neq, {:var, "x"}, {:const, 1}}
+
+    assert PreNormalize.normalize({:not, {:gt, {:var, "x"}, {:const, 0}}}) ==
+             {:lte, {:var, "x"}, {:const, 0}}
+
+    assert PreNormalize.normalize({:not, {:lte, {:var, "x"}, {:const, 0}}}) ==
+             {:gt, {:var, "x"}, {:const, 0}}
   end
 end

@@ -1513,6 +1513,44 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_noisy: PROVEN"
     end
 
+    test "deMorgan plus comparison negation in PRE still narrows constructor" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      # PRE computes NOT ((NOT is_square(shape)) OR (NOT (amount > 0)))
+      # which normalizes to is_square(shape) AND (amount > 0).
+      DEF square_only_abs_demorgan : int shape -> int
+        PRE {
+          DUP 0 GT NOT
+          ROT
+          is_square
+          NOT
+          OR
+          NOT
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_demorgan
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_demorgan: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

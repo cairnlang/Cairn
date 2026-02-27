@@ -26,6 +26,9 @@ defmodule Axiom.Solver.PreNormalize do
       c == true -> false
       c == false -> true
       match?({:not, _}, c) -> elem(c, 1)
+      match?({:and, _, _}, c) -> normalize(push_not_via_demorgan(c, :or))
+      match?({:or, _, _}, c) -> normalize(push_not_via_demorgan(c, :and))
+      negatable_comparison?(c) -> negate_comparison(c)
       true -> {:not, c}
     end
   end
@@ -39,6 +42,25 @@ defmodule Axiom.Solver.PreNormalize do
   end
 
   def normalize(c), do: c
+
+  defp push_not_via_demorgan({op, a, b}, new_op) when op in [:and, :or] do
+    {new_op, {:not, a}, {:not, b}}
+  end
+
+  defp negatable_comparison?({:eq, _, _}), do: true
+  defp negatable_comparison?({:neq, _, _}), do: true
+  defp negatable_comparison?({:gt, _, _}), do: true
+  defp negatable_comparison?({:gte, _, _}), do: true
+  defp negatable_comparison?({:lt, _, _}), do: true
+  defp negatable_comparison?({:lte, _, _}), do: true
+  defp negatable_comparison?(_), do: false
+
+  defp negate_comparison({:eq, a, b}), do: {:neq, a, b}
+  defp negate_comparison({:neq, a, b}), do: {:eq, a, b}
+  defp negate_comparison({:gt, a, b}), do: {:lte, a, b}
+  defp negate_comparison({:gte, a, b}), do: {:lt, a, b}
+  defp negate_comparison({:lt, a, b}), do: {:gte, a, b}
+  defp negate_comparison({:lte, a, b}), do: {:gt, a, b}
 
   defp simplify_and_terms(terms) do
     cond do
@@ -101,15 +123,14 @@ defmodule Axiom.Solver.PreNormalize do
   defp constraint_sort_key(term), do: :erlang.term_to_binary(term)
 
   defp has_complement_pair?(terms) do
-    set = MapSet.new(terms)
-
-    Enum.any?(terms, fn term ->
-      MapSet.member?(set, complement_term(term))
+    terms
+    |> Enum.with_index()
+    |> Enum.any?(fn {left, i} ->
+      terms
+      |> Enum.drop(i + 1)
+      |> Enum.any?(&constraint_complements?(left, &1))
     end)
   end
-
-  defp complement_term({:not, inner}), do: inner
-  defp complement_term(term), do: {:not, term}
 
   defp build_constraint(:and, []), do: true
   defp build_constraint(:or, []), do: false
@@ -123,25 +144,18 @@ defmodule Axiom.Solver.PreNormalize do
 
   # (NOT c OR a) AND c => a (and symmetric variants) when both terms are present
   defp reduce_implication_terms(terms) do
-    term_set = MapSet.new(terms)
-
-    Enum.map(terms, &reduce_implication_term(&1, term_set))
+    Enum.map(terms, &reduce_implication_term(&1, terms))
   end
 
-  defp reduce_implication_term({:or, left, right}, term_set) do
-    case {left, right} do
-      {{:not, cond}, rhs} ->
-        if MapSet.member?(term_set, cond), do: rhs, else: {:or, left, right}
-
-      {rhs, {:not, cond}} ->
-        if MapSet.member?(term_set, cond), do: rhs, else: {:or, left, right}
-
-      {cond, rhs} ->
-        if MapSet.member?(term_set, {:not, cond}), do: rhs, else: {:or, left, right}
+  defp reduce_implication_term({:or, left, right}, all_terms) do
+    cond do
+      Enum.any?(all_terms, &constraint_complements?(left, &1)) -> right
+      Enum.any?(all_terms, &constraint_complements?(right, &1)) -> left
+      true -> {:or, left, right}
     end
   end
 
-  defp reduce_implication_term(term, _term_set), do: term
+  defp reduce_implication_term(term, _all_terms), do: term
 
   defp reduce_or_pair_terms(terms) do
     case find_reduced_or_pair(terms) do
@@ -261,5 +275,11 @@ defmodule Axiom.Solver.PreNormalize do
 
   defp constraint_complements?(a, {:not, b}), do: a == b
   defp constraint_complements?({:not, a}, b), do: a == b
+  defp constraint_complements?({:eq, a, b}, {:neq, a, b}), do: true
+  defp constraint_complements?({:neq, a, b}, {:eq, a, b}), do: true
+  defp constraint_complements?({:gt, a, b}, {:lte, a, b}), do: true
+  defp constraint_complements?({:lte, a, b}, {:gt, a, b}), do: true
+  defp constraint_complements?({:gte, a, b}, {:lt, a, b}), do: true
+  defp constraint_complements?({:lt, a, b}, {:gte, a, b}), do: true
   defp constraint_complements?(_, _), do: false
 end

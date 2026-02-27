@@ -196,6 +196,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Kept PROVE behavior unchanged while reducing solver-module complexity and isolating rewrite logic
 - Added focused unit coverage for canonicalization/rewrite rules in `test/axiom/solver/pre_normalize_test.exs`
 
+### v0.6.0r — DeMorgan + Comparison Negation Pushdown
+- Added bounded `NOT` pushdown in PRE normalization:
+  `NOT (a AND b) => (NOT a OR NOT b)` and `NOT (a OR b) => (NOT a AND NOT b)`
+- Added comparison-negation flips (`NOT EQ => NEQ`, `NOT GT => LTE`, etc.) and complement-aware rewrites so prior inference remains stable
+- Added `examples/prove/proven_shape_demorgan.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
+
 ---
 
 ## Next Up
@@ -210,7 +216,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** PRE normalization is now modularized and unit-tested; next gains are deeper inference coverage and broader proof context.
+**Why now:** PRE negation pushdown is now covered; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

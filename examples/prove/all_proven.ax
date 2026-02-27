@@ -1,0 +1,7 @@
+# all_proven.ax — run the proven PROVE showcases in one go
+
+IMPORT "proven.ax"
+IMPORT "proven_option.ax"
+IMPORT "proven_result.ax"
+IMPORT "proven_shape.ax"
+IMPORT "proven_shape_pruned.ax"

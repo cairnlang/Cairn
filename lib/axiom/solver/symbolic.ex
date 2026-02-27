@@ -387,13 +387,13 @@ defmodule Axiom.Solver.Symbolic do
     {arms, remaining} = collect_match_arms(rest, [])
 
     with {:ok, some_tokens, none_tokens} <- resolve_option_arms(arms) do
-      case known_tag_value(tag, env) do
-        1 ->
+      case possible_tag_indexes(tag, 2, env) do
+        [1] ->
           with {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth) do
             walk(remaining, some_stack, env, depth)
           end
 
-        0 ->
+        [0] ->
           with {:ok, none_stack} <- walk(none_tokens, stack, env, depth) do
             walk(remaining, none_stack, env, depth)
           end
@@ -413,13 +413,13 @@ defmodule Axiom.Solver.Symbolic do
     {arms, remaining} = collect_match_arms(rest, [])
 
     with {:ok, ok_tokens, err_tokens} <- resolve_result_arms(arms) do
-      case known_tag_value(tag, env) do
-        1 ->
+      case possible_tag_indexes(tag, 2, env) do
+        [1] ->
           with {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth) do
             walk(remaining, ok_stack, env, depth)
           end
 
-        0 ->
+        [0] ->
           with {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth) do
             walk(remaining, err_stack, env, depth)
           end
@@ -720,9 +720,10 @@ defmodule Axiom.Solver.Symbolic do
 
   defp execute_and_merge_generic_match(typedef, tag, payload_map, base_stack, arm_map, env, depth) do
     ctors = ctor_order(typedef)
+    possible = possible_tag_indexes(tag, length(ctors), env)
 
-    case known_tag_value(tag, env) do
-      idx when is_integer(idx) and idx >= 0 and idx < length(ctors) ->
+    case possible do
+      [idx] when is_integer(idx) and idx >= 0 and idx < length(ctors) ->
         ctor = Enum.at(ctors, idx)
         ctor_payload = Map.get(payload_map, ctor, [])
         arm_tokens = Map.fetch!(arm_map, ctor)
@@ -732,6 +733,7 @@ defmodule Axiom.Solver.Symbolic do
       _ ->
         ctors
         |> Enum.with_index()
+        |> Enum.filter(fn {_ctor, idx} -> idx in possible end)
         |> Enum.reduce_while({:ok, nil}, fn {ctor, idx}, {:ok, acc_stack} ->
           ctor_payload = Map.get(payload_map, ctor, [])
           arm_tokens = Map.fetch!(arm_map, ctor)
@@ -949,14 +951,42 @@ defmodule Axiom.Solver.Symbolic do
 
   defp merge_symvals(_cond, _, _), do: {:unsupported, "incompatible payload symvals"}
 
-  defp known_tag_value({:const, value}, _env) when is_integer(value), do: value
-
-  defp known_tag_value({:var, var_name}, env) do
-    assumptions = Map.get(env, "__prove_tag_assumptions__", %{})
-    Map.get(assumptions, var_name)
+  defp possible_tag_indexes({:const, value}, arity, _env) when is_integer(value) do
+    if value >= 0 and value < arity, do: [value], else: Enum.to_list(0..(arity - 1))
   end
 
-  defp known_tag_value(_tag_expr, _env), do: nil
+  defp possible_tag_indexes({:var, var_name}, arity, env) do
+    assumption = get_tag_assumption(var_name, env)
+
+    candidates =
+      cond do
+        is_integer(assumption.eq) and assumption.eq >= 0 and assumption.eq < arity ->
+          [assumption.eq]
+
+        true ->
+          Enum.to_list(0..(arity - 1))
+          |> Enum.reject(&MapSet.member?(assumption.neq, &1))
+      end
+
+    if candidates == [], do: Enum.to_list(0..(arity - 1)), else: candidates
+  end
+
+  defp possible_tag_indexes(_tag_expr, arity, _env), do: Enum.to_list(0..(arity - 1))
+
+  defp get_tag_assumption(var_name, env) do
+    assumptions = Map.get(env, "__prove_tag_assumptions__", %{})
+
+    case Map.get(assumptions, var_name) do
+      value when is_integer(value) ->
+        %{eq: value, neq: MapSet.new()}
+
+      %{eq: eq, neq: neq} ->
+        %{eq: eq, neq: neq}
+
+      _ ->
+        %{eq: nil, neq: MapSet.new()}
+    end
+  end
 
   defp opaque_same?(a, b), do: a == b
 end

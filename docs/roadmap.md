@@ -46,7 +46,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - ABS, MIN, MAX unlocked as syntactic sugar for conditionals
 - Function call inlining during symbolic execution (depth limit 10)
 - Compositional proofs: prove a helper, then prove functions that call it
-- `examples/proven.ax` — abs, distance, clamp, symmetry proofs
+- `examples/prove/proven.ax` — abs, distance, clamp, symmetry proofs
 - 610 tests passing
 
 ### v0.5.0 — LET Bindings + Interactive I/O
@@ -99,33 +99,39 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Symbolic encoding introduces option tag/payload variables with tag domain constraints
 - MATCH arm dispatch is encoded as `ite` over `option` tag
 - Unsupported MATCH shapes still return `UNKNOWN` with clear messaging
-- Added `examples/proven_option.ax` and solver tests for option-MATCH proofs
+- Added `examples/prove/proven_option.ax` and solver tests for option-MATCH proofs
 
 ### v0.6.0b — PROVE MATCH (Result Slice)
 - PROVE now supports `MATCH` when the matched value is `result`
 - Symbolic encoding introduces result tag/Ok-payload variables with tag domain constraints
 - MATCH arm dispatch is encoded as `ite` over `result` tag
-- Added `examples/proven_result.ax` and solver tests for result-MATCH proofs
+- Added `examples/prove/proven_result.ax` and solver tests for result-MATCH proofs
 - Non-supported MATCH shapes still return `UNKNOWN` with explicit reason
 
 ### v0.6.0c — PROVE MATCH (Generic Non-Recursive ADT Slice)
 - PROVE now supports `MATCH` for user-defined ADTs with non-recursive `int` fields
 - Generic symbolic encoding introduces constructor tag/payload vars from type definitions
 - Constructor branch dispatch is encoded as nested `ite` over symbolic constructor tags
-- Added `examples/proven_shape.ax` and solver coverage for generic ADT MATCH proving
+- Added `examples/prove/proven_shape.ax` and solver coverage for generic ADT MATCH proving
 - `PROVE` now passes full type environment into symbolic parameter generation
 
 ### v0.6.0d — ADT Counterexample Decoding
 - PROVE now decodes ADT model variables into constructor-shaped counterexamples
 - Counterexample formatting now handles `option`, `result`, and generic user ADTs
-- Added `examples/proven_shape_buggy.ax` to demonstrate decoded ADT failure output
+- Added `examples/prove/proven_shape_buggy.ax` to demonstrate decoded ADT failure output
 - Added solver coverage for ADT counterexample formatting and failing generic MATCH proofs
 
 ### v0.6.0e — PRE-Driven MATCH Branch Pruning
 - PROVE now carries simple constructor-tag assumptions inferred from PRE into symbolic body execution
 - Symbolic MATCH execution can prune unreachable arms for `option`, `result`, and generic ADTs
-- Added `examples/proven_shape_pruned.ax` showing an unreachable unsupported arm no longer blocks proof
+- Added `examples/prove/proven_shape_pruned.ax` showing an unreachable unsupported arm no longer blocks proof
 - Added solver coverage for pruning behavior and PRE-narrowed generic ADT proofs
+
+### v0.6.0f — Broader PRE Inference + PROVE Example Organization
+- PRE inference now handles richer boolean forms (`AND`, `OR`, `NOT`, and related `ite_bool` shapes)
+- MATCH pruning can use both positive (`eq`) and exclusion (`neq`) tag assumptions conservatively
+- Added solver coverage for OR/NOT-driven narrowing and exclusion-based pruning
+- Moved proof examples into `examples/prove/` and added `examples/prove/all_proven.ax`
 
 ---
 
@@ -137,11 +143,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 **Deliverables:**
 
-- **Broader PRE inference** — infer constructor constraints from richer boolean forms beyond direct/ite-eq patterns
+- **Pruning diagnostics** — report when branches are pruned vs symbolically explored for easier proof debugging
+- **Broader constructor inference** — recognize additional refinement-like PRE patterns around MATCH helpers
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
-- **Solver diagnostics** — report when a branch was pruned vs symbolically explored for easier proof debugging
 
-**Why now:** baseline PRE-driven pruning is implemented; the next gains are deeper inference and better visibility.
+**Why now:** PRE inference and example organization are in place; next gains are visibility and deeper refinement coverage.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

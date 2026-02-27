@@ -175,7 +175,7 @@ defmodule Axiom.Solver.Prove do
   defp format_param_value(_type, _i, _model, _env), do: "?"
 
   defp enrich_env_with_pre_assumptions(env, pre_constraint) do
-    assumptions = collect_pre_tag_assumptions(pre_constraint, %{})
+    assumptions = assumption_map_from_constraint(pre_constraint)
 
     if map_size(assumptions) == 0 do
       env
@@ -184,31 +184,125 @@ defmodule Axiom.Solver.Prove do
     end
   end
 
-  defp collect_pre_tag_assumptions({:and, a, b}, acc) do
-    acc
-    |> then(&collect_pre_tag_assumptions(a, &1))
-    |> then(&collect_pre_tag_assumptions(b, &1))
+  defp assumption_map_from_constraint({:and, a, b}) do
+    merge_assumption_maps(assumption_map_from_constraint(a), assumption_map_from_constraint(b), :and)
   end
 
-  defp collect_pre_tag_assumptions({:eq, {:var, var}, {:const, value}}, acc) when is_integer(value) do
-    Map.put_new(acc, var, value)
+  defp assumption_map_from_constraint({:or, a, b}) do
+    merge_assumption_maps(assumption_map_from_constraint(a), assumption_map_from_constraint(b), :or)
   end
 
-  defp collect_pre_tag_assumptions({:eq, {:const, value}, {:var, var}}, acc) when is_integer(value) do
-    Map.put_new(acc, var, value)
+  defp assumption_map_from_constraint({:eq, {:var, var}, {:const, value}}) when is_integer(value) do
+    %{var => %{eq: value, neq: MapSet.new()}}
   end
 
-  defp collect_pre_tag_assumptions({:ite_bool, {:eq, {:var, var}, {:const, value}}, true, false}, acc)
-       when is_integer(value) do
-    Map.put_new(acc, var, value)
+  defp assumption_map_from_constraint({:eq, {:const, value}, {:var, var}}) when is_integer(value) do
+    %{var => %{eq: value, neq: MapSet.new()}}
   end
 
-  defp collect_pre_tag_assumptions({:ite_bool, {:eq, {:const, value}, {:var, var}}, true, false}, acc)
-       when is_integer(value) do
-    Map.put_new(acc, var, value)
+  defp assumption_map_from_constraint({:neq, {:var, var}, {:const, value}}) when is_integer(value) do
+    %{var => %{eq: nil, neq: MapSet.new([value])}}
   end
 
-  defp collect_pre_tag_assumptions(_constraint, acc), do: acc
+  defp assumption_map_from_constraint({:neq, {:const, value}, {:var, var}}) when is_integer(value) do
+    %{var => %{eq: nil, neq: MapSet.new([value])}}
+  end
+
+  defp assumption_map_from_constraint({:not, {:eq, {:var, var}, {:const, value}}}) when is_integer(value) do
+    %{var => %{eq: nil, neq: MapSet.new([value])}}
+  end
+
+  defp assumption_map_from_constraint({:not, {:eq, {:const, value}, {:var, var}}}) when is_integer(value) do
+    %{var => %{eq: nil, neq: MapSet.new([value])}}
+  end
+
+  defp assumption_map_from_constraint({:not, {:neq, {:var, var}, {:const, value}}}) when is_integer(value) do
+    %{var => %{eq: value, neq: MapSet.new()}}
+  end
+
+  defp assumption_map_from_constraint({:not, {:neq, {:const, value}, {:var, var}}}) when is_integer(value) do
+    %{var => %{eq: value, neq: MapSet.new()}}
+  end
+
+  defp assumption_map_from_constraint({:not, {:not, inner}}) do
+    assumption_map_from_constraint(inner)
+  end
+
+  defp assumption_map_from_constraint({:not, {:ite_bool, cond, true, false}}) do
+    assumption_map_from_constraint({:not, cond})
+  end
+
+  defp assumption_map_from_constraint({:not, {:ite_bool, cond, false, true}}) do
+    assumption_map_from_constraint(cond)
+  end
+
+  defp assumption_map_from_constraint({:ite_bool, cond, true, false}) do
+    assumption_map_from_constraint(cond)
+  end
+
+  defp assumption_map_from_constraint({:ite_bool, cond, false, true}) do
+    assumption_map_from_constraint({:not, cond})
+  end
+
+  defp assumption_map_from_constraint(_constraint), do: %{}
+
+  defp merge_assumption_maps(left, right, mode) do
+    keys = Map.keys(left) ++ Map.keys(right)
+
+    keys
+    |> Enum.uniq()
+    |> Enum.reduce(%{}, fn key, acc ->
+      la = Map.get(left, key, %{eq: nil, neq: MapSet.new()})
+      ra = Map.get(right, key, %{eq: nil, neq: MapSet.new()})
+      merged = merge_tag_assumption(la, ra, mode)
+
+      if merged.eq == nil and MapSet.size(merged.neq) == 0 do
+        acc
+      else
+        Map.put(acc, key, merged)
+      end
+    end)
+  end
+
+  defp merge_tag_assumption(left, right, :and) do
+    eq =
+      case {left.eq, right.eq} do
+        {nil, nil} -> nil
+        {v, nil} -> v
+        {nil, v} -> v
+        {v, v} -> v
+        {_v1, _v2} -> :conflict
+      end
+
+    neq = MapSet.union(left.neq, right.neq)
+
+    cond do
+      eq == :conflict ->
+        %{eq: nil, neq: MapSet.new()}
+
+      is_integer(eq) and MapSet.member?(neq, eq) ->
+        %{eq: nil, neq: MapSet.new()}
+
+      true ->
+        %{eq: eq, neq: neq}
+    end
+  end
+
+  defp merge_tag_assumption(left, right, :or) do
+    eq =
+      case {left.eq, right.eq} do
+        {v, v} when is_integer(v) -> v
+        _ -> nil
+      end
+
+    neq = MapSet.intersection(left.neq, right.neq)
+
+    if is_integer(eq) and MapSet.member?(neq, eq) do
+      %{eq: nil, neq: neq}
+    else
+      %{eq: eq, neq: neq}
+    end
+  end
 
   defp combine_constraints(true, c), do: c
   defp combine_constraints(c, true), do: c

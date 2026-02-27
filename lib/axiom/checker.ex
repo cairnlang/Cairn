@@ -17,17 +17,17 @@ defmodule Axiom.Checker do
   The `env` parameter provides previously-defined function signatures
   for cross-expression checking (e.g., in the REPL).
   """
-  @spec check([Axiom.Types.Function.t() | {:expr, [Axiom.Types.token()]}], map()) ::
+  @spec check([Axiom.Types.Function.t() | Axiom.Types.TypeDef.t() | Axiom.Types.ProtocolDef.t() | {:expr, [Axiom.Types.token()]}], map()) ::
           :ok | {:error, [Error.t()]}
   def check(items, env \\ %{}) do
-    {type_env, types} = build_checker_env(env)
+    {type_env, types, protocols} = build_checker_env(env)
     actor_required = compute_actor_required_functions(items, type_env)
 
     # Pre-register all type definitions and function signatures upfront so that
     # mutually recursive functions can see each other regardless of source order.
-    {type_env, types} =
-      Enum.reduce(items, {type_env, types}, fn
-        %Axiom.Types.TypeDef{} = typedef, {te, tys} ->
+    {type_env, types, protocols} =
+      Enum.reduce(items, {type_env, types, protocols}, fn
+        %Axiom.Types.TypeDef{} = typedef, {te, tys, protos} ->
           te =
             Enum.reduce(typedef.variants, te, fn {ctor_name, field_types}, acc ->
               Map.put(acc, ctor_name, %{
@@ -36,15 +36,19 @@ defmodule Axiom.Checker do
               })
             end)
 
-          {te, Map.put(tys, typedef.name, typedef)}
+          {te, Map.put(tys, typedef.name, typedef), protos}
 
-        %Axiom.Types.Function{} = func, {te, tys} ->
+        %Axiom.Types.Function{} = func, {te, tys, protos} ->
           {Map.put(te, func.name, %{
              param_types: func.param_types,
              return_types: func.return_types,
              actor_required: MapSet.member?(actor_required, func.name)
            }),
-           tys}
+           tys,
+           protos}
+
+        %Axiom.Types.ProtocolDef{} = protocol, {te, tys, protos} ->
+          {te, tys, Map.put(protos, protocol.name, protocol)}
 
         _, acc ->
           acc
@@ -56,7 +60,9 @@ defmodule Axiom.Checker do
       errors: [],
       next_tvar: 0,
       types: types,
+      protocols: protocols,
       current_actor_type: nil,
+      current_protocol_steps: nil,
       actor_required: actor_required
     }
 
@@ -94,7 +100,8 @@ defmodule Axiom.Checker do
 
     env_types = Map.get(env, "__types__", %{})
     types = Map.merge(types, env_types)
-    {type_env, types}
+    protocols = Map.get(env, "__protocols__", %{})
+    {type_env, types, protocols}
   end
 
   defp prelude_checker_env do
@@ -185,6 +192,10 @@ defmodule Axiom.Checker do
 
     # Register the type definition for MATCH exhaustiveness checking
     %{state | types: Map.put(state.types, typedef.name, typedef)}
+  end
+
+  defp check_item(%Axiom.Types.ProtocolDef{} = protocol, state) do
+    %{state | protocols: Map.put(state.protocols, protocol.name, protocol)}
   end
 
   defp check_item({:expr, tokens}, state) do
@@ -326,8 +337,12 @@ defmodule Axiom.Checker do
   end
 
   # SPAWN MessageType { ... } — static-only for now
+  defp walk([{:spawn_kw, _, pos}, type_token, {:using_kw, _, _}, {:ident, protocol_name, _}, {:block_open, _, _} | rest], state) do
+    check_spawn_form(rest, state, pos, type_token, protocol_name)
+  end
+
   defp walk([{:spawn_kw, _, pos}, type_token, {:block_open, _, _} | rest], state) do
-    check_spawn_form(rest, state, pos, type_token)
+    check_spawn_form(rest, state, pos, type_token, nil)
   end
 
   defp walk([{:spawn_kw, _, pos} | rest], state) do
@@ -335,8 +350,12 @@ defmodule Axiom.Checker do
   end
 
   # SPAWN_LINK MessageType { ... } — same static rules as SPAWN
+  defp walk([{:spawn_link_kw, _, pos}, type_token, {:using_kw, _, _}, {:ident, protocol_name, _}, {:block_open, _, _} | rest], state) do
+    check_spawn_form(rest, state, pos, type_token, protocol_name)
+  end
+
   defp walk([{:spawn_link_kw, _, pos}, type_token, {:block_open, _, _} | rest], state) do
-    check_spawn_form(rest, state, pos, type_token)
+    check_spawn_form(rest, state, pos, type_token, nil)
   end
 
   defp walk([{:spawn_link_kw, _, pos} | rest], state) do
@@ -592,6 +611,8 @@ defmodule Axiom.Checker do
                 "SEND expected #{format_type(expected_msg_type)}, got #{format_type(msg_type)}")
           end
 
+        state = advance_protocol_send(msg_type, state, pos)
+
         walk(rest, state)
 
       {[msg_type, other], _base} ->
@@ -738,7 +759,13 @@ defmodule Axiom.Checker do
 
             state =
               Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
-                %{st | stack: Stack.push(st.stack, type)}
+                pushed_type =
+                  case type do
+                    {:user_type, type_name} -> {:tagged_variant, type_name, name}
+                    other -> other
+                  end
+
+                %{st | stack: Stack.push(st.stack, pushed_type)}
               end)
 
             walk(rest, state)
@@ -750,7 +777,13 @@ defmodule Axiom.Checker do
 
             state =
               Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
-                %{st | stack: Stack.push(st.stack, type)}
+                pushed_type =
+                  case type do
+                    {:user_type, type_name} -> {:tagged_variant, type_name, name}
+                    other -> other
+                  end
+
+                %{st | stack: Stack.push(st.stack, pushed_type)}
               end)
 
             walk(rest, state)
@@ -764,6 +797,54 @@ defmodule Axiom.Checker do
 
     case Stack.pop(state.stack) do
       {:ok, {:user_type, type_name}, base_stack} ->
+        state = %{state | stack: base_stack}
+        typedef = Map.get(state.types, type_name)
+        has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
+
+        state =
+          cond do
+            is_nil(typedef) ->
+              add_error(state, pos, "MATCH requires a known sum type, got #{type_name}")
+
+            has_wildcard ->
+              state
+
+            true ->
+              arm_names = MapSet.new(arms, fn {name, _} -> name end)
+              all_ctors = MapSet.new(Map.keys(typedef.variants))
+              missing = MapSet.difference(all_ctors, arm_names)
+
+              if MapSet.size(missing) > 0 do
+                add_error(state, pos,
+                  "MATCH on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
+              else
+                state
+              end
+          end
+
+        # Walk each arm
+        arm_states =
+          Enum.map(arms, fn
+            {:wildcard, arm_tokens} ->
+              # Wildcard arm: no fields pushed — body starts with base stack
+              walk(arm_tokens, %{state | stack: base_stack})
+
+            {ctor_name, arm_tokens} ->
+              field_types =
+                if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
+
+              arm_stack =
+                field_types
+                |> Enum.reverse()
+                |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+
+              walk(arm_tokens, %{state | stack: arm_stack})
+          end)
+
+        {result_stack, state} = unify_arm_stacks(arm_states, state, pos)
+        walk(remaining, %{state | stack: result_stack})
+
+      {:ok, {:tagged_variant, type_name, _ctor_name}, base_stack} ->
         state = %{state | stack: base_stack}
         typedef = Map.get(state.types, type_name)
         has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
@@ -825,6 +906,9 @@ defmodule Axiom.Checker do
     {arms, remaining} = collect_checker_match_arms(rest, [])
 
     case state.current_actor_type do
+      {:user_type, type_name} when is_list(state.current_protocol_steps) ->
+        check_receive_with_protocol(type_name, arms, remaining, state, pos)
+
       {:user_type, type_name} ->
         {result_stack, state} = check_receive_arms(type_name, state.stack, arms, state, pos)
         walk(remaining, %{state | stack: result_stack})
@@ -839,12 +923,20 @@ defmodule Axiom.Checker do
     walk(rest, state)
   end
 
-  defp check_spawn_form(rest, state, pos, type_token) do
+  defp check_spawn_form(rest, state, pos, type_token, protocol_name) do
     case resolve_concurrency_type(type_token, state.types) do
       {:ok, msg_type} ->
         {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
         block_stack = Stack.new() |> Stack.push({:pid, msg_type})
-        block_state = walk(block_tokens, %{state | stack: block_stack, current_actor_type: msg_type})
+        {protocol_steps, state} = resolve_protocol_steps(protocol_name, msg_type, state, pos)
+
+        block_state =
+          walk(block_tokens, %{
+            state
+            | stack: block_stack,
+              current_actor_type: msg_type,
+              current_protocol_steps: protocol_steps
+          })
 
         state = %{
           state
@@ -857,6 +949,13 @@ defmodule Axiom.Checker do
             state
           else
             add_error(state, pos, "SPAWN block must consume its self pid and leave an empty stack")
+          end
+
+        state =
+          if block_state.current_protocol_steps in [nil, []] do
+            state
+          else
+            add_error(state, pos, "SPAWN block ended before protocol completion")
           end
 
         walk(remaining, %{state | stack: Stack.push(state.stack, {:pid, msg_type})})
@@ -1369,6 +1468,7 @@ defmodule Axiom.Checker do
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
+  defp format_type({:tagged_variant, _type_name, ctor}), do: ctor
   defp format_type({:block, _}), do: "block"
   defp format_type({:tvar, id}), do: "t#{id}"
   defp format_type({:user_type, name}), do: name
@@ -1461,6 +1561,63 @@ defmodule Axiom.Checker do
     unify_arm_stacks(arm_states, state, pos)
   end
 
+  defp check_receive_with_protocol(type_name, arms, remaining, state, pos) do
+    case state.current_protocol_steps do
+      [{:recv, expected_ctor} | rest_steps] ->
+        wildcard? = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
+        extra_ctors = Enum.filter(arms, fn {name, _} -> name not in [expected_ctor, :wildcard] end)
+        expected_arm = Enum.find(arms, fn {name, _} -> name == expected_ctor end)
+
+        state =
+          cond do
+            is_nil(Map.get(state.types, type_name)) ->
+              add_error(state, pos, "RECEIVE requires a pid of a known sum type, got #{type_name}")
+
+            is_nil(expected_arm) ->
+              add_error(state, pos, "RECEIVE under protocol expects #{expected_ctor}")
+
+            wildcard? or extra_ctors != [] ->
+              add_error(state, pos, "RECEIVE under protocol expects only #{expected_ctor}")
+
+            true ->
+              state
+          end
+
+        case {Map.get(state.types, type_name), expected_arm} do
+          {%Axiom.Types.TypeDef{} = typedef, {^expected_ctor, arm_tokens}} ->
+            field_types = Map.get(typedef.variants, expected_ctor, [])
+
+            arm_stack =
+              field_types
+              |> Enum.reverse()
+              |> Enum.reduce(state.stack, fn t, s -> Stack.push(s, t) end)
+
+            arm_state =
+              walk(arm_tokens, %{
+                state
+                | stack: arm_stack,
+                  current_protocol_steps: rest_steps
+              })
+
+            walk(remaining, arm_state)
+
+          _ ->
+            walk(remaining, state)
+        end
+
+      [{:send, ctor} | _] ->
+        state = add_error(state, pos, "RECEIVE is not valid here; protocol expects SEND #{ctor}")
+        walk(remaining, state)
+
+      [] ->
+        state = add_error(state, pos, "RECEIVE is not valid here; protocol is already complete")
+        walk(remaining, state)
+
+      nil ->
+        check_receive_with_explicit_pid(arms, remaining, state, pos)
+    end
+  end
+
   defp compute_actor_required_functions(items, type_env) do
     functions =
       Enum.reduce(items, %{}, fn
@@ -1513,12 +1670,87 @@ defmodule Axiom.Checker do
     tokens_require_actor_tokens?(remaining)
   end
 
+  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest]) do
+    {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    tokens_require_actor_tokens?(remaining)
+  end
+
   defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:block_open, _, _} | rest]) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
     tokens_require_actor_tokens?(remaining)
   end
 
+  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest]) do
+    {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    tokens_require_actor_tokens?(remaining)
+  end
+
   defp tokens_require_actor_tokens?([_ | rest]), do: tokens_require_actor_tokens?(rest)
+
+  defp resolve_protocol_steps(nil, _msg_type, state, _pos), do: {nil, state}
+
+  defp resolve_protocol_steps(protocol_name, {:user_type, type_name}, state, pos) do
+    case Map.get(state.protocols, protocol_name) do
+      nil ->
+        {nil, add_error(state, pos, "unknown protocol '#{protocol_name}'")}
+
+      %Axiom.Types.ProtocolDef{} = protocol ->
+        {steps, state} =
+          Enum.reduce(protocol.steps, {[], state}, fn {dir, ctor_name}, {acc, st} ->
+            case resolve_protocol_ctor(type_name, ctor_name, st, pos, protocol_name) do
+              {:ok, checked_ctor_name} -> {[{dir, checked_ctor_name} | acc], st}
+              {:error, st} -> {acc, st}
+            end
+          end)
+
+        {Enum.reverse(steps), state}
+    end
+  end
+
+  defp resolve_protocol_steps(protocol_name, _msg_type, state, pos) do
+    {nil, add_error(state, pos, "protocol '#{protocol_name}' requires a user-defined sum type message channel")}
+  end
+
+  defp resolve_protocol_ctor(type_name, ctor_name, state, pos, protocol_name) do
+    typedef = Map.get(state.types, type_name)
+
+    cond do
+      is_nil(typedef) ->
+        {:error, add_error(state, pos, "unknown message type '#{type_name}' for protocol '#{protocol_name}'")}
+
+      Map.has_key?(typedef.variants, ctor_name) ->
+        {:ok, ctor_name}
+
+      true ->
+        {:error, add_error(state, pos, "protocol '#{protocol_name}' references constructor '#{ctor_name}' not in #{type_name}")}
+    end
+  end
+
+  defp advance_protocol_send(_msg_type, %{current_protocol_steps: nil} = state, _pos), do: state
+
+  defp advance_protocol_send(msg_type, state, pos) do
+    case state.current_protocol_steps do
+      [{:send, expected_ctor} | rest_steps] ->
+        case protocol_ctor_matches?(msg_type, expected_ctor) do
+          true -> %{state | current_protocol_steps: rest_steps}
+          false ->
+            add_error(state, pos,
+              "SEND under protocol expects #{expected_ctor}, got #{format_protocol_actual(msg_type)}")
+        end
+
+      [{:recv, expected_ctor} | _] ->
+        add_error(state, pos, "SEND is not valid here; protocol expects RECV #{expected_ctor}")
+
+      [] ->
+        add_error(state, pos, "SEND is not valid here; protocol is already complete")
+    end
+  end
+
+  defp protocol_ctor_matches?({:tagged_variant, _type_name, ctor_name}, expected_ctor), do: ctor_name == expected_ctor
+  defp protocol_ctor_matches?(_, _expected_ctor), do: false
+
+  defp format_protocol_actual({:tagged_variant, _type_name, ctor_name}), do: ctor_name
+  defp format_protocol_actual(other), do: format_type(other)
 
   defp referenced_names(nil), do: []
 

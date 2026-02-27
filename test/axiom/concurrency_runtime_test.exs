@@ -44,6 +44,10 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert output =~ "got_ping"
   end
 
+  test "protocol example loads cleanly in file mode" do
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/protocol_ping_pong.ax")
+  end
+
   test "SELF can send a bootstrap message to the current actor" do
     output =
       ExUnit.CaptureIO.capture_io(fn ->
@@ -185,5 +189,11 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert output =~ "supervisor=restarting"
     assert output =~ "worker_ready"
     assert output =~ "supervisor_seen=normal"
+  end
+
+  test "protocol mismatch example fails with a static error" do
+    assert_raise Axiom.StaticError, ~r/SEND under protocol expects Ping, got Pong/, fn ->
+      Axiom.eval_file("examples/concurrency/protocol_mismatch.ax")
+    end
   end
 end

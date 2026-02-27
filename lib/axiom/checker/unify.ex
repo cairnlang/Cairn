@@ -83,6 +83,19 @@ defmodule Axiom.Checker.Unify do
   # Block types unify with each other
   def unify({:block, _} = a, {:block, _}), do: {:ok, a}
 
+  # Tagged constructor values unify with their declared sum type
+  def unify({:tagged_variant, type_name, _ctor}, {:user_type, type_name}),
+    do: {:ok, {:user_type, type_name}}
+
+  def unify({:user_type, type_name}, {:tagged_variant, type_name, _ctor}),
+    do: {:ok, {:user_type, type_name}}
+
+  def unify({:tagged_variant, type_name, ctor}, {:tagged_variant, type_name, ctor}),
+    do: {:ok, {:tagged_variant, type_name, ctor}}
+
+  def unify({:tagged_variant, type_name, _ctor_a}, {:tagged_variant, type_name, _ctor_b}),
+    do: {:ok, {:user_type, type_name}}
+
   # User-defined types unify when they name the same type
   def unify({:user_type, n}, {:user_type, n}), do: {:ok, {:user_type, n}}
 

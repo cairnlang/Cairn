@@ -35,6 +35,41 @@ defmodule Axiom.ConcurrencyTypesTest do
              Axiom.Lexer.tokenize("block[pid[msg]]")
   end
 
+  test "protocol definitions and protocol-bound spawns type-check" do
+    check_ok("""
+    TYPE msg = Ping | Pong
+
+    PROTOCOL client =
+      SEND Ping
+      RECV Pong
+    END
+
+    PROTOCOL server =
+      RECV Ping
+      SEND Pong
+    END
+
+    DEF client_actor : pid[msg]
+      SPAWN msg USING client {
+        SELF Ping SEND
+        RECEIVE
+          Pong { }
+        END
+        DROP
+      }
+    END
+
+    DEF server_actor : pid[msg]
+      SPAWN msg USING server {
+        RECEIVE
+          Ping { SELF Pong SEND }
+        END
+        DROP
+      }
+    END
+    """)
+  end
+
   test "pid types parse in signatures and recursive type fields" do
     items =
       parse("""
@@ -231,8 +266,33 @@ defmodule Axiom.ConcurrencyTypesTest do
     """)
   end
 
+  test "protocol mismatches are rejected" do
+    errors =
+      check_errors("""
+      TYPE msg = Ping | Pong
+
+      PROTOCOL bad_client =
+        SEND Ping
+        RECV Pong
+      END
+
+      DEF bad_actor : pid[msg]
+        SPAWN msg USING bad_client {
+          SELF Pong SEND
+          RECEIVE
+            Pong { }
+          END
+          DROP
+        }
+      END
+      """)
+
+    assert Enum.any?(errors, fn e -> e.message =~ "SEND under protocol expects Ping, got Pong" end)
+  end
+
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/protocol_ping_pong.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/self_boot.ax")

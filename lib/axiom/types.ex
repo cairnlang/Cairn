@@ -37,6 +37,9 @@ defmodule Axiom.Types do
           | :else_kw
           | :import_kw
           | :type_kw
+          | :protocol_kw
+          | :using_kw
+          | :recv_kw
           | :match_kw
           | :receive_kw
           | :spawn_kw
@@ -87,6 +90,20 @@ defmodule Axiom.Types do
             body: [Axiom.Types.token()],
             pre_condition: [Axiom.Types.token()] | nil,
             post_condition: [Axiom.Types.token()] | nil
+          }
+  end
+
+  defmodule ProtocolDef do
+    @moduledoc """
+    A finite checker-only protocol definition.
+    """
+    defstruct [:name, :steps]
+
+    @type step :: {:send, String.t()} | {:recv, String.t()}
+
+    @type t :: %__MODULE__{
+            name: String.t(),
+            steps: [step()]
           }
   end
 end

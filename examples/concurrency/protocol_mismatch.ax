@@ -1,0 +1,18 @@
+# Intentional static failure: protocol expects Ping first, code sends Pong.
+
+TYPE msg = Ping | Pong
+
+PROTOCOL bad_client =
+  SEND Ping
+  RECV Pong
+END
+
+DEF bad_actor : pid[msg]
+  SPAWN msg USING bad_client {
+    SELF Pong SEND
+    RECEIVE
+      Pong { }
+    END
+    DROP
+  }
+END

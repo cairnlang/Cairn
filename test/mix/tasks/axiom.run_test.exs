@@ -42,6 +42,7 @@ defmodule Mix.Tasks.Axiom.RunTest do
     assert output =~ "examples/practical/cashflow_alerts.ax"
     assert output =~ "concurrency:"
     assert output =~ "examples/concurrency/ping_pong_types.ax"
+    assert output =~ "examples/concurrency/protocol_ping_pong.ax"
     assert output =~ "examples/concurrency/traffic_light_types.ax"
     assert output =~ "examples/concurrency/traffic_light.ax"
     assert output =~ "examples/concurrency/ping_once.ax"

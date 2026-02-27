@@ -11,13 +11,15 @@ defmodule Axiom.Parser do
   POST comes after the body, before END.
   """
 
-  alias Axiom.Types.{Function, TypeDef}
+  alias Axiom.Types.{Function, ProtocolDef, TypeDef}
 
   @doc """
   Parses a token list into a list of parsed items.
   Returns `{:ok, items}` where each item is a `%Function{}`, `%TypeDef{}`, or `{:expr, tokens}`.
   """
-  @spec parse([Axiom.Types.token()]) :: {:ok, [Function.t() | TypeDef.t() | {:expr, [Axiom.Types.token()]}]} | {:error, String.t()}
+  @spec parse([Axiom.Types.token()]) ::
+          {:ok, [Function.t() | TypeDef.t() | ProtocolDef.t() | {:expr, [Axiom.Types.token()]}]}
+          | {:error, String.t()}
   def parse(tokens) do
     parse_top(tokens, [])
   end
@@ -60,9 +62,16 @@ defmodule Axiom.Parser do
     end
   end
 
+  defp parse_top([{:protocol_kw, _, _} | rest], acc) do
+    case parse_protocol_def(rest) do
+      {:ok, protocol, remaining} -> parse_top(remaining, [protocol | acc])
+      {:error, _} = err -> err
+    end
+  end
+
   defp parse_top(tokens, acc) do
     {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} ->
-      type not in [:fn_def, :verify_kw, :prove_kw, :import_kw, :type_kw]
+      type not in [:fn_def, :verify_kw, :prove_kw, :import_kw, :type_kw, :protocol_kw]
     end)
 
     if expr_tokens == [] do
@@ -102,6 +111,41 @@ defmodule Axiom.Parser do
     {:error, "TYPE requires: TYPE name = Constructor [types...] | ..."}
   end
 
+  # PROTOCOL name = SEND Ctor RECV Ctor ... END
+  defp parse_protocol_def([{:ident, name, _}, {:equals, _, _} | rest]) do
+    case collect_protocol_steps(rest, []) do
+      {:ok, steps, remaining} ->
+        {:ok, %ProtocolDef{name: name, steps: steps}, remaining}
+
+      {:error, _} = err ->
+        err
+    end
+  end
+
+  defp parse_protocol_def(_) do
+    {:error, "PROTOCOL requires: PROTOCOL name = SEND Ctor RECV Ctor ... END"}
+  end
+
+  defp collect_protocol_steps([{:fn_end, _, _} | rest], acc) do
+    {:ok, Enum.reverse(acc), rest}
+  end
+
+  defp collect_protocol_steps([{:op, :send, _}, {:constructor, ctor_name, _} | rest], acc) do
+    collect_protocol_steps(rest, [{:send, ctor_name} | acc])
+  end
+
+  defp collect_protocol_steps([{:recv_kw, _, _}, {:constructor, ctor_name, _} | rest], acc) do
+    collect_protocol_steps(rest, [{:recv, ctor_name} | acc])
+  end
+
+  defp collect_protocol_steps([], _acc) do
+    {:error, "PROTOCOL requires END"}
+  end
+
+  defp collect_protocol_steps([token | _], _acc) do
+    {:error, "invalid PROTOCOL step near #{inspect(token)}"}
+  end
+
   # Collect variant declarations: Ctor1 type... | Ctor2 type... | ...
   # Terminates when we see a top-level keyword or end of tokens
   defp collect_variants([], variants, current_ctor, current_types) do
@@ -134,7 +178,7 @@ defmodule Axiom.Parser do
 
   # Stop at any top-level boundary token
   defp collect_variants([{type, _, _} | _] = rest, variants, current_ctor, current_types)
-       when type in [:fn_def, :verify_kw, :prove_kw, :type_kw] do
+       when type in [:fn_def, :verify_kw, :prove_kw, :type_kw, :protocol_kw] do
     variants = finish_variant(variants, current_ctor, current_types)
     {:ok, variants, rest}
   end

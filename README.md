@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.7.0m**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **contracts** (`PRE`/`POST`), **property-based verification** (`VERIFY`), and **compile-time proof** (`PROVE`) alongside practical file-backed workflows, typed-concurrency foundations on the BEAM (`pid[T]`, `SPAWN`, `SPAWN_LINK`, `SEND`, actor-local `RECEIVE`, `SELF`, `EXIT`, `MONITOR`/`AWAIT`), reusable example libs, **maps**, closures, loops, string primitives, interactive I/O, `FMT`/`SAID`, recursive `IMPORT`, safe-by-default fallible operations via built-in `result`, and a modular auto-loaded prelude.
+**v0.7.0n**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **contracts** (`PRE`/`POST`), **property-based verification** (`VERIFY`), and **compile-time proof** (`PROVE`) alongside practical file-backed workflows, typed-concurrency foundations on the BEAM (`pid[T]`, `SPAWN`, `SPAWN_LINK`, `SEND`, actor-local `RECEIVE`, `SELF`, `EXIT`, `MONITOR`/`AWAIT`, and bounded protocol-checked actors), reusable example libs, **maps**, closures, loops, string primitives, interactive I/O, `FMT`/`SAID`, recursive `IMPORT`, safe-by-default fallible operations via built-in `result`, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -53,6 +53,7 @@ mix axiom.run examples/practical/cashflow_alerts.ax examples/practical/data/ledg
 
 # Typed-concurrency examples (type-focused + minimal runtime)
 mix axiom.run examples/concurrency/ping_pong_types.ax
+mix axiom.run examples/concurrency/protocol_ping_pong.ax
 mix axiom.run examples/concurrency/traffic_light_types.ax
 mix axiom.run examples/concurrency/ping_once.ax
 mix axiom.run examples/concurrency/self_boot.ax
@@ -81,7 +82,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (763 tests)
+# Run tests (767 tests)
 mix test
 
 # Run practical-only pipeline tests
@@ -110,7 +111,7 @@ mix axiom.run examples/bank.ax
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
 See [`docs/prove.md`](docs/prove.md) for PROVE-specific details, solver behavior, and trace modes.
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
-Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax` and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, and `supervisor_worker.ax` exercise the current runtime actor path (`notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` intentionally terminate the linked caller and are kept out of the normal runnable examples list.
+Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, and `supervisor_worker.ax` exercise the current runtime actor path (`protocol_ping_pong.ax` is the first bounded protocol-conformance example, `notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` and `protocol_mismatch.ax` intentionally fail and are kept out of the normal runnable examples list.
 
 ### Practical Mini-Apps
 
@@ -942,7 +943,7 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.2c** (complete): Practical programs pass 3 (larger module-split expenses workflow with smoke markers)
 - **v0.6.2d** (complete): Practical programs pass 4 (cross-file cashflow composition + shared report/assert helpers)
 - **v0.6.2e** (complete): Practical programs pass 5 (cashflow-alerts pipeline stage with risk classification)
-- **v0.7.0m** (current): Explicit supervisor/worker example coverage on top of the current lifecycle model
+- **v0.7.0n** (current): Bounded protocol-checked actors on top of the current typed actor model
 - **v0.7.0** (next): Typed BEAM concurrency runtime completion (broader supervision ergonomics, richer actor patterns)
 - **v0.8.0**: BEAM bytecode compilation
 - **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration

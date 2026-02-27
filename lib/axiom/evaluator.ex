@@ -54,6 +54,10 @@ defmodule Axiom.Evaluator do
   end
 
   # SPAWN MessageType { ... } — starts the spawned block with its own typed pid on stack.
+  defp run([{:spawn_kw, _, pos}, type_token, {:using_kw, _, _}, {:ident, _protocol_name, _}, {:block_open, _, _} | rest], stack, env) do
+    spawn_actor(:spawn, pos, type_token, rest, stack, env)
+  end
+
   defp run([{:spawn_kw, _, pos}, type_token, {:block_open, _, _} | rest], stack, env) do
     spawn_actor(:spawn, pos, type_token, rest, stack, env)
   end
@@ -63,6 +67,10 @@ defmodule Axiom.Evaluator do
   end
 
   # SPAWN_LINK MessageType { ... } — links actor lifecycle to the current process.
+  defp run([{:spawn_link_kw, _, pos}, type_token, {:using_kw, _, _}, {:ident, _protocol_name, _}, {:block_open, _, _} | rest], stack, env) do
+    spawn_actor(:spawn_link, pos, type_token, rest, stack, env)
+  end
+
   defp run([{:spawn_link_kw, _, pos}, type_token, {:block_open, _, _} | rest], stack, env) do
     spawn_actor(:spawn_link, pos, type_token, rest, stack, env)
   end

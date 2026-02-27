@@ -6,7 +6,7 @@ defmodule Axiom do
   """
 
   alias Axiom.{Lexer, Parser, Evaluator, Checker, Verify, Loader}
-  alias Axiom.Types.TypeDef
+  alias Axiom.Types.{ProtocolDef, TypeDef}
   alias Axiom.Solver.Prove
 
   @doc """
@@ -202,6 +202,10 @@ defmodule Axiom do
             |> Map.put("__constructors__", new_ctors)
 
           {stack, env}
+
+        %ProtocolDef{} = protocol, {stack, env} ->
+          protocols = Map.get(env, "__protocols__", %{})
+          {stack, Map.put(env, "__protocols__", Map.put(protocols, protocol.name, protocol))}
 
         {:verify, name, count}, {stack, env} ->
           run_verify(name, count, env)

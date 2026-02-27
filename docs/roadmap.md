@@ -416,10 +416,10 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded runnable example discovery plus type/runtime tests around the explicit supervisor/worker pattern
 
 ### v0.7.0n — Bounded Protocol-Checked Actors
-- Add a checker-only protocol layer for finite two-party flows over the existing `TYPE msg = ...` message vocabulary and `pid[msg]` transport
-- Keep the first slice deliberately bounded: no recursion, no multiparty protocols, no protocol inference, and no `PROVE` integration
-- Statically check that actor endpoints follow a declared send/receive sequence and reject invalid next-step message exchanges
-- Add one successful protocol example (`ping_pong`) plus one failing mismatch example to validate the model before adding ergonomics
+- Added a checker-only protocol layer for finite two-party flows over the existing `TYPE msg = ...` message vocabulary and `pid[msg]` transport
+- Kept the first slice deliberately bounded: no recursion, no multiparty protocols, no protocol inference, and no `PROVE` integration
+- Added protocol-bound `SPAWN ... USING protocol_name { ... }` checking for local send/receive-sequence conformance
+- Added one successful protocol example (`examples/concurrency/protocol_ping_pong.ax`) plus one failing mismatch example (`examples/concurrency/protocol_mismatch.ax`)
 
 ---
 
@@ -456,7 +456,7 @@ END
 
 **Why after v0.6.x transition:** Typed concurrency benefits enormously from PROVE — imagine proving that a state machine's transitions never violate an invariant across all message types while the core language ergonomics are already stable.
 
-**Bounded next slice inside v0.7.0:** before broader ergonomics, introduce a minimal protocol-checking layer (session-type-inspired, but practical) that statically validates finite two-party message order without touching the solver.
+**Bounded protocol slice now landed inside v0.7.0:** the minimal protocol-checking layer (session-type-inspired, but practical) now covers finite two-party message order statically; the next work in this track is broader ergonomics on top of that foundation.
 
 ### Practical Language Side Path (bounded, non-concurrency)
 These are worthwhile practicality slices that can be interleaved with the v0.7.0 concurrency track when we want fast, low-risk progress outside actor semantics. The ordering below is intentional.

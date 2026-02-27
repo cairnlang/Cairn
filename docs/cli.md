@@ -61,6 +61,7 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `mix axiom.run examples/practical/cashflow_alerts.ax [optional/ledger.csv] [optional/expenses.csv]`
 4. Load typed-concurrency examples:
    - `mix axiom.run examples/concurrency/ping_pong_types.ax`
+   - `mix axiom.run examples/concurrency/protocol_ping_pong.ax`
    - `mix axiom.run examples/concurrency/traffic_light_types.ax`
    - `mix axiom.run examples/concurrency/ping_once.ax`
    - `mix axiom.run examples/concurrency/self_boot.ax`
@@ -74,6 +75,6 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 6. Try diagnostics JSON: `mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax`
 7. Run practical-only tests: `mix test.practical`
 
-`ping_pong_types.ax` and `traffic_light_types.ax` are type-focused. `ping_once.ax` exercises the current minimal runtime, `self_boot.ax` demonstrates `SELF` through a helper function, `two_pings.ax` demonstrates repeated actor-local `RECEIVE`, `counter.ax` demonstrates stack-carried actor state, `traffic_light.ax` demonstrates named state transitions over that same model, `notifier.ax` is a more practical actor-shaped workflow, `restart_once.ax` is the first supervision-oriented restart example, and `supervisor_worker.ax` is the first explicit supervisor/worker split example. Shared actor/state/supervision helpers live under `examples/concurrency/lib/`; the supervision helper layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` plus `MONITOR`/`AWAIT`. Lifecycle-only examples such as `examples/concurrency/linked_failure.ax` intentionally terminate the linked caller and are not listed under `--examples`.
+`ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` are type-focused. `protocol_ping_pong.ax` is the first bounded protocol-conformance example. `ping_once.ax` exercises the current minimal runtime, `self_boot.ax` demonstrates `SELF` through a helper function, `two_pings.ax` demonstrates repeated actor-local `RECEIVE`, `counter.ax` demonstrates stack-carried actor state, `traffic_light.ax` demonstrates named state transitions over that same model, `notifier.ax` is a more practical actor-shaped workflow, `restart_once.ax` is the first supervision-oriented restart example, and `supervisor_worker.ax` is the first explicit supervisor/worker split example. Shared actor/state/supervision helpers live under `examples/concurrency/lib/`; the supervision helper layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` plus `MONITOR`/`AWAIT`. Lifecycle-only examples such as `examples/concurrency/linked_failure.ax` and `examples/concurrency/protocol_mismatch.ax` intentionally fail and are not listed under `--examples`.
 
 See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

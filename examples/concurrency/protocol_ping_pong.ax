@@ -1,0 +1,32 @@
+# Checker-only protocol example: finite local endpoint conformance.
+
+TYPE msg = Ping | Pong
+
+PROTOCOL ping_pong_client =
+  SEND Ping
+  RECV Pong
+END
+
+PROTOCOL ping_pong_server =
+  RECV Ping
+  SEND Pong
+END
+
+DEF client_actor : pid[msg]
+  SPAWN msg USING ping_pong_client {
+    SELF Ping SEND
+    RECEIVE
+      Pong { }
+    END
+    DROP
+  }
+END
+
+DEF server_actor : pid[msg]
+  SPAWN msg USING ping_pong_server {
+    RECEIVE
+      Ping { SELF Pong SEND }
+    END
+    DROP
+  }
+END

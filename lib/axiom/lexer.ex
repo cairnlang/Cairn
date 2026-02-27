@@ -86,6 +86,9 @@ defmodule Axiom.Lexer do
   defp classify("END"), do: {:ok, {:fn_end, "END"}}
   defp classify("POST"), do: {:ok, {:post, "POST"}}
   defp classify("PRE"), do: {:ok, {:pre, "PRE"}}
+  defp classify("PROTOCOL"), do: {:ok, {:protocol_kw, "PROTOCOL"}}
+  defp classify("USING"), do: {:ok, {:using_kw, "USING"}}
+  defp classify("RECV"), do: {:ok, {:recv_kw, "RECV"}}
   defp classify("IF"), do: {:ok, {:if_kw, "IF"}}
   defp classify("ELSE"), do: {:ok, {:else_kw, "ELSE"}}
   defp classify("VERIFY"), do: {:ok, {:verify_kw, "VERIFY"}}

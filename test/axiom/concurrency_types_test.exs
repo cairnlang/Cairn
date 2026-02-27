@@ -49,21 +49,33 @@ defmodule Axiom.ConcurrencyTypesTest do
       SEND Pong
     END
 
+    DEF send_ping : void
+      SELF Ping SEND
+    END
+
+    DEF recv_pong : void
+      RECEIVE
+        Pong { }
+      END
+    END
+
+    DEF recv_ping_then_pong : void
+      RECEIVE
+        Ping { SELF Pong SEND }
+      END
+    END
+
     DEF client_actor : pid[msg]
       SPAWN msg USING client {
-        SELF Ping SEND
-        RECEIVE
-          Pong { }
-        END
+        send_ping
+        recv_pong
         DROP
       }
     END
 
     DEF server_actor : pid[msg]
       SPAWN msg USING server {
-        RECEIVE
-          Ping { SELF Pong SEND }
-        END
+        recv_ping_then_pong
         DROP
       }
     END
@@ -288,6 +300,36 @@ defmodule Axiom.ConcurrencyTypesTest do
       """)
 
     assert Enum.any?(errors, fn e -> e.message =~ "SEND under protocol expects Ping, got Pong" end)
+  end
+
+  test "protocol helper mismatches are rejected at the call site" do
+    errors =
+      check_errors("""
+      TYPE msg = Ping | Pong
+
+      PROTOCOL client =
+        SEND Ping
+        RECV Pong
+      END
+
+      DEF send_pong : void
+        SELF Pong SEND
+      END
+
+      DEF bad_actor : pid[msg]
+        SPAWN msg USING client {
+          send_pong
+          RECEIVE
+            Pong { }
+          END
+          DROP
+        }
+      END
+      """)
+
+    assert Enum.any?(errors, fn e ->
+             e.message =~ "function 'send_pong' is not valid here; protocol expects SEND Ping, got SEND Pong"
+           end)
   end
 
   test "concurrency examples load successfully" do

@@ -22,6 +22,7 @@ defmodule Axiom.Checker do
   def check(items, env \\ %{}) do
     {type_env, types, protocols} = build_checker_env(env)
     actor_required = compute_actor_required_functions(items, type_env)
+    raw_protocol_effects = compute_protocol_effect_functions(items)
 
     # Pre-register all type definitions and function signatures upfront so that
     # mutually recursive functions can see each other regardless of source order.
@@ -39,10 +40,13 @@ defmodule Axiom.Checker do
           {te, Map.put(tys, typedef.name, typedef), protos}
 
         %Axiom.Types.Function{} = func, {te, tys, protos} ->
+          protocol_effect_steps = protocol_helper_effect_for(func, actor_required, raw_protocol_effects)
+
           {Map.put(te, func.name, %{
              param_types: func.param_types,
              return_types: func.return_types,
-             actor_required: MapSet.member?(actor_required, func.name)
+             actor_required: MapSet.member?(actor_required, func.name),
+             protocol_effect_steps: protocol_effect_steps
            }),
            tys,
            protos}
@@ -122,11 +126,54 @@ defmodule Axiom.Checker do
 
   defp check_item(%Axiom.Types.Function{} = func, state) do
     # Register function in type env
+    protocol_effect_steps = protocol_helper_effect_for(func, state.actor_required, compute_protocol_effect_functions([func]))
+
     state = put_in(state.env[func.name], %{
       param_types: func.param_types,
       return_types: func.return_types,
-      actor_required: MapSet.member?(state.actor_required, func.name)
+      actor_required: MapSet.member?(state.actor_required, func.name),
+      protocol_effect_steps:
+        Map.get(state.env[func.name] || %{}, :protocol_effect_steps) || protocol_effect_steps
     })
+
+    helper_protocol_steps =
+      state.env
+      |> Map.get(func.name, %{})
+      |> Map.get(:protocol_effect_steps)
+
+    {body_actor_type, body_protocol_steps, body_types, body_env} =
+      cond do
+        is_list(helper_protocol_steps) and helper_protocol_steps != [] ->
+          helper_type_name = "__protocol_helper__#{func.name}"
+
+          helper_variants =
+            helper_protocol_steps
+            |> Enum.map(fn {_dir, ctor_name} -> {ctor_name, []} end)
+            |> Map.new()
+
+          helper_typedef = %Axiom.Types.TypeDef{name: helper_type_name, variants: helper_variants}
+
+          helper_env =
+            Enum.reduce(helper_variants, state.env, fn {ctor_name, field_types}, acc ->
+              Map.put(acc, ctor_name, %{
+                param_types: field_types,
+                return_types: [{:user_type, helper_type_name}]
+              })
+            end)
+
+          {
+            {:user_type, helper_type_name},
+            helper_protocol_steps,
+            Map.put(state.types, helper_type_name, helper_typedef),
+            helper_env
+          }
+
+        MapSet.member?(state.actor_required, func.name) ->
+          {:any, nil, state.types, state.env}
+
+        true ->
+          {nil, nil, state.types, state.env}
+      end
 
     # Check function body: start with param types on stack
     # param_types[0] is on top (matches runtime's Enum.split behavior)
@@ -135,8 +182,14 @@ defmodule Axiom.Checker do
       |> Enum.reverse()
       |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
-    body_actor_type = if MapSet.member?(state.actor_required, func.name), do: :any, else: nil
-    body_state = %{state | stack: body_stack, current_actor_type: body_actor_type}
+    body_state = %{
+      state
+      | stack: body_stack,
+        current_actor_type: body_actor_type,
+        current_protocol_steps: body_protocol_steps,
+        types: body_types,
+        env: body_env
+    }
     body_state = check_tokens(func.body, body_state)
 
     # Check return types
@@ -150,7 +203,7 @@ defmodule Axiom.Checker do
           |> Enum.reverse()
           |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
-        pre_state = %{body_state | stack: pre_stack, current_actor_type: body_actor_type}
+        pre_state = %{body_state | stack: pre_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, types: body_types, env: body_env}
         pre_state = check_tokens(func.pre_condition, pre_state)
         %{pre_state | stack: body_state.stack}
       else
@@ -169,7 +222,7 @@ defmodule Axiom.Checker do
             |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
           end
 
-        post_state = %{body_state | stack: post_stack, current_actor_type: body_actor_type}
+        post_state = %{body_state | stack: post_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, types: body_types, env: body_env}
         post_state = check_tokens(func.post_condition, post_state)
         %{post_state | stack: body_state.stack}
       else
@@ -177,7 +230,14 @@ defmodule Axiom.Checker do
       end
 
     # Restore stack for next item (function defs don't affect expression stack)
-    %{body_state | stack: state.stack, current_actor_type: state.current_actor_type}
+    %{
+      body_state
+      | stack: state.stack,
+        current_actor_type: state.current_actor_type,
+        current_protocol_steps: state.current_protocol_steps,
+        types: state.types,
+        env: state.env
+    }
   end
 
   defp check_item(%Axiom.Types.TypeDef{} = typedef, state) do
@@ -713,6 +773,7 @@ defmodule Axiom.Checker do
                 end)
               end
 
+            state = advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
             walk(rest, state)
 
           :underflow ->
@@ -729,6 +790,7 @@ defmodule Axiom.Checker do
                 end)
               end
 
+            state = advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
             walk(rest, state)
         end
     end
@@ -1687,6 +1749,89 @@ defmodule Axiom.Checker do
 
   defp tokens_require_actor_tokens?([_ | rest]), do: tokens_require_actor_tokens?(rest)
 
+  defp compute_protocol_effect_functions(items) do
+    functions =
+      Enum.reduce(items, %{}, fn
+        %Axiom.Types.Function{} = func, acc -> Map.put(acc, func.name, func)
+        _, acc -> acc
+      end)
+
+    expand_protocol_effects(functions, %{})
+  end
+
+  defp expand_protocol_effects(functions, summaries) do
+    expanded =
+      Enum.reduce(functions, summaries, fn {name, func}, acc ->
+        if Map.has_key?(acc, name) do
+          acc
+        else
+          case infer_protocol_effects(func.body, acc) do
+            {:ok, steps} -> Map.put(acc, name, steps)
+            :unknown -> acc
+          end
+        end
+      end)
+
+    if map_size(expanded) == map_size(summaries), do: expanded, else: expand_protocol_effects(functions, expanded)
+  end
+
+  defp infer_protocol_effects(nil, _summaries), do: {:ok, []}
+  defp infer_protocol_effects(tokens, summaries), do: infer_protocol_effects_tokens(tokens, summaries, [])
+
+  defp infer_protocol_effects_tokens([], _summaries, acc), do: {:ok, Enum.reverse(acc)}
+
+  defp infer_protocol_effects_tokens([{:op, :self, _}, {:constructor, ctor_name, _}, {:op, :send, _} | rest], summaries, acc) do
+    infer_protocol_effects_tokens(rest, summaries, [{:send, ctor_name} | acc])
+  end
+
+  defp infer_protocol_effects_tokens([{:receive_kw, _, _} | rest], summaries, acc) do
+    {arms, remaining} = collect_checker_match_arms(rest, [])
+
+    case arms do
+      [{ctor_name, arm_tokens}] when is_binary(ctor_name) ->
+        with {:ok, arm_steps} <- infer_protocol_effects(arm_tokens, summaries),
+             {:ok, remaining_steps} <- infer_protocol_effects(remaining, summaries) do
+          {:ok, Enum.reverse(acc) ++ [{:recv, ctor_name}] ++ arm_steps ++ remaining_steps}
+        else
+          :unknown -> :unknown
+        end
+
+      _ ->
+        :unknown
+    end
+  end
+
+  defp infer_protocol_effects_tokens([{:ident, name, _} | rest], summaries, acc) do
+    case Map.get(summaries, name) do
+      nil ->
+        :unknown
+
+      steps ->
+        infer_protocol_effects_tokens(rest, summaries, Enum.reverse(steps) ++ acc)
+    end
+  end
+
+  defp infer_protocol_effects_tokens([{:match_kw, _, _} | _], _summaries, _acc), do: :unknown
+  defp infer_protocol_effects_tokens([{:if_kw, _, _} | _], _summaries, _acc), do: :unknown
+  defp infer_protocol_effects_tokens([{:op, :send, _} | _], _summaries, _acc), do: :unknown
+
+  defp infer_protocol_effects_tokens([{:constructor, _, _} | _], _summaries, _acc), do: :unknown
+
+  defp infer_protocol_effects_tokens([_ | rest], summaries, acc) do
+    infer_protocol_effects_tokens(rest, summaries, acc)
+  end
+
+  defp protocol_helper_effect_for(func, actor_required, raw_protocol_effects) do
+    steps = Map.get(raw_protocol_effects, func.name)
+    has_pid_param = Enum.any?(func.param_types, &match?({:pid, _}, &1))
+
+    if is_list(steps) and steps != [] and (MapSet.member?(actor_required, func.name) or not has_pid_param) do
+      steps
+    else
+      nil
+    end
+  end
+
   defp resolve_protocol_steps(nil, _msg_type, state, _pos), do: {nil, state}
 
   defp resolve_protocol_steps(protocol_name, {:user_type, type_name}, state, pos) do
@@ -1751,6 +1896,34 @@ defmodule Axiom.Checker do
 
   defp format_protocol_actual({:tagged_variant, _type_name, ctor_name}), do: ctor_name
   defp format_protocol_actual(other), do: format_type(other)
+
+  defp advance_protocol_call(nil, _name, state, _pos), do: state
+  defp advance_protocol_call([], _name, state, _pos), do: state
+  defp advance_protocol_call(_steps, _name, %{current_protocol_steps: nil} = state, _pos), do: state
+
+  defp advance_protocol_call(steps, name, state, pos) do
+    case consume_protocol_prefix(state.current_protocol_steps, steps) do
+      {:ok, remaining} ->
+        %{state | current_protocol_steps: remaining}
+
+      {:error, expected, actual} ->
+        add_error(state, pos,
+          "function '#{name}' is not valid here; protocol expects #{format_protocol_step(expected)}, got #{format_protocol_step(actual)}")
+    end
+  end
+
+  defp consume_protocol_prefix(remaining, []), do: {:ok, remaining}
+  defp consume_protocol_prefix([], [actual | _]), do: {:error, :complete, actual}
+
+  defp consume_protocol_prefix([expected | rest_remaining], [expected | rest_steps]) do
+    consume_protocol_prefix(rest_remaining, rest_steps)
+  end
+
+  defp consume_protocol_prefix([expected | _], [actual | _]), do: {:error, expected, actual}
+
+  defp format_protocol_step(:complete), do: "protocol completion"
+  defp format_protocol_step({:send, ctor}), do: "SEND #{ctor}"
+  defp format_protocol_step({:recv, ctor}), do: "RECV #{ctor}"
 
   defp referenced_names(nil), do: []
 

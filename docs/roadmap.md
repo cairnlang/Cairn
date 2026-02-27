@@ -421,6 +421,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added protocol-bound `SPAWN ... USING protocol_name { ... }` checking for local send/receive-sequence conformance
 - Added one successful protocol example (`examples/concurrency/protocol_ping_pong.ax`) plus one failing mismatch example (`examples/concurrency/protocol_mismatch.ax`)
 
+### v0.7.0o — Protocol Helper Ergonomics
+- Added checker-side protocol effect summaries for simple local actor helpers
+- Protocol-bound actor blocks can now call small helper functions that perform bounded `SEND`/single-arm-`RECEIVE` sequences without losing local conformance checking
+- Expanded protocol coverage so helper-call mismatches fail at the call site with protocol-aware diagnostics
+- Updated `examples/concurrency/protocol_ping_pong.ax` to exercise helper-based protocol conformance rather than only inline steps
+
 ---
 
 ## Next Up

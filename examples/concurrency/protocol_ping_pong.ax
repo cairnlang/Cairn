@@ -12,21 +12,33 @@ PROTOCOL ping_pong_server =
   SEND Pong
 END
 
+DEF send_ping : void
+  SELF Ping SEND
+END
+
+DEF recv_pong : void
+  RECEIVE
+    Pong { }
+  END
+END
+
+DEF recv_ping_then_pong : void
+  RECEIVE
+    Ping { SELF Pong SEND }
+  END
+END
+
 DEF client_actor : pid[msg]
   SPAWN msg USING ping_pong_client {
-    SELF Ping SEND
-    RECEIVE
-      Pong { }
-    END
+    send_ping
+    recv_pong
     DROP
   }
 END
 
 DEF server_actor : pid[msg]
   SPAWN msg USING ping_pong_server {
-    RECEIVE
-      Ping { SELF Pong SEND }
-    END
+    recv_ping_then_pong
     DROP
   }
 END

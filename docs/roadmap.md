@@ -101,21 +101,28 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Unsupported MATCH shapes still return `UNKNOWN` with clear messaging
 - Added `examples/proven_option.ax` and solver tests for option-MATCH proofs
 
+### v0.6.0b — PROVE MATCH (Result Slice)
+- PROVE now supports `MATCH` when the matched value is `result`
+- Symbolic encoding introduces result tag/Ok-payload variables with tag domain constraints
+- MATCH arm dispatch is encoded as `ite` over `result` tag
+- Added `examples/proven_result.ax` and solver tests for result-MATCH proofs
+- Non-supported MATCH shapes still return `UNKNOWN` with explicit reason
+
 ---
 
 ## Next Up
 
 ### v0.6.x — PROVE MATCH Expansion
 
-**Goal:** Expand PROVE MATCH support beyond the option-only slice.
+**Goal:** Expand PROVE MATCH support beyond option/result slices.
 
 **Deliverables:**
 
-- **Broader ADT support** — handle MATCH for additional sum types (e.g. `result`)
-- **Provable examples** — prove `safe_div`, `unwrap_or`, and additional ADT-heavy utilities
+- **Broader ADT support** — handle MATCH for additional user-defined sum types (e.g. recursive JSON-like types)
+- **Provable examples** — prove more ADT-heavy utilities beyond option/result slices
 - **Refinement follow-ups** — leverage PRE constraints to prune impossible MATCH branches
 
-**Why now:** The option-only MATCH proving slice validates the architecture; generalizing it unlocks core language goals.
+**Why now:** option/result MATCH proving slices validate the architecture; generalizing it unlocks core language goals.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

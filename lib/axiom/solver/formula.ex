@@ -37,6 +37,8 @@ defmodule Axiom.Solver.Formula do
           {:int_expr, expr}
           | {:bool_expr, constraint}
           | {:option_expr, expr, expr}
+          | {:result_expr, expr, expr, String.t()}
+          | {:opaque_expr, String.t()}
           | :unsupported
 
   # --- Helper constructors ---

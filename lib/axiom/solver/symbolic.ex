@@ -64,10 +64,25 @@ defmodule Axiom.Solver.Symbolic do
              {:ok, [{:option_expr, tag_expr, val_expr} | stack], [val_var, tag_var | vars],
               [option_domain | constraints]}}
 
+          {:user_type, "result"} ->
+            tag_var = "p#{i}_tag"
+            ok_var = "p#{i}_ok"
+            err_var = "p#{i}_err"
+
+            tag_expr = {:var, tag_var}
+            ok_expr = {:var, ok_var}
+
+            result_domain =
+              {:or, {:eq, tag_expr, {:const, 0}}, {:eq, tag_expr, {:const, 1}}}
+
+            {:cont,
+             {:ok, [{:result_expr, tag_expr, ok_expr, err_var} | stack], [ok_var, tag_var | vars],
+              [result_domain | constraints]}}
+
           _ ->
             {:halt,
              {:unsupported,
-              "parameter type #{inspect(type)} is not supported by PROVE (supported: int, option)"}}
+              "parameter type #{inspect(type)} is not supported by PROVE (supported: int, option, result)"}}
         end
       end)
 
@@ -119,6 +134,15 @@ defmodule Axiom.Solver.Symbolic do
 
   defp walk([{:constructor, "None", _} | rest], stack, env, depth) do
     walk(rest, [{:option_expr, {:const, 0}, {:const, 0}} | stack], env, depth)
+  end
+
+  # Result constructors (narrow support for result MATCH proving slice)
+  defp walk([{:constructor, "Ok", _} | rest], [{:int_expr, payload} | stack], env, depth) do
+    walk(rest, [{:result_expr, {:const, 1}, payload, "__err"} | stack], env, depth)
+  end
+
+  defp walk([{:constructor, "Err", _} | rest], [{:opaque_expr, err_id} | stack], env, depth) do
+    walk(rest, [{:result_expr, {:const, 0}, {:const, 0}, err_id} | stack], env, depth)
   end
 
   # Arithmetic: ADD, SUB, MUL, DIV, MOD
@@ -326,7 +350,7 @@ defmodule Axiom.Solver.Symbolic do
     end
   end
 
-  # MATCH support (narrow scope): option only
+  # MATCH support (narrow scope): option
   defp walk([{:match_kw, _, _} | rest], [{:option_expr, tag, payload} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
 
@@ -338,8 +362,20 @@ defmodule Axiom.Solver.Symbolic do
     end
   end
 
+  # MATCH support (narrow scope): result
+  defp walk([{:match_kw, _, _} | rest], [{:result_expr, tag, ok_payload, err_id} | stack], env, depth) do
+    {arms, remaining} = collect_match_arms(rest, [])
+
+    with {:ok, ok_tokens, err_tokens} <- resolve_result_arms(arms),
+         {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth),
+         {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth),
+         {:ok, merged} <- merge_stacks({:eq, tag, {:const, 1}}, ok_stack, err_stack) do
+      walk(remaining, merged, env, depth)
+    end
+  end
+
   defp walk([{:match_kw, _, _} | _], [_ | _], _env, _depth) do
-    {:unsupported, "MATCH in PROVE currently supports option values only"}
+    {:unsupported, "MATCH in PROVE currently supports option/result values only"}
   end
 
   defp walk([{:match_kw, _, _} | _], [], _env, _depth) do
@@ -495,6 +531,34 @@ defmodule Axiom.Solver.Symbolic do
     end
   end
 
+  defp resolve_result_arms(arms) do
+    invalid =
+      Enum.find(arms, fn {name, _} ->
+        name not in ["Ok", "Err", :wildcard]
+      end)
+
+    case invalid do
+      {name, _} ->
+        {:unsupported, "MATCH in PROVE currently supports result arms only (found #{inspect(name)})"}
+
+      nil ->
+        wildcard = find_arm(arms, :wildcard)
+        ok_tokens = find_arm(arms, "Ok") || wildcard
+        err_tokens = find_arm(arms, "Err") || wildcard
+
+        cond do
+          is_nil(ok_tokens) ->
+            {:unsupported, "MATCH on result in PROVE is missing Ok arm (or wildcard)"}
+
+          is_nil(err_tokens) ->
+            {:unsupported, "MATCH on result in PROVE is missing Err arm (or wildcard)"}
+
+          true ->
+            {:ok, ok_tokens, err_tokens}
+        end
+    end
+  end
+
   defp find_arm(arms, name) do
     case Enum.find(arms, fn {arm_name, _} -> arm_name == name end) do
       nil -> nil
@@ -522,6 +586,19 @@ defmodule Axiom.Solver.Symbolic do
         {{:option_expr, ttag, tval}, {:option_expr, etag, eval}} ->
           {:option_expr, {:ite, cond, ttag, etag}, {:ite, cond, tval, eval}}
 
+        {{:result_expr, ttag, tok, terr}, {:result_expr, etag, eok, eerr}} ->
+          merged_err =
+            if terr == eerr do
+              terr
+            else
+              "__err_merged"
+            end
+
+          {:result_expr, {:ite, cond, ttag, etag}, {:ite, cond, tok, eok}, merged_err}
+
+        {{:opaque_expr, topaque}, {:opaque_expr, eopaque}} ->
+          {:opaque_expr, if(opaque_same?(topaque, eopaque), do: topaque, else: "__opaque_merged")}
+
         _ ->
           :unsupported
       end)
@@ -539,4 +616,6 @@ defmodule Axiom.Solver.Symbolic do
   defp join_constraints([head | tail]) do
     Enum.reduce(tail, head, fn c, acc -> {:and, acc, c} end)
   end
+
+  defp opaque_same?(a, b), do: a == b
 end

@@ -76,9 +76,17 @@ defmodule Axiom.SolverTest do
       assert base == {:or, {:eq, {:var, "p0_tag"}, {:const, 0}}, {:eq, {:var, "p0_tag"}, {:const, 1}}}
     end
 
+    test "supports result params with tag domain constraints" do
+      assert {:ok, stack, vars, base} = Symbolic.build_initial_stack([{:user_type, "result"}])
+
+      assert vars == ["p0_tag", "p0_ok"]
+      assert stack == [{:result_expr, {:var, "p0_tag"}, {:var, "p0_ok"}, "p0_err"}]
+      assert base == {:or, {:eq, {:var, "p0_tag"}, {:const, 0}}, {:eq, {:var, "p0_tag"}, {:const, 1}}}
+    end
+
     test "rejects non-int params" do
       assert {:unsupported, reason} = Symbolic.build_initial_stack([:int, :bool])
-      assert reason =~ "supported: int, option"
+      assert reason =~ "supported: int, option, result"
     end
 
     test "rejects float params" do
@@ -370,6 +378,22 @@ defmodule Axiom.SolverTest do
 
       assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
       assert {:ite, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:var, "p0_val"}, {:var, "p1"}} = result
+    end
+  end
+
+  describe "Symbolic.execute — MATCH on result" do
+    test "result MATCH merges Ok/Err branches with ite" do
+      stack = [{:result_expr, {:var, "p0_tag"}, {:var, "p0_ok"}, "p0_err"}, {:int_expr, {:var, "fallback"}}]
+
+      tokens = [
+        {:match_kw, "MATCH", 0},
+        {:constructor, "Err", 1}, {:block_open, "{", 2}, {:op, :drop, 3}, {:block_close, "}", 4},
+        {:constructor, "Ok", 5}, {:block_open, "{", 6}, {:op, :swap, 7}, {:op, :drop, 8}, {:block_close, "}", 9},
+        {:fn_end, "END", 10}
+      ]
+
+      assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
+      assert {:ite, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:var, "p0_ok"}, {:var, "fallback"}} = result
     end
   end
 
@@ -867,7 +891,7 @@ defmodule Axiom.SolverTest do
       }
 
       assert {:unknown, reason} = Prove.prove(func)
-      assert reason =~ "supported: int, option"
+      assert reason =~ "supported: int, option, result"
     end
 
     test "function with IF and unsupported body op returns unknown" do
@@ -884,7 +908,7 @@ defmodule Axiom.SolverTest do
       assert reason =~ "PRINT"
     end
 
-    test "MATCH on non-option type returns unknown" do
+    test "MATCH on result type can be disproven" do
       source = """
       TYPE result = Ok int | Err str
 
@@ -899,9 +923,9 @@ defmodule Axiom.SolverTest do
       PROVE bad_match
       """
 
-      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
-      assert output =~ "PROVE bad_match: UNKNOWN"
-      assert output =~ "option"
+      assert_raise Axiom.ContractError, ~r/PROVE bad_match: DISPROVEN/, fn ->
+        Axiom.eval(source)
+      end
     end
   end
 
@@ -942,6 +966,43 @@ defmodule Axiom.SolverTest do
 
       output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
       assert output =~ "PROVE is_some_bool: PROVEN"
+    end
+  end
+
+  describe "Prove.prove — result MATCH (v0.6.0b slice)" do
+    test "proves unwrap_ok_or_default is non-negative" do
+      source = """
+      DEF unwrap_ok_or_default : result int -> int
+        PRE { OVER 0 GTE }
+        MATCH
+          Ok  { ABS SWAP DROP }
+          Err { DROP }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE unwrap_ok_or_default
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE unwrap_ok_or_default: PROVEN"
+    end
+
+    test "proves is_ok_bool has boolean tautology postcondition" do
+      source = """
+      DEF is_ok_bool : result -> bool
+        MATCH
+          Ok  { DROP T }
+          Err { DROP F }
+        END
+        POST DUP NOT OR
+      END
+
+      PROVE is_ok_bool
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE is_ok_bool: PROVEN"
     end
   end
 

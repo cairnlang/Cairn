@@ -57,6 +57,7 @@ defmodule Axiom.Runtime do
   def execute(:concat, [b, a | rest]) when is_binary(a) and is_binary(b), do: [a <> b | rest]
   def execute(:zip, [b, a | rest]) when is_list(a) and is_list(b), do: [Enum.zip_with(a, b, fn left, right -> [left, right] end) | rest]
   def execute(:enumerate, [list | rest]) when is_list(list), do: [Enum.with_index(list, 1) |> Enum.map(fn {elem, idx} -> [idx, elem] end) | rest]
+  def execute(:take, [count, list | rest]) when is_list(list) and is_integer(count) and count >= 0, do: [Enum.take(list, count) | rest]
 
   # CONTAINS: pop string, pop substring, push boolean
   def execute(:contains, [sub, str | rest]) when is_binary(str) and is_binary(sub), do: [String.contains?(str, sub) | rest]
@@ -147,6 +148,24 @@ defmodule Axiom.Runtime do
     execute(:map, [block, list | rest])
   end
 
+  # FIND: { block } list FIND — returns Ok element or Err "not found"
+  def execute(:find, [{:block, block_tokens, env}, list | rest]) when is_list(list) do
+    result =
+      Enum.find(list, fn elem ->
+        eval_result = Axiom.Evaluator.eval_tokens(block_tokens, [elem], env)
+        hd(eval_result) == true
+      end)
+
+    case result do
+      nil -> [err("not found") | rest]
+      elem -> [ok(elem) | rest]
+    end
+  end
+
+  def execute(:find, [list, {:block, _, _} = block | rest]) when is_list(list) do
+    execute(:find, [block, list | rest])
+  end
+
   # FLAT_MAP: { block } list FLAT_MAP — block must produce a list for each element
   def execute(:flat_map, [{:block, block_tokens, env}, list | rest]) when is_list(list) do
     mapped =
@@ -164,6 +183,21 @@ defmodule Axiom.Runtime do
 
   def execute(:flat_map, [list, {:block, _, _} = block | rest]) when is_list(list) do
     execute(:flat_map, [block, list | rest])
+  end
+
+  # GROUP_BY: { block } list GROUP_BY — groups original elements by the block's key
+  def execute(:group_by, [{:block, block_tokens, env}, list | rest]) when is_list(list) do
+    grouped =
+      Enum.group_by(list, fn elem ->
+        result = Axiom.Evaluator.eval_tokens(block_tokens, [elem], env)
+        hd(result)
+      end)
+
+    [grouped | rest]
+  end
+
+  def execute(:group_by, [list, {:block, _, _} = block | rest]) when is_list(list) do
+    execute(:group_by, [block, list | rest])
   end
 
   # Iteration — TIMES: N { block } TIMES — run block N times

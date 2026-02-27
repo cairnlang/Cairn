@@ -138,6 +138,9 @@ defmodule Axiom.CheckerTest do
 
       assert {:ok, %{pops: [{:list, :any}], pushes: [{:list, {:list, :any}}]}} =
                Effects.lookup(:enumerate)
+
+      assert {:ok, %{pops: [:int, {:list, :any}], pushes: [{:list, :any}]}} =
+               Effects.lookup(:take)
     end
   end
 
@@ -452,6 +455,14 @@ defmodule Axiom.CheckerTest do
       check_ok("[ 1 2 3 ] { DUP 10 MUL [ ] CONS CONS } FLAT_MAP")
     end
 
+    test "FIND with block" do
+      check_ok("[ 1 2 3 4 ] { 2 MOD 0 EQ } FIND")
+    end
+
+    test "GROUP_BY with block" do
+      check_ok("[ 1 2 3 4 ] { 2 MOD } GROUP_BY")
+    end
+
     test "REDUCE with block" do
       check_ok("[ 1 2 3 4 5 ] 0 { ADD } REDUCE")
     end
@@ -492,6 +503,7 @@ defmodule Axiom.CheckerTest do
       check_ok("[ 1 2 3 ] TAIL")
       check_ok("[ 1 2 3 ] [ 4 5 6 ] ZIP")
       check_ok("[ 1 2 3 ] ENUMERATE")
+      check_ok("[ 1 2 3 ] 2 TAKE")
     end
 
     test "SORT and REVERSE" do
@@ -518,6 +530,11 @@ defmodule Axiom.CheckerTest do
     test "FLAT_MAP block must return a list" do
       errors = check_errors("[ 1 2 3 ] { SQ } FLAT_MAP")
       assert Enum.any?(errors, fn e -> e.message =~ "FLAT_MAP block must return a list" end)
+    end
+
+    test "FIND block must return bool" do
+      errors = check_errors("[ 1 2 3 ] { SQ } FIND")
+      assert Enum.any?(errors, fn e -> e.message =~ "FIND block must return bool" end)
     end
   end
 

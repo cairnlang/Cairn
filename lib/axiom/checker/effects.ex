@@ -50,6 +50,7 @@ defmodule Axiom.Checker.Effects do
     concat: %{pops: [:any, :any], pushes: [:any]},
     zip: %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:list, :any}}]},
     enumerate: %{pops: [{:list, :any}], pushes: [{:list, {:list, :any}}]},
+    take: %{pops: [:int, {:list, :any}], pushes: [{:list, :any}]},
     sort: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
     reverse: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
     range: %{pops: [:int], pushes: [{:list, :int}]},

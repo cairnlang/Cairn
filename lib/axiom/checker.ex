@@ -601,8 +601,16 @@ defmodule Axiom.Checker do
     check_map(pos, rest, state)
   end
 
+  defp walk([{:op, :find, pos} | rest], state) do
+    check_find(pos, rest, state)
+  end
+
   defp walk([{:op, :flat_map, pos} | rest], state) do
     check_flat_map(pos, rest, state)
+  end
+
+  defp walk([{:op, :group_by, pos} | rest], state) do
+    check_group_by(pos, rest, state)
   end
 
   defp walk([{:op, :reduce, pos} | rest], state) do
@@ -1180,6 +1188,98 @@ defmodule Axiom.Checker do
 
       :underflow ->
         walk(rest, add_error(state, pos, "FLAT_MAP requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp check_find(pos, rest, state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, block_tokens}, {:list, elem_type}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        errors =
+          case Stack.pop(block_state.stack) do
+            {:ok, :bool, _} -> block_state.errors
+            {:ok, other, _} ->
+              [%Error{message: "FIND block must return bool, got #{format_type(other)}", position: pos} | block_state.errors]
+            :underflow ->
+              [%Error{message: "FIND block must return bool", position: pos} | block_state.errors]
+          end
+
+        state = %{state | stack: Stack.push(base, {:user_type, "result"}), errors: errors}
+        walk(rest, state)
+
+      {[{:list, elem_type}, {:block, block_tokens}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        errors =
+          case Stack.pop(block_state.stack) do
+            {:ok, :bool, _} -> block_state.errors
+            {:ok, other, _} ->
+              [%Error{message: "FIND block must return bool, got #{format_type(other)}", position: pos} | block_state.errors]
+            :underflow ->
+              [%Error{message: "FIND block must return bool", position: pos} | block_state.errors]
+          end
+
+        state = %{state | stack: Stack.push(base, {:user_type, "result"}), errors: errors}
+        walk(rest, state)
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "FIND requires a list and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "FIND requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp check_group_by(pos, rest, state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, block_tokens}, {:list, elem_type}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        key_type =
+          case Stack.pop(block_state.stack) do
+            {:ok, t, _} -> t
+            :underflow -> :any
+          end
+
+        state = %{
+          state
+          | stack: Stack.push(base, {:map, key_type, {:list, elem_type}}),
+            errors: block_state.errors
+        }
+
+        walk(rest, state)
+
+      {[{:list, elem_type}, {:block, block_tokens}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        key_type =
+          case Stack.pop(block_state.stack) do
+            {:ok, t, _} -> t
+            :underflow -> :any
+          end
+
+        state = %{
+          state
+          | stack: Stack.push(base, {:map, key_type, {:list, elem_type}}),
+            errors: block_state.errors
+        }
+
+        walk(rest, state)
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "GROUP_BY requires a list and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "GROUP_BY requires 2 values on the stack (stack underflow)"))
     end
   end
 

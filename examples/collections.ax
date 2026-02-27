@@ -1,3 +1,6 @@
 [ 1 2 3 ] [ 10 20 30 ] ZIP SAID
 [ "red" "green" ] ENUMERATE SAID
+[ 1 2 3 4 ] 2 TAKE SAID
+[ 1 2 3 4 5 ] { 2 MOD 0 EQ } FIND SAID
 [ 1 2 3 ] { DUP 10 MUL [ ] CONS CONS } FLAT_MAP SAID
+[ 1 2 3 4 ] { 2 MOD } GROUP_BY PAIRS SAID

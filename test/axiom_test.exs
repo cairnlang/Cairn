@@ -22,6 +22,7 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :add, 0}]} = Axiom.Lexer.tokenize("ADD")
       assert {:ok, [{:op, :filter, 0}]} = Axiom.Lexer.tokenize("FILTER")
       assert {:ok, [{:op, :flat_map, 0}]} = Axiom.Lexer.tokenize("FLAT_MAP")
+      assert {:ok, [{:op, :group_by, 0}]} = Axiom.Lexer.tokenize("GROUP_BY")
       assert {:ok, [{:op, :dup, 0}]} = Axiom.Lexer.tokenize("DUP")
     end
 
@@ -197,6 +198,7 @@ defmodule AxiomTest do
       assert Axiom.eval("[ 1 2 3 ] TAIL") == [[2, 3]]
       assert Axiom.eval("[ 1 2 3 ] [ 10 20 30 ] ZIP") == [[[1, 10], [2, 20], [3, 30]]]
       assert Axiom.eval("[ \"a\" \"b\" ] ENUMERATE") == [[[1, "a"], [2, "b"]]]
+      assert Axiom.eval("[ 1 2 3 4 ] 2 TAKE") == [[1, 2]]
     end
 
     test "filter with block" do
@@ -216,6 +218,15 @@ defmodule AxiomTest do
       assert_raise Axiom.StaticError, ~r/FLAT_MAP block must return a list/, fn ->
         Axiom.eval("[ 1 2 3 ] { SQ } FLAT_MAP")
       end
+    end
+
+    test "find with block returns result" do
+      assert Axiom.eval("[ 1 2 3 4 5 ] { 2 MOD 0 EQ } FIND") == [{:variant, "result", "Ok", [2]}]
+      assert Axiom.eval("[ 1 3 5 ] { 2 MOD 0 EQ } FIND") == [{:variant, "result", "Err", ["not found"]}]
+    end
+
+    test "group_by with block returns grouped map" do
+      assert Axiom.eval("[ 1 2 3 4 ] { 2 MOD } GROUP_BY") == [%{0 => [2, 4], 1 => [1, 3]}]
     end
 
     test "filter then map then sum (the showcase example)" do

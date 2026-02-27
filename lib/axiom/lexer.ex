@@ -12,7 +12,7 @@ defmodule Axiom.Lexer do
                 SQ ABS NEG
                 TIMES WHILE APPLY
                 RANGE PRINT SAY SELF EXIT
-                SEND
+                SEND MONITOR
                 ARGV READ_FILE WRITE_FILE READ_FILE! WRITE_FILE! READ_LINE
                 WORDS LINES CONTAINS
                 CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT TO_INT! TO_FLOAT! NUM_STR JOIN

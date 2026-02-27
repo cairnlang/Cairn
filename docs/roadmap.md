@@ -398,6 +398,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/concurrency/linked_failure.ax` as an intentionally failing lifecycle example
 - Expanded runtime tests to contrast unlinked actor failure vs linked failure propagation
 
+### v0.7.0k — Minimal Supervision Visibility And Restart Workflow
+- Added `MONITOR` as a bounded lifecycle primitive that waits for a pid to exit and returns a normalized string reason
+- Added `examples/concurrency/lib/supervision.ax` with a small reusable `await_exit` helper
+- Added `examples/concurrency/restart_once.ax` as the first runnable restart workflow
+- Expanded runtime/type coverage plus the runnable examples index for supervision-oriented flows
+
 ---
 
 ## Next Up

@@ -87,6 +87,26 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "SEND at word #{pos + 1}: stack underflow"
   end
 
+  # MONITOR — waits for a pid to exit and returns a normalized string reason.
+  defp run([{:op, :monitor, _pos} | rest], [{:pid, _msg_type, pid} | stack], env) when is_pid(pid) do
+    ref = Process.monitor(pid)
+
+    reason =
+      receive do
+        {:DOWN, ^ref, :process, ^pid, down_reason} -> normalize_down_reason(down_reason)
+      end
+
+    run(rest, [reason | stack], env)
+  end
+
+  defp run([{:op, :monitor, pos} | _], [other | _], _env) do
+    raise Axiom.RuntimeError, "MONITOR at word #{pos + 1}: expected pid on stack, got #{inspect(other)}"
+  end
+
+  defp run([{:op, :monitor, pos} | _], [], _env) do
+    raise Axiom.RuntimeError, "MONITOR at word #{pos + 1}: empty stack"
+  end
+
   # SELF — push the current process's typed pid handle
   defp run([{:op, :self, pos} | rest], stack, env) do
     case Process.get(:axiom_self_type) do
@@ -300,6 +320,11 @@ defmodule Axiom.Evaluator do
   defp run_receive_explicit(_rest, [], _env, pos) do
     raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: empty stack"
   end
+
+  defp normalize_down_reason(:normal), do: "normal"
+  defp normalize_down_reason(:noproc), do: "noproc"
+  defp normalize_down_reason(reason) when is_binary(reason), do: reason
+  defp normalize_down_reason(reason), do: inspect(reason)
 
   # Collect tokens inside [ ], evaluating them to produce list items
   defp collect_list_tokens([{:list_close, _, _} | rest], items, _env) do

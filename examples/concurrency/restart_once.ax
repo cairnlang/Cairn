@@ -1,0 +1,36 @@
+# Minimal restart example: observe a failing worker, then start a replacement.
+
+IMPORT "lib/actor.ax"
+IMPORT "lib/supervision.ax"
+
+TYPE msg = Fail | Boot
+
+DEF fail_worker : pid[msg]
+  SPAWN msg {
+    SELF Fail SEND
+    RECEIVE
+      Fail { "worker_failed" SWAP DROP EXIT }
+      Boot { "unexpected_boot" SAID DROP }
+    END
+  }
+END
+
+DEF boot_worker : pid[msg]
+  SPAWN msg {
+    SELF Boot SEND
+    RECEIVE
+      Fail { "unexpected_fail" SWAP DROP EXIT }
+      Boot { "worker_restarted" SAID DROP }
+    END
+  }
+END
+
+DEF restart_once : void
+  fail_worker await_exit
+  "first_exit={}" FMT SAID
+
+  boot_worker await_exit
+  "second_exit={}" FMT SAID
+END
+
+restart_once

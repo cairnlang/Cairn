@@ -597,6 +597,22 @@ defmodule Axiom.Checker do
     end
   end
 
+  # MONITOR — pid[msg] MONITOR => str
+  defp walk([{:op, :monitor, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, {:pid, _msg_type}, base} ->
+        walk(rest, %{state | stack: Stack.push(base, :str)})
+
+      {:ok, other, _} ->
+        walk(rest,
+          add_error(state, pos, "MONITOR requires a pid on the stack, got #{format_type(other)}")
+        )
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "MONITOR requires a pid on the stack (stack underflow)"))
+    end
+  end
+
   # General operators - lookup effect
   defp walk([{:op, op, pos} | rest], state) do
     case Effects.lookup(op) do
@@ -1464,7 +1480,22 @@ defmodule Axiom.Checker do
   end
 
   defp tokens_require_actor?(nil), do: false
-  defp tokens_require_actor?(tokens), do: Enum.any?(tokens, &match?({:op, :self, _}, &1))
+  defp tokens_require_actor?(tokens), do: tokens_require_actor_tokens?(tokens)
+
+  defp tokens_require_actor_tokens?([]), do: false
+  defp tokens_require_actor_tokens?([{:op, :self, _} | _rest]), do: true
+
+  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:block_open, _, _} | rest]) do
+    {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    tokens_require_actor_tokens?(remaining)
+  end
+
+  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:block_open, _, _} | rest]) do
+    {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    tokens_require_actor_tokens?(remaining)
+  end
+
+  defp tokens_require_actor_tokens?([_ | rest]), do: tokens_require_actor_tokens?(rest)
 
   defp referenced_names(nil), do: []
 

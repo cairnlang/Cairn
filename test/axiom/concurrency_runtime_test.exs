@@ -129,4 +129,30 @@ defmodule Axiom.ConcurrencyRuntimeTest do
 
     assert_receive {:DOWN, ^ref, :process, ^pid, "child_failed"}, 200
   end
+
+  test "MONITOR returns the child exit reason without killing the caller" do
+    assert ["child_failed"] =
+             Axiom.eval("""
+             TYPE msg = Fail
+
+             SPAWN msg {
+               SELF Fail SEND
+               RECEIVE
+                 Fail { "child_failed" SWAP DROP EXIT }
+               END
+             }
+             MONITOR
+             """)
+  end
+
+  test "restart example can observe failure and complete a one-shot restart" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/restart_once.ax")
+      end)
+
+    assert output =~ "first_exit=worker_failed"
+    assert output =~ "worker_restarted"
+    assert output =~ "second_exit=normal"
+  end
 end

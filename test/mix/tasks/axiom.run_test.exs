@@ -49,6 +49,7 @@ defmodule Mix.Tasks.Axiom.RunTest do
     assert output =~ "examples/concurrency/two_pings.ax"
     assert output =~ "examples/concurrency/counter.ax"
     assert output =~ "examples/concurrency/notifier.ax"
+    assert output =~ "examples/concurrency/restart_once.ax"
     assert output =~ "prelude:"
     assert output =~ "examples/prelude/result_flow.ax"
     assert output =~ "diagnostics:"

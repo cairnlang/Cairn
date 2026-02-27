@@ -1,0 +1,5 @@
+# Small supervision helpers for actor lifecycle examples.
+
+DEF await_exit : pid[any] -> str
+  MONITOR
+END

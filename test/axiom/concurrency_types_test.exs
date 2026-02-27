@@ -182,6 +182,19 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert Enum.any?(errors, fn e -> e.message =~ "EXIT is only available inside a SPAWN or SPAWN_LINK block" end)
   end
 
+  test "MONITOR returns a string reason and rejects non-pids" do
+    check_ok("""
+    TYPE msg = Fail
+
+    DEF wait_exit : pid[msg] -> str
+      MONITOR
+    END
+    """)
+
+    errors = check_errors("42 MONITOR")
+    assert Enum.any?(errors, fn e -> e.message =~ "MONITOR requires a pid on the stack" end)
+  end
+
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")
@@ -190,5 +203,6 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/two_pings.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/counter.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/notifier.ax")
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/restart_once.ax")
   end
 end

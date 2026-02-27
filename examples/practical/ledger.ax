@@ -19,5 +19,9 @@ count "count={}" FMT LET line3
 line1 "\n" CONCAT line2 CONCAT "\n" CONCAT line3 CONCAT LET report
 
 report "/tmp/axiom_ledger_report.txt" WRITE_FILE!
+"/tmp/axiom_ledger_report.txt" READ_FILE! LET saved
+saved report_has_metrics assert_true
+"report_ok=T" SAID
 
 VERIFY credit_nonneg 60
+VERIFY ledger_balance_bounded 60

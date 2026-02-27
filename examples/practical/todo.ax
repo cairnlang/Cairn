@@ -29,5 +29,9 @@ pct "done_pct={}" FMT LET line4
 line1 "\n" CONCAT line2 CONCAT "\n" CONCAT line3 CONCAT "\n" CONCAT line4 CONCAT LET report
 
 report "/tmp/axiom_todo_report.txt" WRITE_FILE!
+"/tmp/axiom_todo_report.txt" READ_FILE! LET saved
+saved todo_report_has_metrics assert_true
+"report_ok=T" SAID
 
 VERIFY count_open 60
+VERIFY todo_partition_ok 60

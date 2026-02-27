@@ -9,6 +9,23 @@ DEF tx_volume : [int] -> int
   POST DUP 0 GTE
 END
 
+DEF ledger_balance_bounded : [int] -> bool
+  DUP tx_balance ABS SWAP tx_volume LTE
+  POST DUP EQ T
+END
+
+DEF report_has_metrics : str -> bool
+  DUP "balance=" CONTAINS
+  SWAP DUP "volume=" CONTAINS
+  SWAP "count=" CONTAINS
+  AND AND
+END
+
+DEF assert_true : bool -> void
+  PRE { DUP }
+  DROP
+END
+
 DEF credit_nonneg : int int -> int
   PRE { OVER 0 GTE SWAP 0 GTE AND }
   ADD

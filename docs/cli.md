@@ -54,5 +54,6 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `mix axiom.run examples/practical/main.ax`
    - `mix axiom.run examples/practical/ledger.ax`
    - `mix axiom.run examples/practical/todo.ax`
+   - `mix axiom.run examples/practical/ledger_cli.ax [optional/path.csv]`
 4. Inspect loaded prelude: `mix axiom.run --show-prelude examples/prelude/result_flow.ax`
 5. Try diagnostics JSON: `mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax`

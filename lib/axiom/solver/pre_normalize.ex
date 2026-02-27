@@ -503,10 +503,14 @@ defmodule Axiom.Solver.PreNormalize do
 
   defp reduce_or_pair(left, right) do
     expr = {:or, left, right}
+    distributed = distribute_guarded_or(expr)
     factored = factor_common_and_term(expr)
     eq_reduced = reduce_bool_equivalence(expr)
 
     cond do
+      distributed != expr ->
+        {:reduced, distributed}
+
       factored != expr ->
         {:reduced, factored}
 
@@ -523,6 +527,47 @@ defmodule Axiom.Solver.PreNormalize do
         end
     end
   end
+
+  # Guarded one-step distribution:
+  # A OR (B AND C) => (A OR B) AND (A OR C)
+  # only when A looks like a narrowing atom and expression size stays bounded.
+  defp distribute_guarded_or({:or, a, {:and, b, c}}) do
+    if likely_narrowing_atom?(a) and distributive_safe?(a, b, c) do
+      {:and, {:or, a, b}, {:or, a, c}}
+    else
+      {:or, a, {:and, b, c}}
+    end
+  end
+
+  defp distribute_guarded_or({:or, {:and, b, c}, a}) do
+    if likely_narrowing_atom?(a) and distributive_safe?(a, b, c) do
+      {:and, {:or, a, b}, {:or, a, c}}
+    else
+      {:or, {:and, b, c}, a}
+    end
+  end
+
+  defp distribute_guarded_or(c), do: c
+
+  defp likely_narrowing_atom?({op, _x, _y}) when op in [:eq, :neq, :gt, :gte, :lt, :lte], do: true
+  defp likely_narrowing_atom?({:not, {op, _x, _y}}) when op in [:eq, :neq, :gt, :gte, :lt, :lte], do: true
+  defp likely_narrowing_atom?(_), do: false
+
+  defp distributive_safe?(a, b, c) do
+    node_size(a) + node_size(b) + node_size(c) <= 30
+  end
+
+  defp node_size(term) when is_tuple(term) do
+    term
+    |> Tuple.to_list()
+    |> Enum.reduce(1, fn v, acc -> acc + node_size(v) end)
+  end
+
+  defp node_size(term) when is_list(term) do
+    Enum.reduce(term, 1, fn v, acc -> acc + node_size(v) end)
+  end
+
+  defp node_size(_), do: 1
 
   # (a AND b) OR (a AND c) => a AND (b OR c) (pairwise, bounded)
   defp factor_common_and_term({:or, left, right}) do

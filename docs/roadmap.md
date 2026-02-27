@@ -218,6 +218,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This exposes shared narrowing atoms that can then combine with existing tautology/implication reductions
 - Added `examples/prove/proven_shape_factored.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
 
+### v0.6.0v — Guarded One-Step Distribution
+- Added bounded guarded distribution in PRE normalization:
+  `A OR (B AND C) => (A OR B) AND (A OR C)` when `A` looks like a narrowing atom
+- This exposes implication-friendly clauses that combine with existing complement/implication rewrites
+- Added `examples/prove/proven_shape_distribute.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
+
 ---
 
 ## Next Up
@@ -232,7 +238,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** shared-conjunct factoring is now covered; next gains are deeper inference coverage and broader proof context.
+**Why now:** guarded distribution is now covered; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

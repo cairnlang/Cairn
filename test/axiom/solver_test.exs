@@ -1694,6 +1694,53 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_factored: PROVEN"
     end
 
+    test "guarded distribution exposes implication and unlocks narrowing" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      # PRE shape:
+      # (NOT c) AND (is_square(shape) OR (c AND q))
+      # with c = amount > 0, q = amount < 10.
+      # Distribution yields:
+      # (NOT c) AND (is_square OR c) AND (is_square OR q),
+      # then implication collapse with NOT c derives is_square.
+      DEF square_only_abs_distribute : int shape -> int
+        PRE {
+          DUP 0 GT
+          DUP NOT
+          ROT4
+          is_square
+          ROT4
+          10 LT
+          ROT4
+          AND
+          SWAP
+          OR
+          AND
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_distribute
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_distribute: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

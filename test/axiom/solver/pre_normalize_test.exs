@@ -119,4 +119,23 @@ defmodule Axiom.Solver.PreNormalizeTest do
 
     assert PreNormalize.normalize(input) == {:or, {:and, a, b}, {:and, c, d}}
   end
+
+  test "distributes guarded OR over conjunction for narrowing atom" do
+    a = {:eq, {:var, "tag"}, {:const, 1}}
+    b = {:gt, {:var, "x"}, {:const, 0}}
+    c = {:lte, {:var, "x"}, {:const, 0}}
+    input = {:or, a, {:and, b, c}}
+
+    assert PreNormalize.normalize(input) == a
+  end
+
+  test "does not distribute when outer OR side is not narrowing atom" do
+    a = {:and, {:gt, {:var, "x"}, {:const, 0}}, {:lt, {:var, "x"}, {:const, 10}}}
+    b = {:eq, {:var, "y"}, {:const, 1}}
+    c = {:neq, {:var, "z"}, {:const, 3}}
+    input = {:or, a, {:and, b, c}}
+
+    normalized = PreNormalize.normalize(input)
+    assert normalized in [{:or, a, {:and, b, c}}, {:or, {:and, b, c}, a}]
+  end
 end

@@ -28,11 +28,11 @@ defmodule Axiom.Solver.Prove do
   @spec prove(Function.t(), map()) :: prove_result()
   def prove(%Function{} = func, env \\ %{}) do
     with :ok <- check_z3_available(),
-         {:ok, initial_stack, vars} <- Symbolic.build_initial_stack(func.param_types),
+         {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types),
          {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, env),
          {:ok, result_stack} <- execute_body(func, body_stack, env),
          {:ok, post_constraint} <- execute_post(func, result_stack, env) do
-      query_z3(vars, pre_constraint, post_constraint, func)
+      query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func)
     else
       {:unsupported, reason} -> {:unknown, reason}
       {:error, reason} -> {:error, reason}
@@ -123,4 +123,8 @@ defmodule Axiom.Solver.Prove do
     end)
     |> Enum.join(", ")
   end
+
+  defp combine_constraints(true, c), do: c
+  defp combine_constraints(c, true), do: c
+  defp combine_constraints(a, b), do: {:and, a, b}
 end

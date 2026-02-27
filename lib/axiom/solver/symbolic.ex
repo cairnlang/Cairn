@@ -34,23 +34,52 @@ defmodule Axiom.Solver.Symbolic do
   For `[:int, :int]`, returns `[{:int_expr, {:var, "p0"}}, {:int_expr, {:var, "p1"}}]`
   where p0 is the top of stack (first param).
 
-  Returns `{:ok, stack, vars}` or `{:unsupported, reason}` if non-int params exist.
+  Returns `{:ok, stack, vars, base_constraint}`.
+  `base_constraint` encodes domain assumptions for symbolic types (e.g. option tags).
   """
-  @spec build_initial_stack([atom()]) ::
-          {:ok, [Formula.sym_val()], [String.t()]} | {:unsupported, String.t()}
+  @spec build_initial_stack([Axiom.Types.axiom_type()]) ::
+          {:ok, [Formula.sym_val()], [String.t()], Formula.constraint()}
+          | {:unsupported, String.t()}
   def build_initial_stack(param_types) do
-    indexed = param_types |> Enum.with_index()
+    indexed = Enum.with_index(param_types)
 
-    if Enum.all?(indexed, fn {t, _} -> t == :int end) do
-      vars = Enum.map(indexed, fn {_, i} -> "p#{i}" end)
+    result =
+      Enum.reduce_while(indexed, {:ok, [], [], []}, fn {type, i}, {:ok, stack, vars, constraints} ->
+        case type do
+          :int ->
+            var = "p#{i}"
+            {:cont, {:ok, [{:int_expr, {:var, var}} | stack], [var | vars], constraints}}
 
-      stack =
-        indexed
-        |> Enum.map(fn {_, i} -> {:int_expr, {:var, "p#{i}"}} end)
+          {:user_type, "option"} ->
+            tag_var = "p#{i}_tag"
+            val_var = "p#{i}_val"
 
-      {:ok, stack, vars}
-    else
-      {:unsupported, "non-int parameter types are not supported by PROVE"}
+            tag_expr = {:var, tag_var}
+            val_expr = {:var, val_var}
+
+            option_domain =
+              {:or, {:eq, tag_expr, {:const, 0}}, {:eq, tag_expr, {:const, 1}}}
+
+            {:cont,
+             {:ok, [{:option_expr, tag_expr, val_expr} | stack], [val_var, tag_var | vars],
+              [option_domain | constraints]}}
+
+          _ ->
+            {:halt,
+             {:unsupported,
+              "parameter type #{inspect(type)} is not supported by PROVE (supported: int, option)"}}
+        end
+      end)
+
+    case result do
+      {:ok, stack_rev, vars_rev, constraints_rev} ->
+        stack = Enum.reverse(stack_rev)
+        vars = Enum.reverse(vars_rev)
+        base_constraint = join_constraints(Enum.reverse(constraints_rev))
+        {:ok, stack, vars, base_constraint}
+
+      {:unsupported, _} = err ->
+        err
     end
   end
 
@@ -81,6 +110,15 @@ defmodule Axiom.Solver.Symbolic do
 
   defp walk([{:bool_lit, false, _} | rest], stack, env, depth) do
     walk(rest, [{:bool_expr, false} | stack], env, depth)
+  end
+
+  # Option constructors (limited support for PROVE option MATCH milestone)
+  defp walk([{:constructor, "Some", _} | rest], [{:int_expr, payload} | stack], env, depth) do
+    walk(rest, [{:option_expr, {:const, 1}, payload} | stack], env, depth)
+  end
+
+  defp walk([{:constructor, "None", _} | rest], stack, env, depth) do
+    walk(rest, [{:option_expr, {:const, 0}, {:const, 0}} | stack], env, depth)
   end
 
   # Arithmetic: ADD, SUB, MUL, DIV, MOD
@@ -288,6 +326,26 @@ defmodule Axiom.Solver.Symbolic do
     end
   end
 
+  # MATCH support (narrow scope): option only
+  defp walk([{:match_kw, _, _} | rest], [{:option_expr, tag, payload} | stack], env, depth) do
+    {arms, remaining} = collect_match_arms(rest, [])
+
+    with {:ok, some_tokens, none_tokens} <- resolve_option_arms(arms),
+         {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth),
+         {:ok, none_stack} <- walk(none_tokens, stack, env, depth),
+         {:ok, merged} <- merge_stacks({:eq, tag, {:const, 1}}, some_stack, none_stack) do
+      walk(remaining, merged, env, depth)
+    end
+  end
+
+  defp walk([{:match_kw, _, _} | _], [_ | _], _env, _depth) do
+    {:unsupported, "MATCH in PROVE currently supports option values only"}
+  end
+
+  defp walk([{:match_kw, _, _} | _], [], _env, _depth) do
+    {:unsupported, "MATCH in PROVE requires a value on the stack"}
+  end
+
   # Block literals are unsupported
   defp walk([{:block_open, _, _} | _], _stack, _env, _depth) do
     {:unsupported, "block literals are not supported by PROVE — use VERIFY instead"}
@@ -365,6 +423,85 @@ defmodule Axiom.Solver.Symbolic do
     split_if_else(rest, depth, then_branch, [t | acc])
   end
 
+  # --- MATCH arm parsing (Constructor { ... } ... END) ---
+
+  defp collect_match_arms([{:fn_end, _, _} | rest], arms) do
+    {Enum.reverse(arms), rest}
+  end
+
+  defp collect_match_arms([{:constructor, name, _}, {:block_open, _, _} | rest], arms) do
+    {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    collect_match_arms(remaining, [{name, block_tokens} | arms])
+  end
+
+  defp collect_match_arms([{:wildcard, _, _}, {:block_open, _, _} | rest], arms) do
+    {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
+    collect_match_arms(remaining, [{:wildcard, block_tokens} | arms])
+  end
+
+  defp collect_match_arms([], _arms) do
+    raise "MATCH without matching END in symbolic execution"
+  end
+
+  defp collect_match_arms([_ | rest], arms) do
+    collect_match_arms(rest, arms)
+  end
+
+  defp collect_block_tokens([], _depth, _acc) do
+    raise "unmatched block in symbolic MATCH arm"
+  end
+
+  defp collect_block_tokens([{:block_close, _, _} | rest], 0, acc) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp collect_block_tokens([{:block_open, _, _} = t | rest], depth, acc) do
+    collect_block_tokens(rest, depth + 1, [t | acc])
+  end
+
+  defp collect_block_tokens([{:block_close, _, _} = t | rest], depth, acc) when depth > 0 do
+    collect_block_tokens(rest, depth - 1, [t | acc])
+  end
+
+  defp collect_block_tokens([t | rest], depth, acc) do
+    collect_block_tokens(rest, depth, [t | acc])
+  end
+
+  defp resolve_option_arms(arms) do
+    invalid =
+      Enum.find(arms, fn {name, _} ->
+        name not in ["Some", "None", :wildcard]
+      end)
+
+    case invalid do
+      {name, _} ->
+        {:unsupported, "MATCH in PROVE currently supports option arms only (found #{inspect(name)})"}
+
+      nil ->
+        wildcard = find_arm(arms, :wildcard)
+        some = find_arm(arms, "Some") || wildcard
+        none = find_arm(arms, "None") || wildcard
+
+        cond do
+          is_nil(some) ->
+            {:unsupported, "MATCH on option in PROVE is missing Some arm (or wildcard)"}
+
+          is_nil(none) ->
+            {:unsupported, "MATCH on option in PROVE is missing None arm (or wildcard)"}
+
+          true ->
+            {:ok, some, none}
+        end
+    end
+  end
+
+  defp find_arm(arms, name) do
+    case Enum.find(arms, fn {arm_name, _} -> arm_name == name end) do
+      nil -> nil
+      {_, tokens} -> tokens
+    end
+  end
+
   # --- Stack merging with ite ---
 
   defp merge_stacks(_cond, then_stack, else_stack)
@@ -382,6 +519,9 @@ defmodule Axiom.Solver.Symbolic do
         {{:bool_expr, t}, {:bool_expr, e}} ->
           {:bool_expr, {:ite_bool, cond, t, e}}
 
+        {{:option_expr, ttag, tval}, {:option_expr, etag, eval}} ->
+          {:option_expr, {:ite, cond, ttag, etag}, {:ite, cond, tval, eval}}
+
         _ ->
           :unsupported
       end)
@@ -391,5 +531,12 @@ defmodule Axiom.Solver.Symbolic do
     else
       {:ok, merged}
     end
+  end
+
+  defp join_constraints([]), do: true
+  defp join_constraints([single]), do: single
+
+  defp join_constraints([head | tail]) do
+    Enum.reduce(tail, head, fn c, acc -> {:and, acc, c} end)
   end
 end

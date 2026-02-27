@@ -94,21 +94,28 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added reusable helpers: `result_is_ok`, `result_is_err`, `result_unwrap_or`, `lines_nonempty`, `csv_ints`
 - Added tests for modular prelude helpers and user override/shadowing in file mode
 
+### v0.6.0a — PROVE MATCH (Option Slice)
+- PROVE now supports `MATCH` when the matched value is `option`
+- Symbolic encoding introduces option tag/payload variables with tag domain constraints
+- MATCH arm dispatch is encoded as `ite` over `option` tag
+- Unsupported MATCH shapes still return `UNKNOWN` with clear messaging
+- Added `examples/proven_option.ax` and solver tests for option-MATCH proofs
+
 ---
 
 ## Next Up
 
-### v0.5.x — Prelude Expansion
+### v0.6.x — PROVE MATCH Expansion
 
-**Goal:** Grow the prelude into a practical stdlib surface.
+**Goal:** Expand PROVE MATCH support beyond the option-only slice.
 
 **Deliverables:**
 
-- **Extract common helpers** — move reusable patterns from examples into prelude modules
-- **Option module** — introduce `prelude/option.ax` and migrate `option` helpers from examples
-- **Stability policy** — document which prelude APIs are stable vs experimental
+- **Broader ADT support** — handle MATCH for additional sum types (e.g. `result`)
+- **Provable examples** — prove `safe_div`, `unwrap_or`, and additional ADT-heavy utilities
+- **Refinement follow-ups** — leverage PRE constraints to prune impossible MATCH branches
 
-**Why now:** The modular prelude is in place; now it needs breadth and API stability to support larger programs.
+**Why now:** The option-only MATCH proving slice validates the architecture; generalizing it unlocks core language goals.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

@@ -33,7 +33,11 @@ defmodule Axiom.Solver.Formula do
           | false
 
   # Tagged stack value
-  @type sym_val :: {:int_expr, expr} | {:bool_expr, constraint} | :unsupported
+  @type sym_val ::
+          {:int_expr, expr}
+          | {:bool_expr, constraint}
+          | {:option_expr, expr, expr}
+          | :unsupported
 
   # --- Helper constructors ---
 

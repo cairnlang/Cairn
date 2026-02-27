@@ -55,20 +55,30 @@ defmodule Axiom.SolverTest do
 
   describe "Symbolic.build_initial_stack" do
     test "builds stack for int params" do
-      assert {:ok, stack, vars} = Symbolic.build_initial_stack([:int, :int])
+      assert {:ok, stack, vars, base} = Symbolic.build_initial_stack([:int, :int])
       assert vars == ["p0", "p1"]
       assert stack == [{:int_expr, {:var, "p0"}}, {:int_expr, {:var, "p1"}}]
+      assert base == true
     end
 
     test "single int param" do
-      assert {:ok, stack, vars} = Symbolic.build_initial_stack([:int])
+      assert {:ok, stack, vars, base} = Symbolic.build_initial_stack([:int])
       assert vars == ["p0"]
       assert stack == [{:int_expr, {:var, "p0"}}]
+      assert base == true
+    end
+
+    test "supports option params with tag domain constraints" do
+      assert {:ok, stack, vars, base} = Symbolic.build_initial_stack([{:user_type, "option"}, :int])
+
+      assert vars == ["p0_tag", "p0_val", "p1"]
+      assert stack == [{:option_expr, {:var, "p0_tag"}, {:var, "p0_val"}}, {:int_expr, {:var, "p1"}}]
+      assert base == {:or, {:eq, {:var, "p0_tag"}, {:const, 0}}, {:eq, {:var, "p0_tag"}, {:const, 1}}}
     end
 
     test "rejects non-int params" do
       assert {:unsupported, reason} = Symbolic.build_initial_stack([:int, :bool])
-      assert reason =~ "non-int"
+      assert reason =~ "supported: int, option"
     end
 
     test "rejects float params" do
@@ -344,6 +354,22 @@ defmodule Axiom.SolverTest do
       assert {:ok, [{:int_expr, {:var, "d"}}, {:int_expr, {:var, "a"}},
                      {:int_expr, {:var, "b"}}, {:int_expr, {:var, "c"}}]} =
                Symbolic.execute([{:op, :rot4, 0}], stack)
+    end
+  end
+
+  describe "Symbolic.execute — MATCH on option" do
+    test "option MATCH merges Some/None branches with ite" do
+      stack = [{:option_expr, {:var, "p0_tag"}, {:var, "p0_val"}}, {:int_expr, {:var, "p1"}}]
+
+      tokens = [
+        {:match_kw, "MATCH", 0},
+        {:constructor, "None", 1}, {:block_open, "{", 2}, {:block_close, "}", 3},
+        {:constructor, "Some", 4}, {:block_open, "{", 5}, {:op, :swap, 6}, {:op, :drop, 7}, {:block_close, "}", 8},
+        {:fn_end, "END", 9}
+      ]
+
+      assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
+      assert {:ite, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:var, "p0_val"}, {:var, "p1"}} = result
     end
   end
 
@@ -841,7 +867,7 @@ defmodule Axiom.SolverTest do
       }
 
       assert {:unknown, reason} = Prove.prove(func)
-      assert reason =~ "non-int"
+      assert reason =~ "supported: int, option"
     end
 
     test "function with IF and unsupported body op returns unknown" do
@@ -856,6 +882,66 @@ defmodule Axiom.SolverTest do
 
       assert {:unknown, reason} = Prove.prove(func)
       assert reason =~ "PRINT"
+    end
+
+    test "MATCH on non-option type returns unknown" do
+      source = """
+      TYPE result = Ok int | Err str
+
+      DEF bad_match : result -> int
+        MATCH
+          Ok  { }
+          Err { DROP 0 }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE bad_match
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE bad_match: UNKNOWN"
+      assert output =~ "option"
+    end
+  end
+
+  describe "Prove.prove — option MATCH (v0.6.0a slice)" do
+    test "proves unwrap_or_abs is non-negative" do
+      source = """
+      TYPE option = None | Some int
+
+      DEF unwrap_or_abs : option int -> int
+        MATCH
+          None { ABS }
+          Some { SWAP DROP ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE unwrap_or_abs
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE unwrap_or_abs: PROVEN"
+    end
+
+    test "proves is_some_bool has boolean tautology postcondition" do
+      source = """
+      TYPE option = None | Some int
+
+      DEF is_some_bool : option -> bool
+        MATCH
+          None { F }
+          Some { DROP T }
+        END
+        POST DUP NOT OR
+      END
+
+      PROVE is_some_bool
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE is_some_bool: PROVEN"
     end
   end
 

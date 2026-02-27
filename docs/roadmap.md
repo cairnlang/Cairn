@@ -259,30 +259,55 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Next Up
 
-### v0.6.x — PROVE MATCH Refinement
+### Transition Plan (v0.6.x -> v0.7)
 
-**Goal:** Improve precision and ergonomics on top of generic ADT MATCH support.
+The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-**Deliverables:**
-
-- **Broader constructor inference** — extend helper-pattern coverage to additional generated expression families beyond current affine/multiplicative constant encodings
-- **Richer structured diagnostics** — add stable schemas and richer event context beyond current rewrite/lifecycle coverage
-- **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
-
-**Why now:** multiplicative helper wrappers are now covered; next gains are additional generated PRE expression families and deeper compositions.
-
-### v0.6.0 — PROVE for Algebraic Types + Refinements
-
-**Goal:** Extend PROVE to handle MATCH and unlock refinement-style reasoning.
+### v0.6.0ac — PROVE Stabilization Gate
+**Goal:** Land a final narrow PROVE slice and add explicit guardrails before freezing tactical normalization growth.
 
 **Deliverables:**
-- PROVE handles MATCH by enumerating constructor cases (encode as nested `ite`)
-- Provable examples: `safe_div`, `unwrap_or`, `map_option`
-- PRE conditions narrow types within function bodies (refinement-lite)
-- Static detection of unreachable branches after PRE
-- Stretch: bounded recursion unrolling for simple recursive functions
+- One final high-frequency inference slice only (no speculative broad rewrite additions)
+- Regression gates for trace schema stability and PRE-normalizer idempotence
+- Performance budget check for `examples/prove/all_proven.ax`
+- Rule-admission criteria documented (new inference rule must prove value across at least two existing scenarios/tests)
 
-**Why after v0.5.0:** More PROVE power is valuable but the language needs practical features first. No one will use PROVE on a program they can't modularize.
+### v0.6.0ad — Tactical PRE Freeze
+**Goal:** Freeze `Axiom.Solver.PreNormalize` feature growth (bugfix-only) and prevent unbounded tactic accretion.
+
+**Deliverables:**
+- Mark PRE normalization as feature-frozen in roadmap/docs (bugfix + refactor only)
+- Add lightweight RFC path for any new inference rule:
+  problem shape, formal rewrite, perf impact, test evidence
+- Keep existing PROVE capabilities stable; focus on maintainability and diagnostics polish only
+
+### v0.6.1 — Practical Language Usability Release
+**Goal:** Shift active development from solver tactics to practical language ergonomics.
+
+**Deliverables:**
+- CLI/dev UX improvements (clearer `run/test/prove` output, better failure surfaces)
+- Error message and diagnostics quality pass (type/runtime/prove unknown paths)
+- Standard library/prelude usability expansion and discoverability
+- Documentation consolidation for everyday usage (non-research path first)
+
+### v0.6.2 — Practical Programs Milestone
+**Goal:** Demonstrate Axiom as a practical language beyond proof slices.
+
+**Deliverables:**
+- Add larger end-to-end example programs emphasizing modules/import/prelude/IO ergonomics
+- Validate that practical examples remain stable with PROVE optional, not mandatory
+- Establish cadence rule: at least two practical-language slices per one solver-specific slice
+
+### v0.6.x (parallel research track) — Principled Verification Foundations
+**Goal:** Prepare post-tactical verification work without destabilizing the practical-language track.
+
+**Deliverables:**
+- Design notes/prototypes for abstract-interpretation-style domain narrowing
+- Loop-invariant strategy for bounded/structured loops
+- Inductive-proof strategy for selected recursive patterns
+- Clear boundary between production solver behavior and research prototypes
+
+**Why now:** current refinement tactics are effective but approaching diminishing returns; this transition preserves gains while restoring practical-language momentum.
 
 ### v0.7.0 — Typed BEAM Concurrency
 
@@ -309,7 +334,7 @@ DEF pinger : pid[msg] -> void
 END
 ```
 
-**Why after v0.6.0:** Typed concurrency benefits enormously from PROVE — imagine proving that a state machine's transitions never violate an invariant across all message types.
+**Why after v0.6.x transition:** Typed concurrency benefits enormously from PROVE — imagine proving that a state machine's transitions never violate an invariant across all message types while the core language ergonomics are already stable.
 
 ### v0.8.0 — BEAM Bytecode Compilation
 

@@ -191,6 +191,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This reduces inference brittleness for noisy/generated guard structures that are logically equivalent
 - Added `examples/prove/proven_shape_canonical.ax` and solver coverage for noisy duplicated/reordered guard narrowing
 
+### v0.6.0q — PRE Normalizer Extraction
+- Extracted PRE canonicalization logic from `Axiom.Solver.Prove` into `Axiom.Solver.PreNormalize`
+- Kept PROVE behavior unchanged while reducing solver-module complexity and isolating rewrite logic
+- Added focused unit coverage for canonicalization/rewrite rules in `test/axiom/solver/pre_normalize_test.exs`
+
 ---
 
 ## Next Up
@@ -205,7 +210,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** canonical PRE normalization is in place; next gains are deeper inference coverage and broader proof context.
+**Why now:** PRE normalization is now modularized and unit-tested; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

@@ -1266,15 +1266,22 @@ defmodule Axiom.SolverTest do
       PROVE square_only_abs_trace
       """
 
-      stdout =
-        ExUnit.CaptureIO.capture_io(fn ->
-          Axiom.eval_with_env(source, %{"__prove_trace__" => :summary})
-        end)
+      parent = self()
 
       stderr =
         ExUnit.CaptureIO.capture_io(:stderr, fn ->
-          Axiom.eval_with_env(source, %{"__prove_trace__" => :summary})
+          stdout =
+            ExUnit.CaptureIO.capture_io(fn ->
+              Axiom.eval_with_env(source, %{"__prove_trace__" => :summary})
+            end)
+
+          send(parent, {:captured_stdout, stdout})
         end)
+
+      stdout =
+        receive do
+          {:captured_stdout, out} -> out
+        end
 
       assert stdout =~ "PROVE square_only_abs_trace: PROVEN"
       refute stdout =~ "PROVE TRACE"
@@ -1343,6 +1350,58 @@ defmodule Axiom.SolverTest do
         end)
 
       assert stderr == ""
+    end
+
+    test "trace json mode emits one JSON object per MATCH decision to stderr" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF square_only_abs_trace_json : shape -> int
+        PRE {
+          MATCH
+            Circle { DROP T }
+            Square { DROP F }
+          END
+          NOT
+        }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace_json
+      """
+
+      parent = self()
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          stdout =
+            ExUnit.CaptureIO.capture_io(fn ->
+              Axiom.eval_with_env(source, %{"__prove_trace__" => :json})
+            end)
+
+          send(parent, {:captured_stdout, stdout})
+        end)
+
+      stdout =
+        receive do
+          {:captured_stdout, out} -> out
+        end
+
+      assert stdout =~ "PROVE square_only_abs_trace_json: PROVEN"
+      refute stdout =~ "PROVE TRACE"
+      refute stderr =~ "PROVE TRACE"
+      assert stderr =~ "\"event\":\"match_decision\""
+      assert stderr =~ "\"trace_level\":\"json\""
+      assert stderr =~ "\"function\":\"square_only_abs_trace_json\""
+      assert stderr =~ "\"status\":\"PROVEN\""
+      assert stderr =~ "\"type\":\"shape\""
+      assert stderr =~ "\"explored\":"
+      assert stderr =~ "\"pruned\":"
+      assert stderr =~ "\"reason\":"
     end
   end
 

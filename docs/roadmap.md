@@ -134,7 +134,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Moved proof examples into `examples/prove/` and added `examples/prove/all_proven.ax`
 
 ### v0.6.0g — PROVE MATCH Trace Diagnostics
-- Added optional trace diagnostics for PROVE MATCH branch decisions (`AXIOM_PROVE_TRACE=1`)
+- Added optional trace diagnostics for PROVE MATCH branch decisions (trace env flag)
 - Trace output reports explored branches, pruned branches, and pruning reason (`eq`, `neq`, `unknown`)
 - Added `examples/prove/proven_shape_trace.ax` and solver coverage for trace output
 
@@ -143,6 +143,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Trace can be enabled via `AXIOM_PROVE_TRACE=summary|verbose` or API env `__prove_trace__`
 - Trace output now routes to stderr so normal PROVE output on stdout stays clean
 - Added solver coverage for level behavior and stdout/stderr separation
+
+### v0.6.0i — Structured Trace Output
+- Added JSON trace mode: `AXIOM_PROVE_TRACE=json` (or API `__prove_trace__ => :json`)
+- JSON mode emits one stderr JSON object per MATCH decision for tooling/CI consumption
+- Preserved human-readable summary/verbose trace formatting as default diagnostics
+- Added solver coverage for JSON trace shape and stderr routing behavior
 
 ---
 
@@ -155,10 +161,10 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 **Deliverables:**
 
 - **Broader constructor inference** — recognize additional refinement-like PRE patterns around MATCH helpers
-- **Structured trace output** — optional machine-readable diagnostics for tools/CI
+- **Richer structured diagnostics** — include additional proof context fields for tooling workflows
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** trace controls are polished; next gains are deeper inference and better tooling integration.
+**Why now:** structured trace is in place; next gains are deeper inference and richer proof metadata.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

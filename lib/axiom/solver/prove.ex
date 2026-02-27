@@ -331,6 +331,9 @@ defmodule Axiom.Solver.Prove do
       :verbose ->
         :verbose
 
+      :json ->
+        :json
+
       :unset ->
         normalize_trace_value(sys_value)
     end
@@ -343,6 +346,7 @@ defmodule Axiom.Solver.Prove do
   defp normalize_trace_value(:off), do: :off
   defp normalize_trace_value(:summary), do: :summary
   defp normalize_trace_value(:verbose), do: :verbose
+  defp normalize_trace_value(:json), do: :json
   defp normalize_trace_value("0"), do: :off
   defp normalize_trace_value("false"), do: :off
   defp normalize_trace_value("off"), do: :off
@@ -350,17 +354,42 @@ defmodule Axiom.Solver.Prove do
   defp normalize_trace_value("true"), do: :summary
   defp normalize_trace_value("summary"), do: :summary
   defp normalize_trace_value("verbose"), do: :verbose
+  defp normalize_trace_value("json"), do: :json
   defp normalize_trace_value(_), do: :off
 
   defp with_trace_flag(env, :off), do: env
 
-  defp with_trace_flag(env, level) when level in [:summary, :verbose] do
+  defp with_trace_flag(env, level) when level in [:summary, :verbose, :json] do
     env
     |> Map.put("__prove_trace_enabled__", true)
     |> Map.put("__prove_trace_level__", level)
   end
 
   defp maybe_emit_trace(_func_name, _result, :off), do: :ok
+
+  defp maybe_emit_trace(func_name, result, :json) do
+    status =
+      case result do
+        {:proven, _} -> "PROVEN"
+        {:disproven, _, _} -> "DISPROVEN"
+        {:unknown, _} -> "UNKNOWN"
+        {:error, _} -> "ERROR"
+      end
+
+    events = get_trace_events()
+
+    Enum.each(events, fn event ->
+      payload =
+        event
+        |> Map.put(:function, func_name)
+        |> Map.put(:status, status)
+        |> Map.put(:trace_level, "json")
+
+      IO.puts(:stderr, json_encode(payload))
+    end)
+
+    :ok
+  end
 
   defp maybe_emit_trace(func_name, result, trace_level) when trace_level in [:summary, :verbose] do
     status =
@@ -377,7 +406,9 @@ defmodule Axiom.Solver.Prove do
       IO.puts(:stderr, "PROVE TRACE #{func_name} (#{status}): no MATCH branch events")
     else
       IO.puts(:stderr, "PROVE TRACE #{func_name} (#{status}, #{trace_level}):")
-      Enum.each(events, &IO.puts(:stderr, "  - " <> &1))
+      Enum.each(events, fn event ->
+        IO.puts(:stderr, "  - " <> human_trace_line(event, trace_level))
+      end)
     end
 
     :ok
@@ -390,6 +421,54 @@ defmodule Axiom.Solver.Prove do
   defp get_trace_events do
     (Process.get(:axiom_prove_trace_events) || [])
     |> Enum.reverse()
+  end
+
+  defp human_trace_line(event, :summary) do
+    pruned_txt =
+      case Map.get(event, :pruned, []) do
+        [] -> "none"
+        values -> Enum.join(values, ",")
+      end
+
+    "MATCH #{Map.get(event, :type, "?")}: explored=#{Map.get(event, :explored, "?")} pruned=#{pruned_txt} reason=#{Map.get(event, :reason, "unknown")}"
+  end
+
+  defp human_trace_line(event, :verbose) do
+    base = human_trace_line(event, :summary)
+    candidates = Map.get(event, :candidates, []) |> Enum.join(",")
+    "#{base} candidates=#{candidates} tag=#{Map.get(event, :tag, "?")}"
+  end
+
+  defp json_encode(map) when is_map(map) do
+    map
+    |> Enum.map(fn {k, v} -> {to_string(k), v} end)
+    |> Enum.sort_by(fn {k, _} -> k end)
+    |> Enum.map(fn {k, v} -> "\"#{json_escape(k)}\":#{json_encode(v)}" end)
+    |> Enum.join(",")
+    |> then(&("{#{&1}}"))
+  end
+
+  defp json_encode(list) when is_list(list) do
+    list
+    |> Enum.map(&json_encode/1)
+    |> Enum.join(",")
+    |> then(&("[#{&1}]"))
+  end
+
+  defp json_encode(v) when is_binary(v), do: "\"#{json_escape(v)}\""
+  defp json_encode(v) when is_integer(v), do: Integer.to_string(v)
+  defp json_encode(true), do: "true"
+  defp json_encode(false), do: "false"
+  defp json_encode(nil), do: "null"
+  defp json_encode(v), do: "\"#{json_escape(to_string(v))}\""
+
+  defp json_escape(str) do
+    str
+    |> String.replace("\\", "\\\\")
+    |> String.replace("\"", "\\\"")
+    |> String.replace("\n", "\\n")
+    |> String.replace("\r", "\\r")
+    |> String.replace("\t", "\\t")
   end
 
   defp combine_constraints(true, c), do: c

@@ -1046,34 +1046,23 @@ defmodule Axiom.Solver.Symbolic do
 
   defp trace_match_decision(env, type_name, explored, pruned, reason, details) do
     if Map.get(env, "__prove_trace_enabled__", false) do
-      pruned_txt =
-        if pruned == [] do
-          "none"
-        else
-          pruned
-          |> Enum.map(fn x -> to_string(x) end)
-          |> Enum.join(",")
-        end
+      event = %{
+        event: "match_decision",
+        type: to_string(type_name),
+        explored: to_string(explored),
+        pruned: Enum.map(pruned, &to_string/1),
+        reason: to_string(reason),
+        candidates: Map.get(details, :candidates, []) |> Enum.map(&to_string/1),
+        tag: to_string(Map.get(details, :tag, "?"))
+      }
 
-      base_msg = "MATCH #{type_name}: explored=#{explored} pruned=#{pruned_txt} reason=#{reason}"
-      level = Map.get(env, "__prove_trace_level__", :summary)
-
-      msg =
-        if level == :verbose do
-          candidates = Map.get(details, :candidates, [])
-          tag = Map.get(details, :tag, "?")
-          "#{base_msg} candidates=#{Enum.join(candidates, ",")} tag=#{tag}"
-        else
-          base_msg
-        end
-
-      append_trace_event(msg)
+      append_trace_event(event)
     end
   end
 
-  defp append_trace_event(msg) do
+  defp append_trace_event(event) do
     events = Process.get(:axiom_prove_trace_events, [])
-    Process.put(:axiom_prove_trace_events, [msg | events])
+    Process.put(:axiom_prove_trace_events, [event | events])
   end
 
   defp opaque_same?(a, b), do: a == b

@@ -297,6 +297,13 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded CLI examples index with a `practical` category and refreshed docs to point to practical workflows
 - Updated README and `docs/cli.md` to keep quick-start/onboarding aligned with current capabilities
 
+### v0.6.2a — Practical Programs Milestone (Pass 1)
+- Added larger practical workflows: `examples/practical/ledger.ax` and `examples/practical/todo.ax`
+- Added shared practical libs: `examples/practical/lib/ledger.ax` and `examples/practical/lib/todo.ax`
+- Added supporting practical datasets under `examples/practical/data/`
+- Expanded examples index and smoke coverage to include new practical workflows
+- Kept practical examples centered on IMPORT + prelude + safe file I/O + VERIFY (PROVE optional)
+
 ---
 
 ## Next Up
@@ -305,7 +312,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.6.2 — Practical Programs Milestone
+### v0.6.2b — Practical Programs Milestone (Pass 2)
 **Goal:** Demonstrate Axiom as a practical language beyond proof slices.
 
 **Deliverables:**

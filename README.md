@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.6.1e**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, tag-assumption bounds (`gt/gte/lt/lte`), broader helper-comparison inference (including `eq/neq` and bounded affine/multiplicative constant wrappers over tag-boolean `ite` encodings), stabilization guardrails (PRE idempotence checks, trace ordering/schema stability, and all-proven performance budget checks), tactical PRE-freeze governance with rule-admission gating, clearer PROVE UNKNOWN/ERROR hints, CLI run-summary diagnostics, discoverable CLI/prelude guidance via `mix axiom.run --help` / `--show-prelude`, consistent structured diagnostics (`ERROR kind=...` plus optional `--json-errors`), categorized runnable example discovery via `mix axiom.run --examples`, practical mini-app examples under `examples/practical/`, and curated example smoke coverage in tests), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.6.2a**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, tag-assumption bounds (`gt/gte/lt/lte`), broader helper-comparison inference (including `eq/neq` and bounded affine/multiplicative constant wrappers over tag-boolean `ite` encodings), stabilization guardrails (PRE idempotence checks, trace ordering/schema stability, and all-proven performance budget checks), tactical PRE-freeze governance with rule-admission gating, clearer PROVE UNKNOWN/ERROR hints, CLI run-summary diagnostics, discoverable CLI/prelude guidance via `mix axiom.run --help` / `--show-prelude`, consistent structured diagnostics (`ERROR kind=...` plus optional `--json-errors`), categorized runnable example discovery via `mix axiom.run --examples`, practical mini-app examples under `examples/practical/`, curated example smoke coverage in tests, and practical-programs milestone starters (ledger/todo end-to-end file workflows with IMPORT+prelude+VERIFY), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -83,6 +83,8 @@ mix axiom.run examples/imports/main.ax
 
 # Practical mini-app (imports + prelude + file I/O + VERIFY)
 mix axiom.run examples/practical/main.ax
+mix axiom.run examples/practical/ledger.ax
+mix axiom.run examples/practical/todo.ax
 
 # Prelude helpers demo (safe result flow + string helpers)
 mix axiom.run examples/prelude_demo.ax
@@ -127,13 +129,15 @@ mix axiom.run examples/bank.ax
 
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
 
-### Practical Mini-App
+### Practical Mini-Apps
 
-`examples/practical/main.ax` demonstrates a practical, non-PROVE workflow:
+`examples/practical/main.ax`, `examples/practical/ledger.ax`, and `examples/practical/todo.ax` demonstrate practical, non-PROVE-centric workflows:
 - imports reusable functions from `examples/practical/lib/stats.ax`
 - reads CSV from disk with safe fallback (`read_file_or`)
 - parses and computes totals/averages via prelude helpers
 - runs `VERIFY score_total 40` as a lightweight regression check
+- uses additional reusable libs (`examples/practical/lib/ledger.ax`, `examples/practical/lib/todo.ax`) for report/stat pipelines
+- writes report outputs to `/tmp/axiom_*.txt` via `WRITE_FILE!` in ledger/todo flows
 
 ### Imports
 
@@ -950,8 +954,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.1b** (complete): Practical language usability pass 2 (`mix axiom.run --help`, `--show-prelude`, and refreshed prelude examples)
 - **v0.6.1c** (complete): Practical language usability pass 3 (diagnostics consistency, `--json-errors`, and diagnostics examples)
 - **v0.6.1d** (complete): Practical language usability pass 4 (`--examples`, first-15-min docs, and CLI reference)
-- **v0.6.1e** (current): Practical language usability pass 5 (practical mini-app example + curated examples smoke test)
-- **v0.6.2** (next): Practical programs milestone (larger end-to-end examples with modules/import/prelude/IO)
+- **v0.6.1e** (complete): Practical language usability pass 5 (practical mini-app example + curated examples smoke test)
+- **v0.6.2a** (current): Practical programs pass 1 (ledger/todo end-to-end examples with imports/prelude/file I/O/VERIFY)
+- **v0.6.2b** (next): Practical programs pass 2 (larger workflows, stronger app-level assertions, and richer file-backed flows)
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation
 - **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration

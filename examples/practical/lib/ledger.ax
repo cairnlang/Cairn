@@ -1,0 +1,16 @@
+# examples/practical/lib/ledger.ax — helpers for transaction ledgers
+
+DEF tx_balance : [int] -> int
+  SUM
+END
+
+DEF tx_volume : [int] -> int
+  { ABS } MAP SUM
+  POST DUP 0 GTE
+END
+
+DEF credit_nonneg : int int -> int
+  PRE { OVER 0 GTE SWAP 0 GTE AND }
+  ADD
+  POST DUP 0 GTE
+END

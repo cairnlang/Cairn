@@ -1,0 +1,5 @@
+open|buy milk
+done|book flight
+open|review pull request
+done|renew insurance
+open|prepare slides

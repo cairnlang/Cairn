@@ -1,0 +1,19 @@
+# examples/practical/lib/todo.ax — helpers for simple todo files
+
+DEF todo_is_open : str -> bool
+  "open|" STARTS_WITH
+END
+
+DEF todo_is_done : str -> bool
+  "done|" STARTS_WITH
+END
+
+DEF count_open : [str] -> int
+  { todo_is_open } FILTER LEN
+  POST DUP 0 GTE
+END
+
+DEF count_done : [str] -> int
+  { todo_is_done } FILTER LEN
+  POST DUP 0 GTE
+END

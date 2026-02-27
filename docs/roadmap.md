@@ -185,6 +185,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This preserves constructor narrowing when guard constraints are written as implications
 - Added `examples/prove/proven_shape_implication.ax` and solver coverage for implication narrowing and implication-only limit behavior
 
+### v0.6.0p — Canonical Boolean PRE Normalization
+- Canonicalized n-ary boolean PRE constraints via flattening, deduplication, stable ordering, complement checks, and absorption cleanup
+- Kept split/equivalence reductions active as pairwise rewrites on canonicalized OR terms
+- This reduces inference brittleness for noisy/generated guard structures that are logically equivalent
+- Added `examples/prove/proven_shape_canonical.ax` and solver coverage for noisy duplicated/reordered guard narrowing
+
 ---
 
 ## Next Up
@@ -199,7 +205,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** implication+antecedent reduction is in place; next gains are deeper inference coverage and broader proof context.
+**Why now:** canonical PRE normalization is in place; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

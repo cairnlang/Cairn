@@ -250,6 +250,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added bounded affine support around tag-boolean `ite` encodings (`+ const`, `- const`, `const - expr`) before comparison checks
 - Added `examples/prove/proven_shape_tag_bounds_eq.ax` and solver coverage for helper-encoded `EQ` narrowing
 
+### v0.6.0ab — Multiplicative Helper Wrappers
+- Extended bounded helper-pattern extraction to support multiplicative constant wrappers around tag-boolean encodings (`expr * const`, `const * expr`)
+- This enables narrowing for generated helper forms like `code * 2 == 2` without requiring direct tag comparisons
+- Added `examples/prove/proven_shape_tag_bounds_mul.ax` and solver coverage for helper-encoded `MUL+EQ` narrowing
+
 ---
 
 ## Next Up
@@ -260,11 +265,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 **Deliverables:**
 
-- **Broader constructor inference** — extend helper-pattern coverage to additional generated expression families beyond current affine/constant encodings
+- **Broader constructor inference** — extend helper-pattern coverage to additional generated expression families beyond current affine/multiplicative constant encodings
 - **Richer structured diagnostics** — add stable schemas and richer event context beyond current rewrite/lifecycle coverage
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** broader helper-comparison extraction now lands for common forms; next gains are additional generated PRE expression families.
+**Why now:** multiplicative helper wrappers are now covered; next gains are additional generated PRE expression families and deeper compositions.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

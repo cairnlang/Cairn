@@ -1,4 +1,4 @@
-# proven_shape_tag_bounds_eq.ax — helper-comparison EQ encoding narrowing (v0.6.0aa)
+# proven_shape_tag_bounds_eq.ax — helper-comparison EQ encoding narrowing (v0.6.0ab)
 
 TYPE shape = Circle int | Square int
 

@@ -1895,6 +1895,33 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_bounds_eq: PROVEN"
     end
 
+    test "helper MUL+EQ encoding also prunes unsupported MATCH arm" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square_code : shape -> int
+        MATCH
+          Circle { DROP 0 }
+          Square { DROP 1 }
+        END
+      END
+
+      DEF square_only_abs_bounds_mul : shape -> int
+        PRE { DUP is_square_code 2 MUL 2 EQ }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_bounds_mul
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_bounds_mul: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int
@@ -2208,6 +2235,52 @@ defmodule Axiom.SolverTest do
       assert stderr =~ "\"inference_source\":[\"helper_cmp\"]"
       assert stderr =~ "\"assumptions\":"
       assert stderr =~ "\"source\":[\"helper_cmp\"]"
+      assert stderr =~ "\"pruned\":[\"Circle\"]"
+    end
+
+    test "trace json mode reports helper_cmp inference source for helper MUL+EQ encoding" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square_code : shape -> int
+        MATCH
+          Circle { DROP 0 }
+          Square { DROP 1 }
+        END
+      END
+
+      DEF square_only_abs_trace_helper_mul : shape -> int
+        PRE { DUP is_square_code 2 MUL 2 EQ }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace_helper_mul
+      """
+
+      parent = self()
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          stdout =
+            ExUnit.CaptureIO.capture_io(fn ->
+              Axiom.eval_with_env(source, %{"__prove_trace__" => :json})
+            end)
+
+          send(parent, {:captured_stdout, stdout})
+        end)
+
+      stdout =
+        receive do
+          {:captured_stdout, out} -> out
+        end
+
+      assert stdout =~ "PROVE square_only_abs_trace_helper_mul: PROVEN"
+      assert stderr =~ "\"match_site_id\":\"square_only_abs_trace_helper_mul:body:"
+      assert stderr =~ "\"inference_source\":[\"helper_cmp\"]"
       assert stderr =~ "\"pruned\":[\"Circle\"]"
     end
 

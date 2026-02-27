@@ -1,0 +1,22 @@
+# proven_shape_tag_bounds_mul.ax — helper-comparison MUL encoding narrowing (v0.6.0ab)
+
+TYPE shape = Circle int | Square int
+
+DEF is_square_code : shape -> int
+  MATCH
+    Circle { DROP 0 }
+    Square { DROP 1 }
+  END
+END
+
+# PRE helper comparison (is_square_code(shape) * 2 == 2) narrows to Square.
+DEF square_only_abs_bounds_mul : shape -> int
+  PRE { DUP is_square_code 2 MUL 2 EQ }
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs_bounds_mul

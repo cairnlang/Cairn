@@ -576,6 +576,21 @@ defmodule Axiom.Solver.Prove do
     end
   end
 
+  defp parse_tag_bool_affine({:mul, a, b}) do
+    with {:ok, c} <- const_int(a),
+         {:ok, {var, tag_value, tv, fv}} <- parse_tag_bool_expr(b) do
+      {:ok, {var, tag_value, tv * c, fv * c}}
+    else
+      _ ->
+        with {:ok, {var, tag_value, tv, fv}} <- parse_tag_bool_expr(a),
+             {:ok, c} <- const_int(b) do
+          {:ok, {var, tag_value, tv * c, fv * c}}
+        else
+          _ -> :error
+        end
+    end
+  end
+
   defp parse_tag_bool_affine(_), do: :error
 
   defp cmp_holds?(op, left_value, right_value) do

@@ -83,6 +83,17 @@ defmodule Axiom.Runtime do
     [a | rest]
   end
 
+  # SAID: destructive SAY — prints value cleanly then drops it
+  def execute(:said, [a | rest]) when is_binary(a) do
+    IO.puts(a)
+    rest
+  end
+
+  def execute(:said, [a | rest]) do
+    IO.puts(inspect(a))
+    rest
+  end
+
   # List operations — higher-order (take a block from the stack)
   # Blocks are {:block, tokens, env} — they capture the environment at creation.
 
@@ -251,11 +262,50 @@ defmodule Axiom.Runtime do
     [Enum.random(1..n) | rest]
   end
 
+  # FMT: pop format string, pop one value per {} placeholder, push formatted string
+  def execute(:fmt, [format | rest]) when is_binary(format) do
+    {result, remaining} = format_string(format, rest)
+    [result | remaining]
+  end
+
   # Error cases
   def execute(op, stack) do
     raise Axiom.RuntimeError,
           "cannot apply #{op} to stack: #{inspect(Enum.take(stack, 3))}... (#{length(stack)} elements)"
   end
+
+  # --- FMT helpers ---
+
+  defp format_string(format, stack) do
+    format_string_acc(format, stack, [])
+  end
+
+  defp format_string_acc("", stack, acc) do
+    {acc |> Enum.reverse() |> IO.iodata_to_binary(), stack}
+  end
+
+  defp format_string_acc("{{" <> rest, stack, acc) do
+    format_string_acc(rest, stack, ["{" | acc])
+  end
+
+  defp format_string_acc("}}" <> rest, stack, acc) do
+    format_string_acc(rest, stack, ["}" | acc])
+  end
+
+  defp format_string_acc("{}" <> rest, [value | stack], acc) do
+    format_string_acc(rest, stack, [format_value(value) | acc])
+  end
+
+  defp format_string_acc(<<c::utf8, rest::binary>>, stack, acc) do
+    format_string_acc(rest, stack, [<<c::utf8>> | acc])
+  end
+
+  defp format_value(v) when is_binary(v), do: v
+  defp format_value(v) when is_integer(v), do: Integer.to_string(v)
+  defp format_value(v) when is_float(v), do: Float.to_string(v)
+  defp format_value(true), do: "T"
+  defp format_value(false), do: "F"
+  defp format_value(v), do: inspect(v)
 
   defp run_while(cond_tokens, cond_env, body_tokens, body_env, stack) do
     check_stack = Axiom.Evaluator.eval_tokens(cond_tokens, stack, cond_env)

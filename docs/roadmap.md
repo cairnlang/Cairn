@@ -62,13 +62,20 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Next Up
 
+### v0.5.1 — FMT + SAID
+- `FMT` operator: pop format string, pop one value per `{}` placeholder, auto-convert, push result
+- Auto-conversion: int/float→to_string, bool→"T"/"F", else→inspect
+- Literal braces via `{{` and `}}`
+- Type checker special-cases literal format strings (counts placeholders, pops that many values)
+- `SAID` operator: destructive SAY — prints value then drops it (replaces ubiquitous `SAY DROP` pattern)
+- All examples updated to use FMT and SAID
+- 639 tests passing
+
 ### v0.5.x — More Practical Language Features
 
 **Goal:** Continue making Axiom usable for real programs beyond toy examples.
 
 **Deliverables:**
-
-- **String interpolation or formatting** — SAY/PRINT are bare-bones, no way to build formatted output
 
 - **Error handling beyond contracts** — currently the only error mechanism is contract violations crashing. Need TRY/CATCH or Result-based error flow for I/O, parsing, and other fallible operations.
 

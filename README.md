@@ -126,10 +126,12 @@ SLICE                          # pop len, pop start, pop string, push substring
 TO_INT                         # parse string as integer
 TO_FLOAT                       # parse string as float
 JOIN                           # pop separator, pop list of strings, push joined
+FMT                            # pop format string, pop values for {} placeholders, push result
 
 # I/O
 PRINT                          # non-destructive debug output (with label)
 SAY                            # non-destructive clean output (IO.puts)
+SAID                           # destructive SAY — prints value then drops it
 ASK                            # pop prompt string, print it, read line, push input
 ARGV                           # push command-line args as a list of strings
 READ_FILE                      # pop filename, push file contents
@@ -159,6 +161,18 @@ END
 ```
 
 **Note**: LET bindings inside blocks (`{ }`) are scoped to that block execution. In WHILE loops, prefer using the stack to carry state between iterations.
+
+### String Formatting (FMT)
+
+`FMT` pops a format string and one value per `{}` placeholder, auto-converts each value to a string, and pushes the result. Use `{{` and `}}` for literal braces.
+
+```
+42 "Score: {}!" FMT                           # => "Score: 42!"
+42 "Alice" "Name: {}, Age: {}" FMT            # => "Name: Alice, Age: 42"
+"use {{}} for placeholders" FMT               # => "use {} for placeholders"
+```
+
+Values are auto-converted: integers and floats become their string representation, booleans become `"T"` / `"F"`, and everything else uses `inspect`.
 
 ### Control Flow
 
@@ -383,17 +397,17 @@ PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ, ABS, MIN, M
 
 ```
 # Read command-line arguments
-ARGV HEAD SAY DROP             # print the first argument
+ARGV HEAD SAID             # print the first argument
 
 # cat — print a file's contents
-ARGV HEAD READ_FILE SAY DROP
+ARGV HEAD READ_FILE SAID
 # Usage: mix axiom.run examples/cat.ax somefile.txt
 
 # Write to a file
 "hello" "out.txt" WRITE_FILE
 
 # Read a line from stdin
-READ_LINE SAY DROP
+READ_LINE SAID
 ```
 
 ## Examples
@@ -507,8 +521,8 @@ DEF fib : int -> int
   END
 END
 
-5 fact SAY DROP    # => 120
-10 fib SAY DROP    # => 55
+5 fact SAID    # => 120
+10 fib SAID    # => 55
 ```
 
 ### GCD (Euclidean Algorithm)
@@ -556,9 +570,9 @@ DEF median : [int] -> int
 END
 
 [ 10 4 7 2 9 1 8 3 6 5 ]
-DUP mean SAY DROP               # => 5
-DUP sum_of_squares SAY DROP     # => 385
-median SAY DROP                 # => 6
+DUP mean SAID               # => 5
+DUP sum_of_squares SAID     # => 385
+median SAID                 # => 6
 ```
 
 ### Word Frequency Counter
@@ -577,7 +591,7 @@ END
 
 ARGV HEAD READ_FILE WORDS
 M[] { inc_word } REDUCE
-SAY DROP
+SAID
 ```
 
 ```bash
@@ -637,7 +651,7 @@ An interactive game using LET, ASK, and RANDOM (`examples/guess.ax`):
 
 ```
 100 RANDOM LET secret
-"I'm thinking of a number between 1 and 100." SAY DROP
+"I'm thinking of a number between 1 and 100." SAID
 
 # Stack carries: tries_count
 0
@@ -646,13 +660,13 @@ An interactive game using LET, ASK, and RANDOM (`examples/guess.ax`):
   "Your guess? " ASK TO_INT LET guess
   1 ADD
   guess secret EQ IF
-    DUP NUM_STR "Got it in " SWAP CONCAT " tries!" CONCAT SAY DROP
+    DUP "Got it in {} tries!" FMT SAID
     F
   ELSE
     guess secret LT IF
-      "Too low!" SAY DROP
+      "Too low!" SAID
     ELSE
-      "Too high!" SAY DROP
+      "Too high!" SAID
     END
     T
   END

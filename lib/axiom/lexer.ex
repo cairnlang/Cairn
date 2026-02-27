@@ -16,7 +16,7 @@ defmodule Axiom.Lexer do
                 WORDS LINES CONTAINS
                 CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT NUM_STR JOIN
                 GET PUT DEL KEYS VALUES HAS MLEN MERGE PAIRS
-                ASK RANDOM)
+                ASK RANDOM FMT SAID)
 
   @type_names ~w(int float bool any void str)
 

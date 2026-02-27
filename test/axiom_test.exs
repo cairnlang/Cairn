@@ -1586,6 +1586,99 @@ defmodule AxiomTest do
     end
   end
 
+  # ── SAID ──
+
+  describe "SAID" do
+    test "prints and drops string" do
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        result = Axiom.eval(~s|"hello" SAID|)
+        send(self(), {:result, result})
+      end)
+      assert output =~ "hello"
+      assert_received {:result, []}
+    end
+
+    test "prints and drops integer" do
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        result = Axiom.eval("42 SAID")
+        send(self(), {:result, result})
+      end)
+      assert output =~ "42"
+      assert_received {:result, []}
+    end
+
+    test "replaces SAY DROP pattern" do
+      output = ExUnit.CaptureIO.capture_io(fn ->
+        result = Axiom.eval(~s|"hi" SAID 99|)
+        send(self(), {:result, result})
+      end)
+      assert output =~ "hi"
+      assert_received {:result, [99]}
+    end
+
+    test "type checker accepts SAID" do
+      source = ~s|"hello" SAID|
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert :ok = Axiom.Checker.check(items)
+    end
+  end
+
+  # ── FMT ──
+
+  describe "FMT" do
+    test "single int placeholder" do
+      assert Axiom.eval(~s|42 "Score: {}!" FMT|) == ["Score: 42!"]
+    end
+
+    test "multiple placeholders" do
+      assert Axiom.eval(~s|42 "Alice" "Name: {}, Age: {}" FMT|) == ["Name: Alice, Age: 42"]
+    end
+
+    test "no placeholders" do
+      assert Axiom.eval(~s|"hello" FMT|) == ["hello"]
+    end
+
+    test "auto-converts bool" do
+      assert Axiom.eval(~s|T "flag: {}" FMT|) == ["flag: T"]
+    end
+
+    test "auto-converts float" do
+      result = Axiom.eval(~s|3.14 "pi: {}" FMT|)
+      [s] = result
+      assert String.starts_with?(s, "pi: 3.14")
+    end
+
+    test "literal braces with {{ and }}" do
+      assert Axiom.eval(~s|"use {{}} for placeholders" FMT|) == ["use {} for placeholders"]
+    end
+
+    test "inside function body" do
+      source = """
+      DEF greet : str -> str
+        "Hello, {}!" FMT
+      END
+      "world" greet
+      """
+      assert Axiom.eval(source) == ["Hello, world!"]
+    end
+
+    test "type checker accepts FMT with literal format string" do
+      source = ~s|42 "val: {}" FMT|
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert :ok = Axiom.Checker.check(items)
+    end
+
+    test "type checker rejects FMT on empty stack" do
+      source = "FMT"
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert {:error, errors} = Axiom.Checker.check(items)
+      assert Enum.any?(errors, fn e -> e.message =~ "FMT" and e.message =~ "underflow" end)
+    end
+  end
+
   # ── ASK ──
 
   describe "ASK" do

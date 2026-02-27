@@ -9,6 +9,6 @@ DEF factorial : int -> int
   POST DUP 0 GT
 END
 
-10 factorial SAY DROP
+10 factorial SAID
 
 # Result: 3628800

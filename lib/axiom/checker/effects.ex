@@ -69,6 +69,9 @@ defmodule Axiom.Checker.Effects do
     say: %{pops: [:any], pushes: [:any]},
     print: %{pops: [:any], pushes: [:any]},
 
+    # I/O — destructive (pop any, push nothing)
+    said: %{pops: [:any], pushes: []},
+
     # I/O — push only
     argv: %{pops: [], pushes: [{:list, :str}]},
     read_line: %{pops: [], pushes: [:str]},

@@ -8,8 +8,8 @@ DEF fact : int -> int
   END
 END
 
-5 fact SAY DROP     # => 120
-10 fact SAY DROP    # => 3628800
+5 fact SAID     # => 120
+10 fact SAID    # => 3628800
 
 # Recursive fibonacci: fib(n) = fib(n-1) + fib(n-2), base cases fib(0)=0 fib(1)=1
 DEF fib : int -> int
@@ -19,7 +19,7 @@ DEF fib : int -> int
   END
 END
 
-0 fib SAY DROP    # => 0
-1 fib SAY DROP    # => 1
-7 fib SAY DROP    # => 13
-10 fib SAY DROP   # => 55
+0 fib SAID    # => 0
+1 fib SAID    # => 1
+7 fib SAID    # => 13
+10 fib SAID   # => 55

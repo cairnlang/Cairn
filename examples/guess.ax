@@ -2,7 +2,7 @@
 # After Tim Hartnell, "Giant Book of Computer Games" (1984)
 
 100 RANDOM LET secret
-"I'm thinking of a number between 1 and 100." SAY DROP
+"I'm thinking of a number between 1 and 100." SAID
 
 # Stack carries: tries_count
 0
@@ -12,13 +12,13 @@
   1 ADD
 
   guess secret EQ IF
-    DUP NUM_STR "Got it in " SWAP CONCAT " tries!" CONCAT SAY DROP
+    DUP "Got it in {} tries!" FMT SAID
     F
   ELSE
     guess secret LT IF
-      "Too low!" SAY DROP
+      "Too low!" SAID
     ELSE
-      "Too high!" SAY DROP
+      "Too high!" SAID
     END
     T
   END

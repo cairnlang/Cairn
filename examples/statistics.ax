@@ -21,8 +21,8 @@ END
 
 [ 10 4 7 2 9 1 8 3 6 5 ]
 
-DUP mean SAY DROP
-DUP sum_of_squares SAY DROP
-median SAY DROP
+DUP mean SAID
+DUP sum_of_squares SAID
+median SAID
 
 # Output: 5 (mean), 385 (sum of squares), 6 (median)

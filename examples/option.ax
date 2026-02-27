@@ -51,12 +51,12 @@ END
 # --- Demo expressions ---
 
 # Option usage
-0 42 Some unwrap_or SAY DROP   # → 42 (Some value)
-0 None    unwrap_or SAY DROP   # → 0  (default)
+0 42 Some unwrap_or SAID   # → 42 (Some value)
+0 None    unwrap_or SAID   # → 0  (default)
 
-42 Some is_some SAY DROP       # → true
-None    is_some SAY DROP       # → false
+42 Some is_some SAID       # → true
+None    is_some SAID       # → false
 
 # Result usage
-10 2 safe_div unwrap_result SAY DROP   # → 5
-10 0 safe_div unwrap_result SAY DROP   # → -1 (division by zero)
+10 2 safe_div unwrap_result SAID   # → 5
+10 0 safe_div unwrap_result SAID   # → -1 (division by zero)

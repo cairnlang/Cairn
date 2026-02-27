@@ -15,4 +15,4 @@ END
 # Mathematically prove that step preserves positivity
 PROVE step
 
-27 { DUP 1 GT } { step } WHILE SAY DROP
+27 { DUP 1 GT } { step } WHILE SAID

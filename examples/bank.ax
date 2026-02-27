@@ -33,5 +33,5 @@ PROVE deposit
 PROVE withdraw
 
 # Demo: manual operations
-1000 200 deposit SAY DROP
-1000 300 withdraw SAY DROP
+1000 200 deposit SAID
+1000 300 withdraw SAID

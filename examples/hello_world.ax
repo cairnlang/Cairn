@@ -2,10 +2,10 @@
 #
 # Demonstrates basic string support.
 
-"Hello, World!" SAY DROP
+"Hello, World!" SAID
 
 # String concatenation
-"Hello, " "Axiom!" CONCAT SAY DROP
+"Hello, " "Axiom!" CONCAT SAID
 
 # Mix strings and numbers
-42 "The answer is:" SAY DROP SAY DROP
+42 "The answer is:" SAID SAID

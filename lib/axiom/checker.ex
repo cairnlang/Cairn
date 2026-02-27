@@ -227,6 +227,22 @@ defmodule Axiom.Checker do
     walk(rest, %{state | stack: Stack.push(state.stack, :bool)})
   end
 
+  # FMT with literal format string — count {} placeholders and pop that many values
+  defp walk([{:str_lit, text, _}, {:op, :fmt, pos} | rest], state) do
+    # Count {} placeholders (excluding {{ and }})
+    n = count_fmt_placeholders(text)
+
+    # Pop n values of :any type for the placeholders
+    case Stack.pop_n(state.stack, n) do
+      {_types, base} ->
+        walk(rest, %{state | stack: Stack.push(base, :str)})
+
+      :underflow ->
+        walk(rest, add_error(state, pos,
+          "FMT format string has #{n} placeholder(s) but not enough values on the stack"))
+    end
+  end
+
   defp walk([{:str_lit, _, _} | rest], state) do
     walk(rest, %{state | stack: Stack.push(state.stack, :str)})
   end
@@ -460,6 +476,22 @@ defmodule Axiom.Checker do
 
   defp walk([{:op, :while, pos} | rest], state) do
     check_while(pos, rest, state)
+  end
+
+  # FMT with dynamic (non-literal) format string — just pop :str, push :str
+  defp walk([{:op, :fmt, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, :str, stack_after_pop} ->
+        walk(rest, %{state | stack: Stack.push(stack_after_pop, :str)})
+
+      {:ok, other, _} ->
+        walk(rest, add_error(state, pos,
+          "FMT requires a str format string on top, got #{format_type(other)}"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos,
+          "FMT requires a format string on the stack (stack underflow)"))
+    end
   end
 
   # General operators - lookup effect
@@ -1134,4 +1166,12 @@ defmodule Axiom.Checker do
   defp format_type(other), do: inspect(other)
 
   defp format_op(op), do: String.upcase(to_string(op))
+
+  # Count {} placeholders in a format string, skipping {{ and }}
+  defp count_fmt_placeholders(text), do: count_fmt_placeholders_acc(text, 0)
+  defp count_fmt_placeholders_acc("", n), do: n
+  defp count_fmt_placeholders_acc("{{" <> rest, n), do: count_fmt_placeholders_acc(rest, n)
+  defp count_fmt_placeholders_acc("}}" <> rest, n), do: count_fmt_placeholders_acc(rest, n)
+  defp count_fmt_placeholders_acc("{}" <> rest, n), do: count_fmt_placeholders_acc(rest, n + 1)
+  defp count_fmt_placeholders_acc(<<_, rest::binary>>, n), do: count_fmt_placeholders_acc(rest, n)
 end

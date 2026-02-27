@@ -419,6 +419,33 @@ defmodule AxiomTest do
 
       assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [42]
     end
+
+    test "file mode prelude exposes modular helper functions" do
+      dir = make_tmp_dir()
+
+      source = """
+      " a\\n\\n b \\n\\n" lines_nonempty
+      LEN
+      0 "42" TO_INT result_unwrap_or
+      """
+
+      File.write!(Path.join(dir, "main.ax"), source)
+      assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [42, 2]
+    end
+
+    test "user definitions override prelude helpers in file mode" do
+      dir = make_tmp_dir()
+
+      source = """
+      DEF result_is_ok : result -> bool
+        DROP F
+      END
+      123 Ok result_is_ok
+      """
+
+      File.write!(Path.join(dir, "main.ax"), source)
+      assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [false]
+    end
   end
 
   # ── Iteration ──

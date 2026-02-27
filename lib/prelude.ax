@@ -1,33 +1,10 @@
-# Axiom prelude — auto-loaded for file execution (mix axiom.run / Axiom.eval_file)
-#
-# Keep this intentionally small and stable.
+# Axiom prelude facade — auto-loaded for file execution.
+# Keep this as a stable entrypoint; implementation lives in submodules.
 
-# Result helpers
-
-DEF result_is_ok : result -> bool
-  MATCH
-    Ok  { DROP T }
-    Err { DROP F }
-  END
-END
-
-DEF result_is_err : result -> bool
-  MATCH
-    Ok  { DROP F }
-    Err { DROP T }
-  END
-END
-
-# Signature: result any -> any (result on top, default below)
-DEF result_unwrap_or : result any -> any
-  MATCH
-    Ok  { SWAP DROP }  # keep value, drop default
-    Err { DROP }       # drop error message, keep default
-  END
-END
+IMPORT "prelude/result.ax"
+IMPORT "prelude/str.ax"
 
 # Convenience wrappers around safe parsing and I/O
-
 # Signature: str int -> int (text on top, default below)
 DEF to_int_or : str int -> int
   TO_INT result_unwrap_or

@@ -88,6 +88,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - `AXIOM_NO_PRELUDE=1` opt-out for deterministic/debug runs
 - `examples/option.ax` updated to use prelude result helpers
 
+### v0.5.5 — Modular Prelude Split
+- Split prelude implementation into modules: `lib/prelude/result.ax` and `lib/prelude/str.ax`
+- Kept `lib/prelude.ax` as a stable auto-loaded facade
+- Added reusable helpers: `result_is_ok`, `result_is_err`, `result_unwrap_or`, `lines_nonempty`, `csv_ints`
+- Added tests for modular prelude helpers and user override/shadowing in file mode
+
 ---
 
 ## Next Up
@@ -98,11 +104,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 **Deliverables:**
 
-- **Module split** — break prelude into focused files (`prelude/result.ax`, `prelude/option.ax`, `prelude/str.ax`, etc.)
 - **Extract common helpers** — move reusable patterns from examples into prelude modules
+- **Option module** — introduce `prelude/option.ax` and migrate `option` helpers from examples
 - **Stability policy** — document which prelude APIs are stable vs experimental
 
-**Why now:** The bootstrap prelude exists and is auto-loaded; now it needs breadth, structure, and API stability to support larger programs.
+**Why now:** The modular prelude is in place; now it needs breadth and API stability to support larger programs.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

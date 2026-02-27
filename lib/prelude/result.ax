@@ -1,0 +1,23 @@
+# Prelude: result helpers
+
+DEF result_is_ok : result -> bool
+  MATCH
+    Ok  { DROP T }
+    Err { DROP F }
+  END
+END
+
+DEF result_is_err : result -> bool
+  MATCH
+    Ok  { DROP F }
+    Err { DROP T }
+  END
+END
+
+# Signature: result any -> any (result on top, default below)
+DEF result_unwrap_or : result any -> any
+  MATCH
+    Ok  { SWAP DROP }  # keep value, drop default
+    Err { DROP }       # drop error message, keep default
+  END
+END

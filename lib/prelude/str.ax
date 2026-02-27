@@ -1,0 +1,13 @@
+# Prelude: string/list helpers
+
+# Trim each line and remove empty lines.
+DEF lines_nonempty : str -> [str]
+  LINES
+  { TRIM } MAP
+  { LEN 0 GT } FILTER
+END
+
+# Parse comma-separated integers using fail-fast conversion.
+DEF csv_ints : str -> [int]
+  "," SPLIT { TO_INT! } MAP
+END

@@ -5,6 +5,10 @@ IMPORT "lib/actor.ax"
 
 TYPE msg = Inc | Dec | Emit
 
+DEF emit_count : int -> int
+  DUP "count={}" FMT SAID
+END
+
 DEF queue_script : void
   Inc send_self
   Inc send_self
@@ -19,25 +23,25 @@ SPAWN msg {
   RECEIVE
     Inc { 1 ADD }
     Dec { 1 SUB }
-    Emit { DUP "count={}" FMT SAID }
+    Emit { emit_count }
   END
 
   RECEIVE
     Inc { 1 ADD }
     Dec { 1 SUB }
-    Emit { DUP "count={}" FMT SAID }
+    Emit { emit_count }
   END
 
   RECEIVE
     Inc { 1 ADD }
     Dec { 1 SUB }
-    Emit { DUP "count={}" FMT SAID }
+    Emit { emit_count }
   END
 
   RECEIVE
-    Inc { DUP "count={}" FMT SAID }
-    Dec { DUP "count={}" FMT SAID }
-    Emit { DUP "count={}" FMT SAID }
+    Inc { emit_count }
+    Dec { emit_count }
+    Emit { emit_count }
   END
 
   DROP

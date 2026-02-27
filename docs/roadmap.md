@@ -381,6 +381,17 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded examples index and docs to present the traffic-light actor pattern explicitly
 - Started a shared actor helper area under `examples/concurrency/lib/` with `lib/actor.ax`
 
+### v0.7.0h — Shared Actor Helper Refactor
+- Extracted common self-send behavior into `examples/concurrency/lib/actor.ax` (`send_self`)
+- Refactored runtime actor examples to use the shared actor helper
+- Fixed actor-context propagation so imported actor helpers participate in the same checker model as local helpers
+
+### v0.7.0i — Shared State Helpers And Practical Actor Example
+- Added `examples/concurrency/lib/state.ax` with a reusable state-preserving emit helper (`emit_keep`)
+- Refactored examples to use shared actor/state helper modules where that improved clarity without fighting the checker
+- Added `examples/concurrency/notifier.ax` as a more practical notifier-style actor workflow
+- Expanded concurrency runtime coverage and docs for the shared helper layer plus practical actor example
+
 ---
 
 ## Next Up

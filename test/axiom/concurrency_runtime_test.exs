@@ -86,4 +86,15 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert output =~ "phase=yellow"
     assert output =~ "phase=red"
   end
+
+  test "practical notifier actor can report queued and sent states" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/notifier.ax")
+        Process.sleep(30)
+      end)
+
+    assert output =~ "notifier=queued"
+    assert output =~ "notifier=sent"
+  end
 end

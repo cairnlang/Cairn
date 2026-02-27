@@ -171,5 +171,6 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/self_boot.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/two_pings.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/counter.ax")
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/notifier.ax")
   end
 end

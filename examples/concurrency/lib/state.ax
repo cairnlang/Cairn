@@ -1,0 +1,6 @@
+# examples/concurrency/lib/state.ax
+# Small helpers for stack-carried actor state.
+
+DEF emit_keep : any -> any
+  DUP SAY DROP
+END

@@ -1,0 +1,60 @@
+# examples/concurrency/notifier.ax
+# Practical actor example: track and report a notifier lifecycle.
+
+IMPORT "lib/actor.ax"
+IMPORT "lib/state.ax"
+
+TYPE msg = Queue | Deliver | Report
+
+DEF queue_script : void
+  Queue send_self
+  Report send_self
+  Deliver send_self
+  Report send_self
+END
+
+DEF queue_state : str -> str
+  DROP "notifier=queued"
+END
+
+DEF deliver_state : str -> str
+  DUP "notifier=queued" EQ
+  IF
+    DROP "notifier=sent"
+  ELSE
+    DROP "notifier=idle"
+  END
+END
+
+SPAWN msg {
+  queue_script
+  "notifier=idle"
+
+  RECEIVE
+    Queue { queue_state }
+    Deliver { deliver_state }
+    Report { emit_keep }
+  END
+
+  RECEIVE
+    Queue { queue_state }
+    Deliver { deliver_state }
+    Report { emit_keep }
+  END
+
+  RECEIVE
+    Queue { queue_state }
+    Deliver { deliver_state }
+    Report { emit_keep }
+  END
+
+  RECEIVE
+    Queue { queue_state }
+    Deliver { deliver_state }
+    Report { emit_keep }
+  END
+
+  DROP
+  DROP
+}
+DROP

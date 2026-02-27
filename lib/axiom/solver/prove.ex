@@ -30,28 +30,29 @@ defmodule Axiom.Solver.Prove do
     trace_level = trace_level(env)
     clear_trace_events()
     trace_started_at_ms = System.monotonic_time(:millisecond)
+    prove_env = with_trace_flag(env, trace_level, func.name)
+    base_meta = %{has_pre: not is_nil(func.pre_condition), has_post: not is_nil(func.post_condition), body_stack_depth: nil}
 
-    with :ok <- check_z3_available(),
-         prove_env <- with_trace_flag(env, trace_level, func.name),
-         {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, prove_env),
-         {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, with_phase(prove_env, "pre")),
-         prove_env <- enrich_env_with_pre_assumptions(prove_env, pre_constraint),
-         {:ok, result_stack} <- execute_body(func, body_stack, with_phase(prove_env, "body")),
-         {:ok, post_constraint} <- execute_post(func, result_stack, with_phase(prove_env, "post")) do
-      result = query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env)
-      maybe_emit_trace(func.name, result, trace_level, trace_started_at_ms)
-      result
-    else
-      {:unsupported, reason} ->
-        result = {:unknown, reason}
-        maybe_emit_trace(func.name, result, trace_level, trace_started_at_ms)
-        result
+    result_and_meta =
+      with :ok <- check_z3_available(),
+           {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, prove_env),
+           {:ok, pre_constraint, body_stack} <- execute_pre_traced(func, initial_stack, with_phase(prove_env, "pre")),
+           prove_env <- enrich_env_with_pre_assumptions(prove_env, pre_constraint),
+           {:ok, result_stack} <- execute_body_traced(func, body_stack, with_phase(prove_env, "body")),
+           {:ok, post_constraint} <- execute_post_traced(func, result_stack, with_phase(prove_env, "post")),
+           {result, _z3_meta} <- query_z3_traced(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env) do
+        {result, Map.put(base_meta, :body_stack_depth, length(result_stack))}
+      else
+        {:unsupported, reason} ->
+          {{:unknown, reason}, base_meta}
 
-      {:error, reason} ->
-        result = {:error, reason}
-        maybe_emit_trace(func.name, result, trace_level, trace_started_at_ms)
-        result
-    end
+        {:error, reason} ->
+          {{:error, reason}, base_meta}
+      end
+
+    {result, run_meta} = result_and_meta
+    maybe_emit_trace(func.name, result, trace_level, trace_started_at_ms, run_meta)
+    result
   end
 
   defp check_z3_available do
@@ -80,11 +81,72 @@ defmodule Axiom.Solver.Prove do
     end
   end
 
+  defp execute_pre_traced(func, initial_stack, env) do
+    case execute_pre(func, initial_stack, env) do
+      {:ok, _constraint, body_stack} = ok ->
+        append_trace_event(%{
+          event: "pre_executed",
+          phase: "pre",
+          status: "ok",
+          has_pre: not is_nil(func.pre_condition),
+          stack_depth: length(body_stack)
+        })
+
+        ok
+
+      {:unsupported, reason} = err ->
+        append_trace_event(%{
+          event: "pre_executed",
+          phase: "pre",
+          status: "unsupported",
+          has_pre: not is_nil(func.pre_condition),
+          reason: reason
+        })
+
+        err
+
+      {:error, reason} = err ->
+        append_trace_event(%{
+          event: "pre_executed",
+          phase: "pre",
+          status: "error",
+          has_pre: not is_nil(func.pre_condition),
+          reason: reason
+        })
+
+        err
+    end
+  end
+
   # Execute body symbolically
   defp execute_body(%Function{body: body}, stack, env) do
     case Symbolic.execute(body, stack, env) do
       {:ok, _} = result -> result
       {:unsupported, _} = result -> result
+    end
+  end
+
+  defp execute_body_traced(func, stack, env) do
+    case execute_body(func, stack, env) do
+      {:ok, result_stack} = ok ->
+        append_trace_event(%{
+          event: "body_executed",
+          phase: "body",
+          status: "ok",
+          stack_depth: length(result_stack)
+        })
+
+        ok
+
+      {:unsupported, reason} = err ->
+        append_trace_event(%{
+          event: "body_executed",
+          phase: "body",
+          status: "unsupported",
+          reason: reason
+        })
+
+        err
     end
   end
 
@@ -106,19 +168,72 @@ defmodule Axiom.Solver.Prove do
     end
   end
 
-  # Generate SMT-LIB, query Z3, interpret result
-  defp query_z3(vars, pre_constraint, post_constraint, func, env) do
-    script = SmtLib.build_script(vars, pre_constraint, post_constraint)
+  defp execute_post_traced(func, result_stack, env) do
+    case execute_post(func, result_stack, env) do
+      {:ok, _constraint} = ok ->
+        append_trace_event(%{
+          event: "post_executed",
+          phase: "post",
+          status: "ok",
+          has_post: not is_nil(func.post_condition),
+          stack_depth: length(result_stack)
+        })
 
-    case Z3.query(script) do
+        ok
+
+      {:unsupported, reason} = err ->
+        append_trace_event(%{
+          event: "post_executed",
+          phase: "post",
+          status: "unsupported",
+          has_post: not is_nil(func.post_condition),
+          reason: reason
+        })
+
+        err
+
+      {:error, reason} = err ->
+        append_trace_event(%{
+          event: "post_executed",
+          phase: "post",
+          status: "error",
+          has_post: not is_nil(func.post_condition),
+          reason: reason
+        })
+
+        err
+    end
+  end
+
+  # Generate SMT-LIB, query Z3, interpret result
+  defp query_z3_traced(vars, pre_constraint, post_constraint, func, env) do
+    script = SmtLib.build_script(vars, pre_constraint, post_constraint)
+    z3_raw = Z3.query(script)
+
+    z3_result =
+      case z3_raw do
+        :unsat -> "unsat"
+        {:sat, _model} -> "sat"
+        {:error, _reason} -> "error"
+      end
+
+    append_trace_event(%{
+      event: "z3_query",
+      phase: "solve",
+      status: "ok",
+      var_count: length(vars),
+      z3_result: z3_result
+    })
+
+    case z3_raw do
       :unsat ->
-        {:proven, "POST holds for all inputs satisfying PRE"}
+        {{:proven, "POST holds for all inputs satisfying PRE"}, %{z3_result: "unsat"}}
 
       {:sat, model} ->
-        {:disproven, format_counterexample(model, func, env), model}
+        {{:disproven, format_counterexample(model, func, env), model}, %{z3_result: "sat"}}
 
       {:error, reason} ->
-        {:error, reason}
+        {{:error, reason}, %{z3_result: "error"}}
     end
   end
 
@@ -367,9 +482,9 @@ defmodule Axiom.Solver.Prove do
     |> Map.put("__prove_func_name__", func_name)
   end
 
-  defp maybe_emit_trace(_func_name, _result, :off, _started_at_ms), do: :ok
+  defp maybe_emit_trace(_func_name, _result, :off, _started_at_ms, _run_meta), do: :ok
 
-  defp maybe_emit_trace(func_name, result, :json, started_at_ms) do
+  defp maybe_emit_trace(func_name, result, :json, started_at_ms, run_meta) do
     status =
       case result do
         {:proven, _} -> "PROVEN"
@@ -380,14 +495,18 @@ defmodule Axiom.Solver.Prove do
 
     events = get_trace_events()
     elapsed_ms = max(System.monotonic_time(:millisecond) - started_at_ms, 0)
-    pruned_total = Enum.reduce(events, 0, fn e, acc -> acc + length(Map.get(e, :pruned, [])) end)
-    match_count = length(events)
+    match_events = Enum.filter(events, fn e -> Map.get(e, :event) == "match_decision" end)
+    pruned_total = Enum.reduce(match_events, 0, fn e, acc -> acc + length(Map.get(e, :pruned, [])) end)
+    match_count = length(match_events)
+    {unknown_reason, error_reason} = result_reasons(result)
 
     run_start = %{
       event: "prove_run_start",
       function: func_name,
       status: status,
-      trace_level: "json"
+      trace_level: "json",
+      has_pre: Map.get(run_meta, :has_pre, false),
+      has_post: Map.get(run_meta, :has_post, false)
     }
 
     run_end = %{
@@ -397,7 +516,12 @@ defmodule Axiom.Solver.Prove do
       trace_level: "json",
       match_event_count: match_count,
       pruned_branch_count: pruned_total,
-      elapsed_ms: elapsed_ms
+      elapsed_ms: elapsed_ms,
+      body_stack_depth: Map.get(run_meta, :body_stack_depth, nil),
+      has_pre: Map.get(run_meta, :has_pre, false),
+      has_post: Map.get(run_meta, :has_post, false),
+      unknown_reason: unknown_reason,
+      error_reason: error_reason
     }
 
     all_events = [run_start | events] ++ [run_end]
@@ -418,7 +542,7 @@ defmodule Axiom.Solver.Prove do
     :ok
   end
 
-  defp maybe_emit_trace(func_name, result, trace_level, _started_at_ms) when trace_level in [:summary, :verbose] do
+  defp maybe_emit_trace(func_name, result, trace_level, _started_at_ms, _run_meta) when trace_level in [:summary, :verbose] do
     status =
       case result do
         {:proven, _} -> "PROVEN"
@@ -445,12 +569,21 @@ defmodule Axiom.Solver.Prove do
     Process.put(:axiom_prove_trace_events, [])
   end
 
+  defp append_trace_event(event) when is_map(event) do
+    events = Process.get(:axiom_prove_trace_events, [])
+    Process.put(:axiom_prove_trace_events, [event | events])
+  end
+
   defp get_trace_events do
     (Process.get(:axiom_prove_trace_events) || [])
     |> Enum.reverse()
   end
 
   defp with_phase(env, phase), do: Map.put(env, "__prove_phase__", phase)
+
+  defp result_reasons({:unknown, reason}), do: {reason, nil}
+  defp result_reasons({:error, reason}), do: {nil, reason}
+  defp result_reasons(_), do: {nil, nil}
 
   defp human_trace_line(event, :summary) do
     pruned_txt =

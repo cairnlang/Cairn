@@ -157,6 +157,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added inferred assumption snapshots (`eq` / `neq`) to MATCH decision events
 - Added solver coverage for schema stability of run metadata and match context fields
 
+### v0.6.0k — JSON Proof Lifecycle Events
+- JSON trace now emits lifecycle events: `pre_executed`, `body_executed`, `post_executed`, `z3_query`
+- `prove_run_end` now includes `unknown_reason` / `error_reason` and compact run stats (`body_stack_depth`, counts, elapsed time)
+- Added solver coverage for lifecycle event presence and UNKNOWN-run metadata behavior
+
 ---
 
 ## Next Up
@@ -168,10 +173,10 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 **Deliverables:**
 
 - **Broader constructor inference** — recognize additional refinement-like PRE patterns around MATCH helpers
-- **Richer structured diagnostics** — expand proof context fields beyond match-level pruning data
+- **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** richer JSON metadata is in place; next gains are deeper inference and broader proof context.
+**Why now:** lifecycle metadata is in place; next gains are deeper inference and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

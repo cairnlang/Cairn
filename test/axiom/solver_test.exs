@@ -1352,7 +1352,7 @@ defmodule Axiom.SolverTest do
       assert stderr == ""
     end
 
-    test "trace json mode emits one JSON object per MATCH decision to stderr" do
+    test "trace json mode emits lifecycle + MATCH decision events to stderr" do
       source = """
       TYPE shape = Circle int | Square int
 
@@ -1396,6 +1396,10 @@ defmodule Axiom.SolverTest do
       refute stderr =~ "PROVE TRACE"
       assert stderr =~ "\"event\":\"prove_run_start\""
       assert stderr =~ "\"event\":\"prove_run_end\""
+      assert stderr =~ "\"event\":\"pre_executed\""
+      assert stderr =~ "\"event\":\"body_executed\""
+      assert stderr =~ "\"event\":\"post_executed\""
+      assert stderr =~ "\"event\":\"z3_query\""
       assert stderr =~ "\"event\":\"match_decision\""
       assert stderr =~ "\"trace_level\":\"json\""
       assert stderr =~ "\"function\":\"square_only_abs_trace_json\""
@@ -1409,9 +1413,51 @@ defmodule Axiom.SolverTest do
       assert stderr =~ "\"elapsed_ms\":"
       assert stderr =~ "\"match_event_count\":"
       assert stderr =~ "\"pruned_branch_count\":"
+      assert stderr =~ "\"body_stack_depth\":"
+      assert stderr =~ "\"has_pre\":true"
+      assert stderr =~ "\"has_post\":true"
+      assert stderr =~ "\"unknown_reason\":null"
+      assert stderr =~ "\"error_reason\":null"
+      assert stderr =~ "\"var_count\":"
+      assert stderr =~ "\"z3_result\":\"unsat\""
       assert stderr =~ "\"explored\":"
       assert stderr =~ "\"pruned\":"
       assert stderr =~ "\"reason\":"
+    end
+
+    test "trace json mode includes unknown_reason in run_end for UNKNOWN proofs" do
+      source = """
+      DEF trace_unknown_json : int -> int
+        LEN
+        POST DUP 0 GTE
+      END
+
+      PROVE trace_unknown_json
+      """
+
+      parent = self()
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          stdout =
+            ExUnit.CaptureIO.capture_io(fn ->
+              Axiom.eval_with_env(source, %{"__prove_trace__" => :json})
+            end)
+
+          send(parent, {:captured_stdout, stdout})
+        end)
+
+      stdout =
+        receive do
+          {:captured_stdout, out} -> out
+        end
+
+      assert stdout =~ "PROVE trace_unknown_json: UNKNOWN"
+      assert stderr =~ "\"event\":\"prove_run_end\""
+      assert stderr =~ "\"status\":\"UNKNOWN\""
+      assert stderr =~ "\"unknown_reason\":"
+      assert stderr =~ "\"error_reason\":null"
+      refute stderr =~ "\"event\":\"z3_query\""
     end
   end
 

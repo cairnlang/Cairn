@@ -150,7 +150,7 @@ mix axiom.run examples/bank.ax
 
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
-Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax` and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, and `traffic_light.ax` exercise the current runtime actor path (`traffic_light.ax` demonstrates named state transitions over stack-carried actor state).
+Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax` and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, and `traffic_light.ax` exercise the current runtime actor path (`traffic_light.ax` demonstrates named state transitions over stack-carried actor state). Shared actor helpers now live under `examples/concurrency/lib/` (starting with `lib/actor.ax`).
 
 ### Practical Mini-Apps
 

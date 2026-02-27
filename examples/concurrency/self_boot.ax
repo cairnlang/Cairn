@@ -1,10 +1,12 @@
 # examples/concurrency/self_boot.ax
 # Demonstrates SELF by sending the actor a bootstrap message to itself.
 
+IMPORT "lib/actor.ax"
+
 TYPE msg = Boot
 
 DEF send_boot : void
-  SELF Boot SEND
+  Boot send_self
 END
 
 SPAWN msg {

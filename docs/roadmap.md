@@ -379,6 +379,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Demonstrated a clearer application-level actor pattern (phase emission + phase transition) without new runtime features
 - Expanded concurrency runtime coverage for multi-step named state transitions
 - Expanded examples index and docs to present the traffic-light actor pattern explicitly
+- Started a shared actor helper area under `examples/concurrency/lib/` with `lib/actor.ax`
 
 ---
 

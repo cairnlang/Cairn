@@ -1412,7 +1412,7 @@ defmodule Axiom.Checker do
   defp expand_actor_required(functions, type_env, required) do
     expanded =
       Enum.reduce(functions, required, fn {name, func}, acc ->
-        if MapSet.member?(acc, name) or function_calls_actor_required?(func, acc, type_env) do
+        if MapSet.member?(acc, name) or function_calls_actor_required?(func, acc) do
           MapSet.put(acc, name)
         else
           acc
@@ -1422,13 +1422,11 @@ defmodule Axiom.Checker do
     if MapSet.equal?(expanded, required), do: expanded, else: expand_actor_required(functions, type_env, expanded)
   end
 
-  defp function_calls_actor_required?(func, required, type_env) do
+  defp function_calls_actor_required?(func, required) do
     referenced_names(func.body)
     |> Enum.concat(referenced_names(func.pre_condition))
     |> Enum.concat(referenced_names(func.post_condition))
-    |> Enum.any?(fn name ->
-      MapSet.member?(required, name) and Map.has_key?(type_env, name)
-    end)
+    |> Enum.any?(fn name -> MapSet.member?(required, name) end)
   end
 
   defp tokens_require_actor?(nil), do: false

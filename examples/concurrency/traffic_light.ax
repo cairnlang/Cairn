@@ -1,16 +1,18 @@
 # examples/concurrency/traffic_light.ax
 # Stateful actor example with named phase transitions over stack-carried state.
 
+IMPORT "lib/actor.ax"
+
 TYPE msg = Tick | Emit
 
 DEF queue_cycle : void
-  SELF Emit SEND
-  SELF Tick SEND
-  SELF Emit SEND
-  SELF Tick SEND
-  SELF Emit SEND
-  SELF Tick SEND
-  SELF Emit SEND
+  Emit send_self
+  Tick send_self
+  Emit send_self
+  Tick send_self
+  Emit send_self
+  Tick send_self
+  Emit send_self
 END
 
 DEF next_phase : str -> str

@@ -1,13 +1,15 @@
 # examples/concurrency/counter.ax
 # Stateful actor example: state lives on the stack across repeated actor-local RECEIVE steps.
 
+IMPORT "lib/actor.ax"
+
 TYPE msg = Inc | Dec | Emit
 
 DEF queue_script : void
-  SELF Inc SEND
-  SELF Inc SEND
-  SELF Dec SEND
-  SELF Emit SEND
+  Inc send_self
+  Inc send_self
+  Dec send_self
+  Emit send_self
 END
 
 SPAWN msg {

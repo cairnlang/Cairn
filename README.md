@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.7.0m**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, tag-assumption bounds (`gt/gte/lt/lte`), broader helper-comparison inference (including `eq/neq` and bounded affine/multiplicative constant wrappers over tag-boolean `ite` encodings), stabilization guardrails (PRE idempotence checks, trace ordering/schema stability, and all-proven performance budget checks), tactical PRE-freeze governance with rule-admission gating, clearer PROVE UNKNOWN/ERROR hints, CLI run-summary diagnostics, discoverable CLI/prelude guidance via `mix axiom.run --help` / `--show-prelude`, consistent structured diagnostics (`ERROR kind=...` plus optional `--json-errors`), categorized runnable example discovery via `mix axiom.run --examples`, practical mini-app examples under `examples/practical/`, curated example smoke coverage in tests, practical-programs milestone starters (ledger/todo end-to-end file workflows with IMPORT+prelude+VERIFY), stronger app-level assertions, report round-trip checks, argv-driven file-backed flows (`ledger_cli.ax`), larger module-split practical expenses workflow (`expenses.ax`) with deterministic smoke markers, composed cross-file cashflow + alerts workflows (`cashflow.ax` + `cashflow_alerts.ax`) with shared report/assert helpers, practical milestone consolidation (`all_practical.ax`, dedicated `mix test.practical`, and practical pipeline docs), plus typed-concurrency foundations and early lifecycle semantics (`pid[T]`, static+runtime `SPAWN`, `SPAWN_LINK`, `SEND`, non-blocking `MONITOR`, `AWAIT`, reusable `block[T]`-typed supervision helpers, one-shot and actor-local `RECEIVE`, actor-only `EXIT`, `SELF`, actor-context-aware helper calls, shared actor/state/supervision example libs, stack-carried actor state, named actor transition helpers, minimal restart workflows, explicit supervisor/worker examples, practical notifier-style actor examples, spawned self-pid stack discipline, and concurrency examples), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.7.0m**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **contracts** (`PRE`/`POST`), **property-based verification** (`VERIFY`), and **compile-time proof** (`PROVE`) alongside practical file-backed workflows, typed-concurrency foundations on the BEAM (`pid[T]`, `SPAWN`, `SPAWN_LINK`, `SEND`, actor-local `RECEIVE`, `SELF`, `EXIT`, `MONITOR`/`AWAIT`), reusable example libs, **maps**, closures, loops, string primitives, interactive I/O, `FMT`/`SAID`, recursive `IMPORT`, safe-by-default fallible operations via built-in `result`, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -22,58 +22,14 @@ mix axiom.run examples/recur.ax
 # Algebraic data types + pattern matching
 mix axiom.run examples/option.ax
 
-# Verify contracts with random testing + compile-time proof
+# Verify contracts (randomized + solver-backed)
 mix axiom.run examples/bank.ax
 
-# Run all proven PROVE showcases
+# Run the curated proof examples
 mix axiom.run examples/prove/all_proven.ax
 
-# PRE-driven MATCH branch pruning in PROVE (new v0.6.0e slice)
-mix axiom.run examples/prove/proven_shape_pruned.ax
-
-# Helper-boolean PRE refinement for MATCH pruning (v0.6.0l)
-mix axiom.run examples/prove/proven_shape_refine.ax
-
-# Composed-helper PRE narrowing in PROVE (new v0.6.0m slice)
-mix axiom.run examples/prove/proven_shape_composed.ax
-
-# Split-guard helper narrowing in PROVE (new v0.6.0n slice)
-mix axiom.run examples/prove/proven_shape_split.ax
-
-# Implication + antecedent PRE narrowing in PROVE (new v0.6.0o slice)
-mix axiom.run examples/prove/proven_shape_implication.ax
-
-# Canonicalized noisy PRE guard narrowing in PROVE (new v0.6.0p slice)
-mix axiom.run examples/prove/proven_shape_canonical.ax
-
-# DeMorgan/comparison-negation PRE narrowing in PROVE (new v0.6.0r slice)
-mix axiom.run examples/prove/proven_shape_demorgan.ax
-
-# Comparison-pair contradiction pruning in PRE narrowing (new v0.6.0s slice)
-mix axiom.run examples/prove/proven_shape_pair_prune.ax
-
-# Interval-merge PRE narrowing in PROVE (new v0.6.0t slice)
-mix axiom.run examples/prove/proven_shape_interval_merge.ax
-
-# Shared-conjunct factoring in PRE disjunctions (new v0.6.0u slice)
-mix axiom.run examples/prove/proven_shape_factored.ax
-
-# Guarded OR distribution in PRE normalization (new v0.6.0v slice)
-mix axiom.run examples/prove/proven_shape_distribute.ax
-
-# Consensus reduction in PRE conjunctions (new v0.6.0w slice)
-mix axiom.run examples/prove/proven_shape_consensus.ax
-
-# Tag-bound + helper-comparison constructor narrowing demos (v0.6.0ab)
-mix axiom.run examples/prove/proven_shape_tag_bounds.ax
-mix axiom.run examples/prove/proven_shape_tag_bounds_eq.ax
-mix axiom.run examples/prove/proven_shape_tag_bounds_mul.ax
-
-# PROVE trace diagnostics for pruning + PRE rewrites (v0.6.0x)
-AXIOM_PROVE_TRACE=summary mix axiom.run examples/prove/proven_shape_trace.ax
-AXIOM_PROVE_TRACE=verbose mix axiom.run examples/prove/proven_shape_trace.ax
-AXIOM_PROVE_TRACE=json mix axiom.run examples/prove/proven_shape_trace.ax
-AXIOM_PROVE_TRACE=json mix axiom.run examples/prove/proven_shape_trace_rewrites.ax
+# Proof details, solver notes, and trace modes:
+# see docs/prove.md
 
 # JSON parser + encoder demo (modular IMPORT example)
 mix axiom.run examples/json/demo.ax
@@ -152,6 +108,7 @@ mix axiom.run examples/bank.ax
 ```
 
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
+See [`docs/prove.md`](docs/prove.md) for PROVE-specific details, solver behavior, and trace modes.
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
 Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax` and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, and `supervisor_worker.ax` exercise the current runtime actor path (`notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` intentionally terminate the linked caller and are kept out of the normal runnable examples list.
 
@@ -514,7 +471,7 @@ VERIFY withdraw_buggy 100
 
 ### PROVE — Compile-Time Verification via Z3
 
-`PROVE` mathematically proves that a function's POST condition holds for **all** inputs satisfying PRE. Unlike VERIFY (probabilistic), PROVE gives certainty by symbolically executing the function and querying the Z3 SMT solver. Requires `z3` on PATH.
+`PROVE` mathematically proves that a function's POST condition holds for **all** inputs satisfying PRE. Unlike VERIFY (probabilistic), PROVE gives certainty by symbolically executing the function and querying Z3. Requires `z3` on PATH.
 
 ```
 DEF deposit : int int -> int
@@ -544,7 +501,7 @@ PROVE withdraw_buggy
 For ADT params, counterexamples are now decoded in constructor form (see `examples/prove/proven_shape_buggy.ax`), e.g. `p0 = Circle(-1)`.
 To print MATCH pruning diagnostics, run with `AXIOM_PROVE_TRACE=summary`, `AXIOM_PROVE_TRACE=verbose`, or `AXIOM_PROVE_TRACE=json` (trace goes to stderr; see `examples/prove/proven_shape_trace.ax`).
 
-PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ, ABS, MIN, MAX), IF/ELSE branching, function calls (inlined up to depth 10), all comparisons, logic ops, and stack manipulation. IF/ELSE branches are encoded as SMT-LIB `ite` nodes so Z3 handles case analysis natively. Function calls are inlined during symbolic execution, enabling compositional proofs across helper functions. For ADT MATCH proofs, PRE-derived constructor constraints can prune unreachable MATCH branches, including richer PRE boolean shapes (`AND`/`OR`/`NOT`). For functions using lists, maps, or loops in reachable symbolic paths, PROVE returns UNKNOWN with targeted hints that point to VERIFY or proof-surface simplification.
+For the full proof surface, trace modes, and solver details, see [`docs/prove.md`](docs/prove.md).
 
 ### Higher-Order Operations
 
@@ -927,13 +884,7 @@ Errors are reported with position information and the checker continues after er
 
 ### PROVE Solver
 
-`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/aa/ab` supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs, with constructor-shaped counterexample decoding for ADT params, PRE-driven branch pruning (including richer PRE boolean forms, helper-boolean equality refinement, composed-helper normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization, bounded DeMorgan/comparison-negation pushdown, local contradiction/tautology pruning for comparison pairs, interval-merge bound tightening, bounded shared-conjunct factoring, guarded one-step distribution, bounded consensus reduction, rewrite-aware trace diagnostics, extended tag-assumption bounds, and broader helper-comparison extraction for tag boolean encodings), and optional trace diagnostics via `AXIOM_PROVE_TRACE=summary|verbose|json` (or per-call `__prove_trace__` in API mode).
-
-`AXIOM_PROVE_TRACE=json` emits structured stderr events. Event kinds include:
-- `prove_run_start` / `prove_run_end` (run metadata, counts, elapsed time)
-- `pre_executed` / `body_executed` / `post_executed` / `z3_query` (proof lifecycle)
-- `match_decision` (with `event_index`, `match_site_id`, `phase`, `assumptions`, `inference_source`, `pre_raw`, `pre_normalized`, `pre_rewrite_summary`, `explored`, `pruned`, `reason`)
-- `rewrite_applied` (with `rule`, `before`, `after` in pre-normalization phase)
+The detailed solver pipeline, supported proof surface, and trace event formats are documented in [`docs/prove.md`](docs/prove.md).
 
 The content-addressed DAG (ETS-backed) is in place for future use in multi-agent workflows and compilation to BEAM bytecode.
 

@@ -482,6 +482,8 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 
 **Bounded slices now landed:** the first collection-helper pass added `ZIP`, `ENUMERATE`, and `FLAT_MAP`; the follow-up pass added `TAKE`, `FIND`, and `GROUP_BY`. The shape-heavy cases still use a pragmatic type story, and `examples/collections.ax` now serves as the focused showcase for the whole mini-stack.
 
+**Current concurrency examples also now include a bounded binary-search game slice:** `examples/concurrency/guess_binary.ax` proves the current actor runtime is usable for a small stateful search workflow without adding any new concurrency primitives.
+
 #### 2. Float Math As Explicit Float Ops
 **Goal:** Add practical numeric capability without forcing a broader numeric-type redesign yet.
 

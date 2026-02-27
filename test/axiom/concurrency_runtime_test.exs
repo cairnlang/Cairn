@@ -191,6 +191,17 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert output =~ "supervisor_seen=normal"
   end
 
+  test "binary-search guesser can converge on the referee target and finish" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/guess_binary.ax")
+        Process.sleep(30)
+      end)
+
+    assert output =~ "guess="
+    assert output =~ "solved="
+  end
+
   test "protocol mismatch example fails with a static error" do
     assert_raise Axiom.StaticError, ~r/SEND under protocol expects Ping, got Pong/, fn ->
       Axiom.eval_file("examples/concurrency/protocol_mismatch.ax")

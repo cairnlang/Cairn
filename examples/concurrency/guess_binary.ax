@@ -1,0 +1,292 @@
+# examples/concurrency/guess_binary.ax
+# Bounded actor demo: a single guesser uses binary search against a referee's random target.
+
+TYPE msg = Start pid[msg] | Peer pid[msg] | Guess int | TooLow | TooHigh | Correct
+
+DEF midpoint : int int -> int
+  ADD 2 DIV
+END
+
+SPAWN msg {
+  RECEIVE
+    Peer { }
+    _ { SELF }
+  END
+
+  100 RANDOM LET target
+  F LET done
+
+  done NOT IF
+    RECEIVE
+      Guess {
+        DUP target EQ
+        IF
+          DROP DUP Correct SEND
+          T LET done
+        ELSE
+          DUP target LT
+          IF
+            DROP DUP TooLow SEND
+          ELSE
+            DROP DUP TooHigh SEND
+          END
+        END
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    RECEIVE
+      Guess {
+        DUP target EQ
+        IF
+          DROP DUP Correct SEND
+          T LET done
+        ELSE
+          DUP target LT
+          IF
+            DROP DUP TooLow SEND
+          ELSE
+            DROP DUP TooHigh SEND
+          END
+        END
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    RECEIVE
+      Guess {
+        DUP target EQ
+        IF
+          DROP DUP Correct SEND
+          T LET done
+        ELSE
+          DUP target LT
+          IF
+            DROP DUP TooLow SEND
+          ELSE
+            DROP DUP TooHigh SEND
+          END
+        END
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    RECEIVE
+      Guess {
+        DUP target EQ
+        IF
+          DROP DUP Correct SEND
+          T LET done
+        ELSE
+          DUP target LT
+          IF
+            DROP DUP TooLow SEND
+          ELSE
+            DROP DUP TooHigh SEND
+          END
+        END
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    RECEIVE
+      Guess {
+        DUP target EQ
+        IF
+          DROP DUP Correct SEND
+          T LET done
+        ELSE
+          DUP target LT
+          IF
+            DROP DUP TooLow SEND
+          ELSE
+            DROP DUP TooHigh SEND
+          END
+        END
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    RECEIVE
+      Guess {
+        DUP target EQ
+        IF
+          DROP DUP Correct SEND
+          T LET done
+        ELSE
+          DUP target LT
+          IF
+            DROP DUP TooLow SEND
+          ELSE
+            DROP DUP TooHigh SEND
+          END
+        END
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    RECEIVE
+      Guess {
+        DUP target EQ
+        IF
+          DROP DUP Correct SEND
+          T LET done
+        ELSE
+          DUP target LT
+          IF
+            DROP DUP TooLow SEND
+          ELSE
+            DROP DUP TooHigh SEND
+          END
+        END
+      }
+      _ { }
+    END
+  END
+
+  DROP
+  DROP
+}
+LET ref
+
+SPAWN msg {
+  RECEIVE
+    Start { }
+    _ { SELF }
+  END
+
+  1 LET low
+  100 LET high
+  F LET done
+
+  done NOT IF
+    high low midpoint
+    DUP LET guess
+    DUP "guess={}" FMT SAID
+    OVER SWAP Guess SEND
+    RECEIVE
+      TooLow { guess 1 ADD LET low }
+      TooHigh { guess 1 SUB LET high }
+      Correct {
+        guess "solved={}" FMT SAID
+        T LET done
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    high low midpoint
+    DUP LET guess
+    DUP "guess={}" FMT SAID
+    OVER SWAP Guess SEND
+    RECEIVE
+      TooLow { guess 1 ADD LET low }
+      TooHigh { guess 1 SUB LET high }
+      Correct {
+        guess "solved={}" FMT SAID
+        T LET done
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    high low midpoint
+    DUP LET guess
+    DUP "guess={}" FMT SAID
+    OVER SWAP Guess SEND
+    RECEIVE
+      TooLow { guess 1 ADD LET low }
+      TooHigh { guess 1 SUB LET high }
+      Correct {
+        guess "solved={}" FMT SAID
+        T LET done
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    high low midpoint
+    DUP LET guess
+    DUP "guess={}" FMT SAID
+    OVER SWAP Guess SEND
+    RECEIVE
+      TooLow { guess 1 ADD LET low }
+      TooHigh { guess 1 SUB LET high }
+      Correct {
+        guess "solved={}" FMT SAID
+        T LET done
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    high low midpoint
+    DUP LET guess
+    DUP "guess={}" FMT SAID
+    OVER SWAP Guess SEND
+    RECEIVE
+      TooLow { guess 1 ADD LET low }
+      TooHigh { guess 1 SUB LET high }
+      Correct {
+        guess "solved={}" FMT SAID
+        T LET done
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    high low midpoint
+    DUP LET guess
+    DUP "guess={}" FMT SAID
+    OVER SWAP Guess SEND
+    RECEIVE
+      TooLow { guess 1 ADD LET low }
+      TooHigh { guess 1 SUB LET high }
+      Correct {
+        guess "solved={}" FMT SAID
+        T LET done
+      }
+      _ { }
+    END
+  END
+
+  done NOT IF
+    high low midpoint
+    DUP LET guess
+    DUP "guess={}" FMT SAID
+    OVER SWAP Guess SEND
+    RECEIVE
+      TooLow { guess 1 ADD LET low }
+      TooHigh { guess 1 SUB LET high }
+      Correct {
+        guess "solved={}" FMT SAID
+        T LET done
+      }
+      _ { }
+    END
+  END
+
+  DROP
+  DROP
+}
+LET guesser
+
+guesser Peer ref SWAP SEND
+ref Start guesser SWAP SEND

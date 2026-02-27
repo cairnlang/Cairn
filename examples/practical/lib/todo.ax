@@ -1,4 +1,5 @@
 # examples/practical/lib/todo.ax — helpers for simple todo files
+IMPORT "report_common.ax"
 
 DEF todo_is_open : str -> bool
   "open|" STARTS_WITH
@@ -24,14 +25,9 @@ DEF todo_partition_ok : [str] -> bool
 END
 
 DEF todo_report_has_metrics : str -> bool
-  DUP "open=" CONTAINS
-  SWAP DUP "done=" CONTAINS
-  SWAP DUP "total=" CONTAINS
-  SWAP "done_pct=" CONTAINS
+  DUP "open=" report_contains
+  SWAP DUP "done=" report_contains
+  SWAP DUP "total=" report_contains
+  SWAP "done_pct=" report_contains
   AND AND AND
-END
-
-DEF assert_true : bool -> void
-  PRE { DUP }
-  DROP
 END

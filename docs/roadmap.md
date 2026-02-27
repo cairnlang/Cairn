@@ -317,6 +317,13 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added report round-trip assertion and practical VERIFY guard (`abs_total_nonneg`) for the expenses flow
 - Expanded examples index and smoke-marker assertions to include deterministic expenses outputs
 
+### v0.6.2d — Practical Programs Milestone (Pass 4)
+- Added shared practical helper module `examples/practical/lib/report_common.ax` to centralize assertions/report contains checks
+- Refactored ledger/todo/expenses report helpers to use shared report/assert helpers
+- Added composed cross-file workflow `examples/practical/cashflow.ax` (ledger + expenses inputs, combined cashflow metrics, report round-trip assertion)
+- Added composed helper module `examples/practical/lib/cashflow.ax` with contract-checked scoring function and report marker checks
+- Expanded examples index and smoke-marker assertions for deterministic cashflow output markers
+
 ---
 
 ## Next Up
@@ -325,7 +332,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.6.2d — Practical Programs Milestone (Pass 4)
+### v0.6.2e — Practical Programs Milestone (Pass 5)
 **Goal:** Demonstrate Axiom as a practical language beyond proof slices.
 
 **Deliverables:**

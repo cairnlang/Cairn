@@ -1,7 +1,7 @@
 defmodule Axiom.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax"]
+  @examples ["examples/hello_world.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -37,6 +37,19 @@ defmodule Axiom.ExamplesSmokeTest do
       "over_100=4",
       "report_ok=T",
       "VERIFY abs_total_nonneg: OK"
+    ])
+
+    assert_output_markers("examples/practical/cashflow.ax", [
+      "ledger_source=examples/practical/data/ledger.csv",
+      "expenses_source=examples/practical/data/expenses.csv",
+      "balance=65",
+      "expenses_total=1960",
+      "net_cashflow=-1895",
+      "volume=115",
+      "capacity=2075",
+      "cashflow_score=9",
+      "report_ok=T",
+      "VERIFY cashflow_score: OK"
     ])
   end
 

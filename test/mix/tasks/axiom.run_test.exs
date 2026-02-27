@@ -37,6 +37,7 @@ defmodule Mix.Tasks.Axiom.RunTest do
     assert output =~ "examples/practical/todo.ax"
     assert output =~ "examples/practical/ledger_cli.ax"
     assert output =~ "examples/practical/expenses.ax"
+    assert output =~ "examples/practical/cashflow.ax"
     assert output =~ "prelude:"
     assert output =~ "examples/prelude/result_flow.ax"
     assert output =~ "diagnostics:"

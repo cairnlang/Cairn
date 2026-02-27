@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Axiom.Run do
   ]
   @example_groups [
     {"basics", ["examples/hello_world.ax", "examples/collatz.ax", "examples/recur.ax", "examples/bank.ax"]},
-    {"practical", ["examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/ledger_cli.ax", "examples/practical/expenses.ax", "examples/imports/main.ax", "examples/json/demo.ax"]},
+    {"practical", ["examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/ledger_cli.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/imports/main.ax", "examples/json/demo.ax"]},
     {"prelude", ["examples/prelude/result_flow.ax", "examples/prelude/csv_parse.ax", "examples/prelude/io_safe.ax"]},
     {"diagnostics", ["examples/diagnostics/static_type.ax", "examples/diagnostics/runtime_div_zero.ax", "examples/diagnostics/contract_fail.ax"]},
     {"prove", ["examples/prove/all_proven.ax", "examples/prove/proven_option.ax", "examples/prove/proven_shape_trace.ax"]}

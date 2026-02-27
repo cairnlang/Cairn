@@ -1,4 +1,5 @@
 # examples/practical/lib/ledger.ax — helpers for transaction ledgers
+IMPORT "report_common.ax"
 
 DEF tx_balance : [int] -> int
   SUM
@@ -15,15 +16,10 @@ DEF ledger_balance_bounded : [int] -> bool
 END
 
 DEF report_has_metrics : str -> bool
-  DUP "balance=" CONTAINS
-  SWAP DUP "volume=" CONTAINS
-  SWAP "count=" CONTAINS
+  DUP "balance=" report_contains
+  SWAP DUP "volume=" report_contains
+  SWAP "count=" report_contains
   AND AND
-END
-
-DEF assert_true : bool -> void
-  PRE { DUP }
-  DROP
 END
 
 DEF credit_nonneg : int int -> int

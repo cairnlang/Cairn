@@ -81,7 +81,7 @@ END
 DEF parse_number : [str] -> [str] json
   "" SWAP          # [str] on top, "" accumulator below
   collect_num      # [[str_remaining], num_str]
-  SWAP TO_FLOAT JNum SWAP
+  SWAP TO_FLOAT! JNum SWAP
 END
 
 DEF parse_string : [str] -> [str] json

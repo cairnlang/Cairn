@@ -75,21 +75,25 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Import cycle detection with explicit error path
 - `Axiom.eval_file/3` and `mix axiom.run` execute with import resolution
 
+### v0.5.3 — Safe-By-Default Fallible Ops
+- Built-in prelude sum type: `TYPE result = Ok any | Err str`
+- Safe defaults return `result`: `READ_FILE`, `WRITE_FILE`, `TO_INT`, `TO_FLOAT`, `ASK`
+- Explicit fail-fast variants: `READ_FILE!`, `WRITE_FILE!`, `TO_INT!`, `TO_FLOAT!`, `ASK!`
+- Existing examples updated to use `!` where crash-on-error behavior is intended
+
 ---
 
 ## Next Up
 
 ### v0.5.x — Remaining Practical Language Features
 
-**Goal:** Finish practical ergonomics after IMPORT.
+**Goal:** Finish practical ergonomics after IMPORT and safe fallible ops.
 
 **Deliverables:**
 
-- **Error handling beyond contracts** — currently the only error mechanism is contract violations crashing. Need TRY/CATCH or Result-based error flow for I/O, parsing, and other fallible operations.
-
 - **Standard library extraction** — move common patterns (abs, max, min, clamp, etc.) from inline definitions into a prelude that's always available
 
-**Why now:** Axiom now supports multi-file composition via IMPORT, but robust recoverable errors and a standard prelude are still needed for larger real-world programs.
+**Why now:** Axiom now has multi-file composition and recoverable Result-based fallible operations. A standard prelude is the next missing piece for larger real-world programs.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

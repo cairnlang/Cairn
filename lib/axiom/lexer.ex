@@ -12,11 +12,11 @@ defmodule Axiom.Lexer do
                 SQ ABS NEG
                 TIMES WHILE APPLY
                 RANGE PRINT SAY
-                ARGV READ_FILE WRITE_FILE READ_LINE
+                ARGV READ_FILE WRITE_FILE READ_FILE! WRITE_FILE! READ_LINE
                 WORDS LINES CONTAINS
-                CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT NUM_STR JOIN
+                CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT TO_INT! TO_FLOAT! NUM_STR JOIN
                 GET PUT DEL KEYS VALUES HAS MLEN MERGE PAIRS
-                ASK RANDOM FMT SAID)
+                ASK ASK! RANDOM FMT SAID)
 
   @type_names ~w(int float bool any void str)
 

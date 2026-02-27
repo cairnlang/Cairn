@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.5.2**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, and a **JSON parser + encoder** written entirely in Axiom.
+**v0.5.3**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, and safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants.
 
 ## Quick Start
 
@@ -33,7 +33,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (648 tests)
+# Run tests (652 tests)
 mix test
 ```
 
@@ -76,7 +76,7 @@ int float bool str    # concrete types
 map[str int]          # map types (key type, value type)
 any                   # accepts any type
 void                  # function returns nothing
-option result         # user-defined algebraic types (see TYPE below)
+option result         # `option` user-defined; `result` is built-in (Ok/Err)
 ```
 
 Multi-return functions are supported:
@@ -140,8 +140,9 @@ SPLIT                          # pop delimiter, pop string, push split list
 TRIM                           # remove leading/trailing whitespace
 STARTS_WITH                    # pop prefix, pop string, push bool
 SLICE                          # pop len, pop start, pop string, push substring
-TO_INT                         # parse string as integer
-TO_FLOAT                       # parse string as float
+TO_INT                         # parse string as integer -> result (Ok int | Err str)
+TO_FLOAT                       # parse string as float -> result (Ok float | Err str)
+TO_INT! TO_FLOAT!              # unsafe parse variants (raise on failure)
 JOIN                           # pop separator, pop list of strings, push joined
 FMT                            # pop format string, pop values for {} placeholders, push result
 
@@ -149,10 +150,12 @@ FMT                            # pop format string, pop values for {} placeholde
 PRINT                          # non-destructive debug output (with label)
 SAY                            # non-destructive clean output (IO.puts)
 SAID                           # destructive SAY — prints value then drops it
-ASK                            # pop prompt string, print it, read line, push input
+ASK                            # pop prompt, read line, push result (Ok str | Err str)
+ASK!                           # unsafe ASK (raises on closed input)
 ARGV                           # push command-line args as a list of strings
-READ_FILE                      # pop filename, push file contents
-WRITE_FILE                     # pop contents and filename, write to file
+READ_FILE                      # pop filename, push result (Ok str | Err str)
+WRITE_FILE                     # pop contents + filename, push result (Ok any | Err str)
+READ_FILE! WRITE_FILE!         # unsafe file ops (raise on failure)
 READ_LINE                      # read one line from stdin
 RANDOM                         # pop N, push random integer in [1, N]
 ```
@@ -228,7 +231,6 @@ All previously defined functions are in scope inside a function body, including 
 
 ```
 TYPE option = None | Some int
-TYPE result = Ok int | Err str
 TYPE shape  = Circle float | Rect float float | Point
 ```
 
@@ -239,6 +241,8 @@ Constructors are called like stack words — they pop their fields and push a ta
 None           # pushes None — no fields
 "oops" Err     # pushes Err("oops")
 ```
+
+`result` is built in as `TYPE result = Ok any | Err str`.
 
 **Stack convention**: `param_types[0]` is the TOP of stack. To call a function that takes `option int`, push the `int` default first, then the `option` last:
 
@@ -417,11 +421,11 @@ PROVE supports integer arithmetic (ADD, SUB, MUL, DIV, MOD, NEG, SQ, ABS, MIN, M
 ARGV HEAD SAID             # print the first argument
 
 # cat — print a file's contents
-ARGV HEAD READ_FILE SAID
+ARGV HEAD READ_FILE! SAID
 # Usage: mix axiom.run examples/cat.ax somefile.txt
 
 # Write to a file
-"hello" "out.txt" WRITE_FILE
+"hello" "out.txt" WRITE_FILE!
 
 # Read a line from stdin
 READ_LINE SAID
@@ -435,7 +439,6 @@ Safe value handling without runtime exceptions (`examples/option.ax`):
 
 ```
 TYPE option = None | Some int
-TYPE result = Ok int | Err str
 
 DEF unwrap_or : option int -> int
   MATCH
@@ -606,7 +609,7 @@ DEF inc_word : str map[str int] -> map[str int]
   END
 END
 
-ARGV HEAD READ_FILE WORDS
+ARGV HEAD READ_FILE! WORDS
 M[] { inc_word } REDUCE
 SAID
 ```
@@ -667,7 +670,7 @@ mix axiom.run examples/json.ax
 
 ### Number Guessing Game
 
-An interactive game using LET, ASK, and RANDOM (`examples/guess.ax`):
+An interactive game using LET, ASK!, and RANDOM (`examples/guess.ax`):
 
 ```
 100 RANDOM LET secret
@@ -677,7 +680,7 @@ An interactive game using LET, ASK, and RANDOM (`examples/guess.ax`):
 0
 
 {
-  "Your guess? " ASK TO_INT LET guess
+  "Your guess? " ASK! TO_INT! LET guess
   1 ADD
   guess secret EQ IF
     DUP "Got it in {} tries!" FMT SAID
@@ -778,8 +781,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.4.1**: PROVE for IF/ELSE branches (via SMT-LIB `ite`), ABS/MIN/MAX, function call inlining
 - **v0.5.0**: LET bindings, ASK (prompted input), RANDOM, number guessing game example
 - **v0.5.1**: FMT string formatting and SAID destructive print
-- **v0.5.2** (current): IMPORT "file.ax" multi-file loading with recursive resolution, dedup, and cycle errors
-- **v0.5.x** (next): Remaining practical features — error handling and standard library
+- **v0.5.2**: IMPORT "file.ax" multi-file loading with recursive resolution, dedup, and cycle errors
+- **v0.5.3** (current): Safe-by-default fallible ops (`READ_FILE`, `WRITE_FILE`, `TO_INT`, `TO_FLOAT`, `ASK`) returning built-in `result`; explicit `!` unsafe variants
+- **v0.5.x** (next): Remaining practical feature — standard library/prelude extraction
 - **v0.6.0**: PROVE for MATCH/algebraic types, refinement-style reasoning
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation

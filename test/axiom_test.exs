@@ -669,27 +669,31 @@ defmodule AxiomTest do
       assert Axiom.eval("\"hello\" 0 2 SLICE") == ["he"]
     end
 
-    test "TO_INT parses integer string" do
-      assert Axiom.eval("\"42\" TO_INT") == [42]
+    test "TO_INT returns Ok integer on success" do
+      assert Axiom.eval("\"42\" TO_INT") == [{:variant, "result", "Ok", [42]}]
     end
 
-    test "TO_INT parses negative integer" do
-      assert Axiom.eval("\"-7\" TO_INT") == [-7]
+    test "TO_INT returns Err on bad input" do
+      assert [{:variant, "result", "Err", [_]}] = Axiom.eval("\"abc\" TO_INT")
     end
 
-    test "TO_INT raises on bad input" do
-      assert_raise Axiom.RuntimeError, ~r/TO_INT/, fn ->
-        Axiom.eval("\"abc\" TO_INT")
+    test "TO_INT! parses integer string" do
+      assert Axiom.eval("\"42\" TO_INT!") == [42]
+    end
+
+    test "TO_INT! raises on bad input" do
+      assert_raise Axiom.RuntimeError, ~r/TO_INT!/, fn ->
+        Axiom.eval("\"abc\" TO_INT!")
       end
     end
 
-    test "TO_FLOAT parses float string" do
-      assert Axiom.eval("\"3.14\" TO_FLOAT") == [3.14]
+    test "TO_FLOAT returns Ok float on success" do
+      assert Axiom.eval("\"3.14\" TO_FLOAT") == [{:variant, "result", "Ok", [3.14]}]
     end
 
-    test "TO_FLOAT raises on bad input" do
-      assert_raise Axiom.RuntimeError, ~r/TO_FLOAT/, fn ->
-        Axiom.eval("\"abc\" TO_FLOAT")
+    test "TO_FLOAT! raises on bad input" do
+      assert_raise Axiom.RuntimeError, ~r/TO_FLOAT!/, fn ->
+        Axiom.eval("\"abc\" TO_FLOAT!")
       end
     end
 
@@ -1103,7 +1107,8 @@ defmodule AxiomTest do
       File.write!(path, "hello from file")
 
       try do
-        assert Axiom.eval("\"#{path}\" READ_FILE") == ["hello from file"]
+        assert Axiom.eval("\"#{path}\" READ_FILE") ==
+                 [{:variant, "result", "Ok", ["hello from file"]}]
       after
         File.rm(path)
       end
@@ -1113,16 +1118,22 @@ defmodule AxiomTest do
       path = Path.join(System.tmp_dir!(), "axiom_test_write_#{:rand.uniform(100_000)}.txt")
 
       try do
-        assert Axiom.eval("\"test content\" \"#{path}\" WRITE_FILE") == []
+        assert Axiom.eval("\"test content\" \"#{path}\" WRITE_FILE") ==
+                 [{:variant, "result", "Ok", [true]}]
         assert File.read!(path) == "test content"
       after
         File.rm(path)
       end
     end
 
-    test "READ_FILE with bad path raises RuntimeError" do
+    test "READ_FILE returns Err on bad path" do
+      assert [{:variant, "result", "Err", [_]}] =
+               Axiom.eval("\"/no/such/file/ever\" READ_FILE")
+    end
+
+    test "READ_FILE! with bad path raises RuntimeError" do
       assert_raise Axiom.RuntimeError, ~r/cannot read/, fn ->
-        Axiom.eval("\"/no/such/file/ever\" READ_FILE")
+        Axiom.eval("\"/no/such/file/ever\" READ_FILE!")
       end
     end
   end
@@ -1760,7 +1771,7 @@ defmodule AxiomTest do
   describe "ASK" do
     test "reads input with prompt" do
       output = ExUnit.CaptureIO.capture_io([input: "Alice\n"], fn ->
-        result = Axiom.eval(~s|"Name? " ASK|)
+        result = Axiom.eval(~s|"Name? " ASK!|)
         # Send result to test process
         send(self(), {:result, result})
       end)
@@ -1768,8 +1779,18 @@ defmodule AxiomTest do
       assert_received {:result, ["Alice"]}
     end
 
-    test "type checker accepts ASK" do
-      source = ~s|"prompt" ASK|
+    test "ASK returns Ok on success" do
+      output = ExUnit.CaptureIO.capture_io([input: "Bob\n"], fn ->
+        result = Axiom.eval(~s|"Name? " ASK|)
+        send(self(), {:result, result})
+      end)
+
+      assert output =~ "Name? "
+      assert_received {:result, [{:variant, "result", "Ok", ["Bob"]}]}
+    end
+
+    test "type checker accepts ASK and ASK!" do
+      source = ~s|"prompt" ASK DROP "prompt" ASK!|
       {:ok, tokens} = Axiom.Lexer.tokenize(source)
       {:ok, items} = Axiom.Parser.parse(tokens)
       assert :ok = Axiom.Checker.check(items)

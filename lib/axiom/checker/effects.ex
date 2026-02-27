@@ -61,8 +61,10 @@ defmodule Axiom.Checker.Effects do
     trim:        %{pops: [:str],             pushes: [:str]},
     starts_with: %{pops: [:str, :str],       pushes: [:bool]},
     slice:       %{pops: [:int, :int, :str], pushes: [:str]},
-    to_int:      %{pops: [:str],             pushes: [:int]},
-    to_float:    %{pops: [:str],             pushes: [:float]},
+    to_int:      %{pops: [:str],             pushes: [{:user_type, "result"}]},
+    to_float:    %{pops: [:str],             pushes: [{:user_type, "result"}]},
+    to_int!:  %{pops: [:str],             pushes: [:int]},
+    to_float!: %{pops: [:str],            pushes: [:float]},
     join:        %{pops: [:str, {:list, :str}], pushes: [:str]},
 
     # I/O — non-destructive (pop any, push same)
@@ -77,8 +79,10 @@ defmodule Axiom.Checker.Effects do
     read_line: %{pops: [], pushes: [:str]},
 
     # File I/O
-    read_file: %{pops: [:str], pushes: [:str]},
-    write_file: %{pops: [:str, :str], pushes: []},
+    read_file: %{pops: [:str], pushes: [{:user_type, "result"}]},
+    write_file: %{pops: [:str, :str], pushes: [{:user_type, "result"}]},
+    read_file!: %{pops: [:str], pushes: [:str]},
+    write_file!: %{pops: [:str, :str], pushes: []},
 
     # Map operations
     get: %{pops: [:any, {:map, :any, :any}], pushes: [:any]},
@@ -93,7 +97,8 @@ defmodule Axiom.Checker.Effects do
     num_str: %{pops: [:num], pushes: [:str]},
 
     # ASK: pop prompt string, push input string
-    ask: %{pops: [:str], pushes: [:str]},
+    ask: %{pops: [:str], pushes: [{:user_type, "result"}]},
+    ask!: %{pops: [:str], pushes: [:str]},
 
     # RANDOM: pop int N, push random int in [1, N]
     random: %{pops: [:int], pushes: [:int]}

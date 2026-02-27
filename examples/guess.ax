@@ -8,7 +8,7 @@
 0
 
 {
-  "Your guess? " ASK TO_INT LET guess
+  "Your guess? " ASK! TO_INT! LET guess
   1 ADD
 
   guess secret EQ IF

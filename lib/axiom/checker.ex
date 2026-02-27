@@ -63,12 +63,15 @@ defmodule Axiom.Checker do
 
   # Build type environment and type map from runtime env
   defp build_checker_env(env) do
+    {type_env, types} = prelude_checker_env()
+
     # Convert Function entries to checker signatures
     type_env =
       env
       |> Enum.filter(fn {_, v} -> match?(%Axiom.Types.Function{}, v) end)
-      |> Map.new(fn {name, func} ->
+      |> Enum.reduce(type_env, fn {name, func}, acc ->
         {name, %{param_types: func.param_types, return_types: func.return_types}}
+        |> then(fn {k, v} -> Map.put(acc, k, v) end)
       end)
 
     # Register constructors from runtime "__constructors__" map
@@ -82,7 +85,24 @@ defmodule Axiom.Checker do
         })
       end)
 
-    types = Map.get(env, "__types__", %{})
+    env_types = Map.get(env, "__types__", %{})
+    types = Map.merge(types, env_types)
+    {type_env, types}
+  end
+
+  defp prelude_checker_env do
+    type_env = %{
+      "Ok" => %{param_types: [:any], return_types: [{:user_type, "result"}]},
+      "Err" => %{param_types: [:str], return_types: [{:user_type, "result"}]}
+    }
+
+    types = %{
+      "result" => %Axiom.Types.TypeDef{
+        name: "result",
+        variants: %{"Ok" => [:any], "Err" => [:str]}
+      }
+    }
+
     {type_env, types}
   end
 

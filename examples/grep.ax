@@ -3,7 +3,7 @@
 
 # grep.ax — search for a pattern in a file
 
-ARGV HEAD READ_FILE LINES # stack: [[line1, line2, ...]]
+ARGV HEAD READ_FILE! LINES # stack: [[line1, line2, ...]]
 
 {
   "grape" SWAP CONTAINS # stack: [boolean]

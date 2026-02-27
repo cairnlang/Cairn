@@ -19,6 +19,6 @@ DEF inc_word : str map[str int] -> map[str int]
   END
 END
 
-ARGV HEAD READ_FILE WORDS
+ARGV HEAD READ_FILE! WORDS
 M[] { inc_word } REDUCE
 SAID

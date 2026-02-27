@@ -207,38 +207,70 @@ defmodule Axiom.Runtime do
   # SLICE: extract substring (zero-based start, length)
   def execute(:slice, [len, start, s | rest]) when is_binary(s) and is_integer(start) and is_integer(len), do: [String.slice(s, start, len) | rest]
 
-  # TO_INT: parse string as integer
+  # TO_INT: parse string as integer (safe, returns result)
   def execute(:to_int, [s | rest]) when is_binary(s) do
     case Integer.parse(s) do
+      {n, ""} -> [ok(n) | rest]
+      _ -> [err("TO_INT: cannot parse #{inspect(s)} as integer") | rest]
+    end
+  end
+
+  # TO_INT!: parse string as integer (unsafe, raises on failure)
+  def execute(:to_int!, [s | rest]) when is_binary(s) do
+    case Integer.parse(s) do
       {n, ""} -> [n | rest]
-      _ -> raise Axiom.RuntimeError, "TO_INT: cannot parse #{inspect(s)} as integer"
+      _ -> raise Axiom.RuntimeError, "TO_INT!: cannot parse #{inspect(s)} as integer"
     end
   end
 
   # JOIN: join list of strings with separator
   def execute(:join, [sep, list | rest]) when is_list(list) and is_binary(sep), do: [Enum.join(list, sep) | rest]
 
-  # TO_FLOAT: parse string as float
+  # TO_FLOAT: parse string as float (safe, returns result)
   def execute(:to_float, [s | rest]) when is_binary(s) do
     case Float.parse(s) do
+      {f, ""} -> [ok(f) | rest]
+      _ -> [err("TO_FLOAT: cannot parse #{inspect(s)} as float") | rest]
+    end
+  end
+
+  # TO_FLOAT!: parse string as float (unsafe, raises on failure)
+  def execute(:to_float!, [s | rest]) when is_binary(s) do
+    case Float.parse(s) do
       {f, ""} -> [f | rest]
-      _ -> raise Axiom.RuntimeError, "TO_FLOAT: cannot parse #{inspect(s)} as float"
+      _ -> raise Axiom.RuntimeError, "TO_FLOAT!: cannot parse #{inspect(s)} as float"
     end
   end
 
   # ARGV: push command-line args list (stored in process dictionary by mix task)
   def execute(:argv, stack), do: [Process.get(:axiom_argv, []) | stack]
 
-  # READ_FILE: pop filename, push file contents
+  # READ_FILE: pop filename, push result
   def execute(:read_file, [path | rest]) when is_binary(path) do
+    case File.read(path) do
+      {:ok, contents} -> [ok(contents) | rest]
+      {:error, reason} -> [err("cannot read '#{path}': #{reason}") | rest]
+    end
+  end
+
+  # READ_FILE!: pop filename, push file contents or raise
+  def execute(:read_file!, [path | rest]) when is_binary(path) do
     case File.read(path) do
       {:ok, contents} -> [contents | rest]
       {:error, reason} -> raise Axiom.RuntimeError, "cannot read '#{path}': #{reason}"
     end
   end
 
-  # WRITE_FILE: pop contents and filename, write to file
+  # WRITE_FILE: pop contents and filename, write file, push result
   def execute(:write_file, [path, contents | rest]) when is_binary(path) and is_binary(contents) do
+    case File.write(path, contents) do
+      :ok -> [ok(true) | rest]
+      {:error, reason} -> [err("cannot write '#{path}': #{reason}") | rest]
+    end
+  end
+
+  # WRITE_FILE!: pop contents and filename, write file or raise
+  def execute(:write_file!, [path, contents | rest]) when is_binary(path) and is_binary(contents) do
     case File.write(path, contents) do
       :ok -> rest
       {:error, reason} -> raise Axiom.RuntimeError, "cannot write '#{path}': #{reason}"
@@ -251,10 +283,20 @@ defmodule Axiom.Runtime do
     [line | stack]
   end
 
-  # ASK: pop prompt string, print it, read a line, push trimmed string
+  # ASK: pop prompt string, read line, push result
   def execute(:ask, [prompt | rest]) when is_binary(prompt) do
-    line = IO.gets(prompt) |> String.trim_trailing("\n")
-    [line | rest]
+    case IO.gets(prompt) do
+      nil -> [err("ASK: input stream closed") | rest]
+      line -> [ok(String.trim_trailing(line, "\n")) | rest]
+    end
+  end
+
+  # ASK!: pop prompt string, read line, raise on EOF
+  def execute(:ask!, [prompt | rest]) when is_binary(prompt) do
+    case IO.gets(prompt) do
+      nil -> raise Axiom.RuntimeError, "ASK!: input stream closed"
+      line -> [String.trim_trailing(line, "\n") | rest]
+    end
   end
 
   # RANDOM: pop N, push random integer in [1, N]
@@ -306,6 +348,9 @@ defmodule Axiom.Runtime do
   defp format_value(true), do: "T"
   defp format_value(false), do: "F"
   defp format_value(v), do: inspect(v)
+
+  defp ok(value), do: {:variant, "result", "Ok", [value]}
+  defp err(message), do: {:variant, "result", "Err", [message]}
 
   defp run_while(cond_tokens, cond_env, body_tokens, body_env, stack) do
     check_stack = Axiom.Evaluator.eval_tokens(cond_tokens, stack, cond_env)

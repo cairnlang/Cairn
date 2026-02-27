@@ -126,8 +126,10 @@ defmodule Axiom.CheckerTest do
       assert {:ok, %{pops: [:str],             pushes: [:str]}}           = Effects.lookup(:trim)
       assert {:ok, %{pops: [:str, :str],       pushes: [:bool]}}          = Effects.lookup(:starts_with)
       assert {:ok, %{pops: [:int, :int, :str], pushes: [:str]}}           = Effects.lookup(:slice)
-      assert {:ok, %{pops: [:str],             pushes: [:int]}}           = Effects.lookup(:to_int)
-      assert {:ok, %{pops: [:str],             pushes: [:float]}}         = Effects.lookup(:to_float)
+      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result"}]}} = Effects.lookup(:to_int)
+      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result"}]}} = Effects.lookup(:to_float)
+      assert {:ok, %{pops: [:str], pushes: [:int]}} = Effects.lookup(:to_int!)
+      assert {:ok, %{pops: [:str], pushes: [:float]}} = Effects.lookup(:to_float!)
     end
   end
 
@@ -616,12 +618,16 @@ defmodule Axiom.CheckerTest do
       check_ok("\"42\" TO_INT")
     end
 
-    test "TO_INT result is int — arithmetic works" do
-      check_ok("\"42\" TO_INT 10 ADD")
+    test "TO_INT result is result — MATCH works" do
+      check_ok("\"42\" TO_INT MATCH Ok { } Err { DROP 0 } END")
     end
 
-    test "TO_INT result is int — used in function expecting int" do
-      check_ok("DEF double : int -> int DUP ADD END \"5\" TO_INT double")
+    test "TO_INT! result is int — arithmetic works" do
+      check_ok("\"42\" TO_INT! 10 ADD")
+    end
+
+    test "TO_INT! result is int — used in function expecting int" do
+      check_ok("DEF double : int -> int DUP ADD END \"5\" TO_INT! double")
     end
 
     test "TO_INT on non-string is error" do
@@ -633,8 +639,8 @@ defmodule Axiom.CheckerTest do
       check_ok("\"3.14\" TO_FLOAT")
     end
 
-    test "TO_FLOAT result is float — arithmetic works" do
-      check_ok("\"3.14\" TO_FLOAT 1.0 ADD")
+    test "TO_FLOAT! result is float — arithmetic works" do
+      check_ok("\"3.14\" TO_FLOAT! 1.0 ADD")
     end
 
     test "TO_FLOAT on non-string is error" do
@@ -642,8 +648,8 @@ defmodule Axiom.CheckerTest do
       assert Enum.any?(errors, fn e -> e.message =~ "TO_FLOAT" end)
     end
 
-    test "pipeline: SPLIT then MAP TO_INT then SUM" do
-      check_ok("\"1,2,3\" \",\" SPLIT { TO_INT } MAP SUM")
+    test "pipeline: SPLIT then MAP TO_INT! then SUM" do
+      check_ok("\"1,2,3\" \",\" SPLIT { TO_INT! } MAP SUM")
     end
 
     test "JOIN on list of strings" do
@@ -862,7 +868,7 @@ defmodule Axiom.CheckerTest do
     test "cat utility" do
       check_ok("""
       DEF said : any -> void SAY DROP END
-      ARGV HEAD READ_FILE said
+      ARGV HEAD READ_FILE! said
       """)
     end
 
@@ -877,7 +883,7 @@ defmodule Axiom.CheckerTest do
     test "sum of CSV integers" do
       check_ok("""
       DEF parse_csv_sum : str -> int
-        "," SPLIT { TO_INT } MAP SUM
+        "," SPLIT { TO_INT! } MAP SUM
       END
       "1,2,3,4,5" parse_csv_sum SAY DROP
       """)

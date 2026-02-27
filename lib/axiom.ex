@@ -6,6 +6,7 @@ defmodule Axiom do
   """
 
   alias Axiom.{Lexer, Parser, Evaluator, Checker, Verify, Loader}
+  alias Axiom.Types.TypeDef
   alias Axiom.Solver.Prove
 
   @doc """
@@ -31,6 +32,8 @@ defmodule Axiom do
   """
   @spec eval_with_env(String.t(), map(), list()) :: {list(), map()}
   def eval_with_env(source, env \\ %{}, stack \\ []) do
+    env = with_prelude(env)
+
     with {:ok, tokens} <- Lexer.tokenize(source),
          {:ok, items} <- Parser.parse(tokens) do
       if Enum.any?(items, &match?({:import, _}, &1)) do
@@ -53,6 +56,8 @@ defmodule Axiom do
   """
   @spec eval_file(String.t(), map(), list()) :: {list(), map()}
   def eval_file(path, env \\ %{}, stack \\ []) do
+    env = with_prelude(env)
+
     case Loader.load_items(path) do
       {:ok, items} -> eval_items(items, env, stack)
       {:error, msg} -> raise Axiom.RuntimeError, msg
@@ -147,6 +152,26 @@ defmodule Axiom do
       {:error, errors} when is_list(errors) ->
         raise Axiom.StaticError, errors
     end
+  end
+
+  defp with_prelude(env) do
+    types = Map.get(env, "__types__", %{})
+    ctors = Map.get(env, "__constructors__", %{})
+
+    types =
+      Map.put_new(types, "result", %TypeDef{
+        name: "result",
+        variants: %{"Ok" => [:any], "Err" => [:str]}
+      })
+
+    ctors =
+      ctors
+      |> Map.put_new("Ok", {"result", [:any]})
+      |> Map.put_new("Err", {"result", [:str]})
+
+    env
+    |> Map.put("__types__", types)
+    |> Map.put("__constructors__", ctors)
   end
 
   @doc """

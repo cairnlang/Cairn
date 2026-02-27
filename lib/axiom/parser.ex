@@ -385,7 +385,7 @@ defmodule Axiom.Parser do
 
   # Build the set of user-defined type names from already-parsed top-level items
   defp collect_known_types(items) do
-    Enum.reduce(items, MapSet.new(), fn
+    Enum.reduce(items, MapSet.new(["result"]), fn
       %TypeDef{name: n}, set -> MapSet.put(set, n)
       _, set -> set
     end)

@@ -384,8 +384,10 @@ defmodule Axiom.Solver.Prove do
   defp normalize_constraint({:and, a, b}) do
     a = normalize_constraint(a)
     b = normalize_constraint(b)
+    implication_reduced = reduce_implication_with_antecedent({:and, a, b})
 
     cond do
+      implication_reduced != {:and, a, b} -> normalize_constraint(implication_reduced)
       a == b -> a
       constraint_complements?(a, b) -> false
       absorbs_and?(a, b) -> a
@@ -502,6 +504,26 @@ defmodule Axiom.Solver.Prove do
 
   defp and_terms({:and, x, y}), do: {:ok, {x, y}}
   defp and_terms(_), do: :error
+
+  # (NOT c OR a) AND c => a (and symmetric variants)
+  defp reduce_implication_with_antecedent({:and, left, right}) do
+    case implication_rhs(left, right) do
+      {:ok, rhs} -> rhs
+      :error ->
+        case implication_rhs(right, left) do
+          {:ok, rhs} -> rhs
+          :error -> {:and, left, right}
+        end
+    end
+  end
+
+  defp reduce_implication_with_antecedent(c), do: c
+
+  defp implication_rhs({:or, {:not, cond}, rhs}, cond), do: {:ok, rhs}
+  defp implication_rhs({:or, rhs, {:not, cond}}, cond), do: {:ok, rhs}
+  defp implication_rhs({:or, cond, rhs}, {:not, cond}), do: {:ok, rhs}
+  defp implication_rhs({:or, rhs, cond}, {:not, cond}), do: {:ok, rhs}
+  defp implication_rhs(_, _), do: :error
 
   defp constraint_complements?(a, {:not, b}), do: a == b
   defp constraint_complements?({:not, a}, b), do: a == b

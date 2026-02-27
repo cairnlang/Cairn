@@ -1393,6 +1393,80 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_split: PROVEN"
     end
 
+    test "implication plus antecedent in PRE narrows constructor" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF square_only_abs_implied : int shape -> int
+        PRE {
+          DUP 0 GT
+          ROT
+          is_square
+          SWAP
+          DUP NOT
+          ROT
+          OR
+          AND
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_implied
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_implied: PROVEN"
+    end
+
+    test "implication without antecedent does not narrow and remains UNKNOWN" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF square_only_abs_implication_only : int shape -> int
+        PRE {
+          DUP 0 GT
+          NOT
+          ROT
+          is_square
+          OR
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_implication_only
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_implication_only: UNKNOWN"
+      assert output =~ "LEN is not supported by PROVE"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

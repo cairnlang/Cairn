@@ -179,6 +179,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This preserves constructor narrowing when helper guards are expressed via split branches
 - Added `examples/prove/proven_shape_split.ax` and solver coverage for split-guard narrowing
 
+### v0.6.0o — Implication+Antecedent Reduction
+- Broadened PRE normalization for implication forms combined with their antecedent:
+  `(NOT c OR tag_guard) AND c => tag_guard` (plus symmetric variants)
+- This preserves constructor narrowing when guard constraints are written as implications
+- Added `examples/prove/proven_shape_implication.ax` and solver coverage for implication narrowing and implication-only limit behavior
+
 ---
 
 ## Next Up
@@ -193,7 +199,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** split-guard alias reduction is in place; next gains are deeper inference coverage and broader proof context.
+**Why now:** implication+antecedent reduction is in place; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

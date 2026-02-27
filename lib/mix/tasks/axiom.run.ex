@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Axiom.Run do
   @example_groups [
     {"basics", ["examples/hello_world.ax", "examples/collatz.ax", "examples/recur.ax", "examples/bank.ax"]},
     {"practical", ["examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/ledger_cli.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/imports/main.ax", "examples/json/demo.ax"]},
-    {"concurrency", ["examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax"]},
+    {"concurrency", ["examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/ping_once.ax"]},
     {"prelude", ["examples/prelude/result_flow.ax", "examples/prelude/csv_parse.ax", "examples/prelude/io_safe.ax"]},
     {"diagnostics", ["examples/diagnostics/static_type.ax", "examples/diagnostics/runtime_div_zero.ax", "examples/diagnostics/contract_fail.ax"]},
     {"prove", ["examples/prove/all_proven.ax", "examples/prove/proven_option.ax", "examples/prove/proven_shape_trace.ax"]}
@@ -101,7 +101,10 @@ defmodule Mix.Tasks.Axiom.Run do
   defp format_value(list) when is_list(list), do: inspect(list)
   defp format_value(true), do: "T"
   defp format_value(false), do: "F"
-  defp format_value(val), do: to_string(val)
+  defp format_value(val) when is_binary(val), do: val
+  defp format_value(val) when is_number(val), do: to_string(val)
+  defp format_value(val) when is_atom(val), do: to_string(val)
+  defp format_value(val), do: inspect(val)
 
   defp maybe_print_prelude_banner(opts) do
     if opts[:show_prelude] || opts[:verbose] do

@@ -53,19 +53,38 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "LET at word #{pos + 1}: empty stack"
   end
 
-  # SPAWN is parsed and type-checked, but runtime support is deferred.
-  defp run([{:spawn_kw, _, pos}, _type_token, {:block_open, _, _} | rest], _stack, _env) do
-    {_block_tokens, _remaining} = collect_block(rest, 0, [])
-    raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: not implemented yet"
+  # SPAWN MessageType { ... } — starts the spawned block with its own typed pid on stack.
+  defp run([{:spawn_kw, _, pos}, type_token, {:block_open, _, _} | rest], stack, env) do
+    {block_tokens, remaining} = collect_block(rest, 0, [])
+    msg_type = resolve_runtime_type!(type_token, env, pos)
+
+    pid =
+      spawn(fn ->
+        self_ref = {:pid, msg_type, self()}
+        {_child_stack, _child_env} = run(block_tokens, [self_ref], env)
+      end)
+
+    run(remaining, [{:pid, msg_type, pid} | stack], env)
   end
 
   defp run([{:spawn_kw, _, pos} | _], _stack, _env) do
-    raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: not implemented yet"
+    raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: requires a message type and block"
   end
 
-  # SEND is statically checked, but runtime support is deferred.
+  # SEND: pid[msg] msg SEND
+  defp run([{:op, :send, _pos} | rest], [msg, {:pid, _msg_type, pid} | stack], env)
+       when is_pid(pid) do
+    send(pid, msg)
+    run(rest, stack, env)
+  end
+
+  defp run([{:op, :send, pos} | _], [_, other | _], _env) do
+    raise Axiom.RuntimeError,
+      "SEND at word #{pos + 1}: expected pid beneath message, got #{inspect(other)}"
+  end
+
   defp run([{:op, :send, pos} | _], _stack, _env) do
-    raise Axiom.RuntimeError, "SEND at word #{pos + 1}: not implemented yet"
+    raise Axiom.RuntimeError, "SEND at word #{pos + 1}: stack underflow"
   end
 
   # Operators — delegate to Runtime
@@ -122,9 +141,36 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "MATCH at word #{pos + 1}: empty stack"
   end
 
-  # RECEIVE is parsed and type-checked, but runtime support is deferred.
-  defp run([{:receive_kw, _, pos} | _], _stack, _env) do
-    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: not implemented yet"
+  # RECEIVE — blocks for one message and dispatches by constructor.
+  defp run([{:receive_kw, _, pos} | rest], [{:pid, {:user_type, type_name}, pid_ref} | stack], env) do
+    if pid_ref != self() do
+      raise Axiom.RuntimeError,
+        "RECEIVE at word #{pos + 1}: pid must be the current process mailbox handle"
+    end
+
+    {arms, remaining} = collect_match_arms(rest, [], 0)
+
+    message =
+      receive do
+        msg -> msg
+      end
+
+    {field_stack, branch_tokens} = resolve_receive_branch!(message, type_name, arms, pos)
+    {stack, env} = run(branch_tokens, field_stack ++ stack, env)
+    run(remaining, stack, env)
+  end
+
+  defp run([{:receive_kw, _, pos} | _], [{:pid, other, _} | _], _env) do
+    raise Axiom.RuntimeError,
+      "RECEIVE at word #{pos + 1}: expected pid[user_type], got #{inspect({:pid, other})}"
+  end
+
+  defp run([{:receive_kw, _, pos} | _], [other | _], _env) do
+    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: expected pid on stack, got #{inspect(other)}"
+  end
+
+  defp run([{:receive_kw, _, pos} | _], [], _env) do
+    raise Axiom.RuntimeError, "RECEIVE at word #{pos + 1}: empty stack"
   end
 
   # Identifiers — look up in environment
@@ -440,7 +486,8 @@ defmodule Axiom.Evaluator do
   defp matches_type?(v, :str) when is_binary(v), do: true
   defp matches_type?(v, {:list, _}) when is_list(v), do: true
   defp matches_type?(v, {:map, _, _}) when is_map(v), do: true
-  defp matches_type?({:pid, inner}, {:pid, expected_inner}), do: matches_type?(inner, expected_inner)
+  defp matches_type?({:pid, inner, _pid}, {:pid, expected_inner}), do: type_descriptor_matches?(inner, expected_inner)
+  defp matches_type?({:pid, inner}, {:pid, expected_inner}), do: type_descriptor_matches?(inner, expected_inner)
   defp matches_type?({:variant, type_name, _, _}, {:user_type, type_name}), do: true
   defp matches_type?(_, _), do: false
 
@@ -449,6 +496,64 @@ defmodule Axiom.Evaluator do
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:user_type, name}), do: name
   defp format_type(type), do: to_string(type)
+
+  defp type_descriptor_matches?(:any, _), do: true
+  defp type_descriptor_matches?(a, a), do: true
+  defp type_descriptor_matches?({:list, a}, {:list, b}), do: type_descriptor_matches?(a, b)
+
+  defp type_descriptor_matches?({:map, ak, av}, {:map, bk, bv}) do
+    type_descriptor_matches?(ak, bk) and type_descriptor_matches?(av, bv)
+  end
+
+  defp type_descriptor_matches?({:pid, a}, {:pid, b}), do: type_descriptor_matches?(a, b)
+  defp type_descriptor_matches?(_, :any), do: true
+  defp type_descriptor_matches?(_, _), do: false
+
+  defp resolve_runtime_type!({:type, type, _}, _env, _pos), do: type
+
+  defp resolve_runtime_type!({:ident, name, _}, env, pos) do
+    types = Map.get(env, "__types__", %{})
+
+    if Map.has_key?(types, name) do
+      {:user_type, name}
+    else
+      raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: unknown message type '#{name}'"
+    end
+  end
+
+  defp resolve_runtime_type!(_token, _env, pos) do
+    raise Axiom.RuntimeError, "SPAWN at word #{pos + 1}: invalid message type"
+  end
+
+  defp resolve_receive_branch!({:variant, type_name, ctor_name, fields}, expected_type, arms, pos)
+       when type_name == expected_type do
+    case Enum.find(arms, fn {arm_ctor, _} -> arm_ctor == ctor_name end) do
+      {_ctor, arm_tokens} ->
+        {Enum.reverse(fields), arm_tokens}
+
+      nil ->
+        case Enum.find(arms, fn {arm_ctor, _} -> arm_ctor == :wildcard end) do
+          {:wildcard, arm_tokens} -> {[], arm_tokens}
+          nil ->
+            raise Axiom.RuntimeError,
+              "RECEIVE at word #{pos + 1}: no arm for constructor '#{ctor_name}'"
+        end
+    end
+  end
+
+  defp resolve_receive_branch!({:variant, other_type, _ctor, _fields}, expected_type, _arms, pos) do
+    raise Axiom.RuntimeError,
+      "RECEIVE at word #{pos + 1}: expected message of type #{expected_type}, got #{other_type}"
+  end
+
+  defp resolve_receive_branch!(other, _expected_type, arms, pos) do
+    case Enum.find(arms, fn {arm_ctor, _} -> arm_ctor == :wildcard end) do
+      {:wildcard, arm_tokens} -> {[], arm_tokens}
+      nil ->
+        raise Axiom.RuntimeError,
+          "RECEIVE at word #{pos + 1}: expected variant message, got #{inspect(other)}"
+    end
+  end
 
   defp check_pre(func, args, env) do
     check_stack = eval_tokens(func.pre_condition, args, env)

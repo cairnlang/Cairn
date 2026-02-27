@@ -1,0 +1,13 @@
+# examples/concurrency/ping_once.ax
+# Minimal runtime actor example: spawn a one-shot process, send one message, print the handled tag.
+
+TYPE msg = Ping | Pong
+
+SPAWN msg {
+  RECEIVE
+    Ping { "got_ping" SAID }
+    Pong { "got_pong" SAID }
+  END
+}
+DUP Ping SEND
+DROP

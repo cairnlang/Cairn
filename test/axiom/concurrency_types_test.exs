@@ -58,7 +58,7 @@ defmodule Axiom.ConcurrencyTypesTest do
     END
 
     DEF spawn_peer : pid[msg]
-      SPAWN msg { "peer" SAID }
+      SPAWN msg { DROP "peer" SAID }
     END
     """)
   end
@@ -101,7 +101,9 @@ defmodule Axiom.ConcurrencyTypesTest do
       END
       """)
 
-    assert Enum.any?(errors, fn e -> e.message =~ "SPAWN block must leave an empty stack" end)
+    assert Enum.any?(errors, fn e ->
+             e.message =~ "SPAWN block must consume its self pid and leave an empty stack"
+           end)
   end
 
   test "concurrency examples load successfully" do

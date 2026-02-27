@@ -321,7 +321,8 @@ defmodule Axiom.Checker do
     case resolve_concurrency_type(type_token, state.types) do
       {:ok, msg_type} ->
         {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
-        block_state = walk(block_tokens, %{state | stack: Stack.new()})
+        block_stack = Stack.new() |> Stack.push({:pid, msg_type})
+        block_state = walk(block_tokens, %{state | stack: block_stack})
 
         state = %{
           state
@@ -333,7 +334,7 @@ defmodule Axiom.Checker do
           if Stack.depth(block_state.stack) == 0 do
             state
           else
-            add_error(state, pos, "SPAWN block must leave an empty stack")
+            add_error(state, pos, "SPAWN block must consume its self pid and leave an empty stack")
           end
 
         walk(remaining, %{state | stack: Stack.push(state.stack, {:pid, msg_type})})

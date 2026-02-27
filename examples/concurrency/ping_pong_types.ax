@@ -15,5 +15,5 @@ DEF handle_message : pid[msg] -> str
 END
 
 DEF spawn_peer : pid[msg]
-  SPAWN msg { "peer_ready" SAID }
+  SPAWN msg { DROP "peer_ready" SAID }
 END

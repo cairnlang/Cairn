@@ -344,6 +344,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added static-only example programs under `examples/concurrency/`
 - Expanded tests and examples index coverage for the typed-concurrency groundwork
 
+### v0.7.0b — Minimal Typed Concurrency Runtime
+- Implemented runtime `SPAWN`, `SEND`, and one-shot `RECEIVE` over BEAM processes/mailboxes
+- Defined spawned-block semantics: the actor block starts with its own typed pid on the stack and must consume it
+- Added runnable example `examples/concurrency/ping_once.ax` alongside the type-focused concurrency examples
+- Added direct runtime tests covering spawn/send/receive flow and the spawned self-pid contract
+
 ---
 
 ## Next Up
@@ -352,15 +358,16 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.7.0 — Typed BEAM Concurrency Runtime
+### v0.7.0 — Typed BEAM Concurrency Runtime Completion
 **Goal:** Type-safe message passing on the BEAM — the feature no other language has.
 
 Axiom already has algebraic types and contracts. Combining them with BEAM processes creates typed actors with provable state transition invariants.
 
 **Deliverables:**
-- Runtime implementation for `SPAWN`, `SEND`, `RECEIVE`
-- `pid[MessageType]` — typed process identifiers backed by real BEAM processes
-- `RECEIVE` with MATCH-style pattern dispatch on message type
+- `SELF` and ergonomic self-mailbox access outside the implicit spawned-block handle
+- Richer `RECEIVE` forms (loop-friendly patterns, multi-message actor workflows)
+- `pid[MessageType]` — typed process identifiers with stronger runtime ergonomics
+- `RECEIVE` with MATCH-style pattern dispatch on message type across larger actor state machines
 - State machine example with contract-checked transitions (traffic light)
 - Supervisor integration — contract violations crash the process, supervisor restarts
 

@@ -20,5 +20,5 @@ DEF receive_phase : pid[light_msg] -> str
 END
 
 DEF spawn_light : pid[light_msg]
-  SPAWN light_msg { "light_ready" SAID }
+  SPAWN light_msg { DROP "light_ready" SAID }
 END

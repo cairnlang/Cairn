@@ -304,19 +304,41 @@ defmodule Axiom.Solver.Prove do
   defp format_param_value(_type, _i, _model, _env), do: "?"
 
   defp enrich_env_with_pre_assumptions(env, pre_constraint) do
-    assumptions = assumption_map_from_constraint(pre_constraint)
+    {assumptions, normalized_pre, rewrites, rewrite_summary} = assumption_map_from_constraint(pre_constraint)
+    trace_enabled = Map.get(env, "__prove_trace_enabled__", false)
+    trace_level = Map.get(env, "__prove_trace_level__", :off)
 
-    if map_size(assumptions) == 0 do
-      env
-    else
-      Map.put(env, "__prove_tag_assumptions__", assumptions)
+    if trace_enabled and trace_level == :json do
+      Enum.each(rewrites, fn rewrite ->
+        append_trace_event(%{
+          event: "rewrite_applied",
+          phase: "pre_normalize",
+          rule: Map.get(rewrite, :rule),
+          before: Map.get(rewrite, :before),
+          after: Map.get(rewrite, :after)
+        })
+      end)
     end
+
+    env
+    |> maybe_put("__prove_tag_assumptions__", assumptions, map_size(assumptions) > 0)
+    |> maybe_put("__prove_pre_raw__", inspect(pre_constraint), trace_enabled and trace_level == :json)
+    |> maybe_put("__prove_pre_normalized__", inspect(normalized_pre), trace_enabled and trace_level == :json)
+    |> maybe_put("__prove_pre_rewrite_summary__", rewrite_summary, trace_enabled and trace_level == :json)
   end
 
   defp assumption_map_from_constraint(constraint) do
-    constraint
-    |> PreNormalize.normalize()
-    |> do_assumption_map_from_constraint()
+    {normalized, rewrites} = PreNormalize.normalize_with_rewrites(constraint)
+    summary = rewrite_summary(rewrites)
+    {do_assumption_map_from_constraint(normalized), normalized, rewrites, summary}
+  end
+
+  defp rewrite_summary(rewrites) do
+    rewrites
+    |> Enum.reduce(%{}, fn rewrite, acc ->
+      rule = Map.get(rewrite, :rule, "unknown")
+      Map.update(acc, to_string(rule), 1, &(&1 + 1))
+    end)
   end
 
   defp do_assumption_map_from_constraint({:and, a, b}) do
@@ -502,8 +524,11 @@ defmodule Axiom.Solver.Prove do
     events = get_trace_events()
     elapsed_ms = max(System.monotonic_time(:millisecond) - started_at_ms, 0)
     match_events = Enum.filter(events, fn e -> Map.get(e, :event) == "match_decision" end)
+    rewrite_events = Enum.filter(events, fn e -> Map.get(e, :event) == "rewrite_applied" end)
     pruned_total = Enum.reduce(match_events, 0, fn e, acc -> acc + length(Map.get(e, :pruned, [])) end)
     match_count = length(match_events)
+    rewrite_count = length(rewrite_events)
+    rewrite_summary = rewrite_summary(rewrite_events)
     {unknown_reason, error_reason} = result_reasons(result)
 
     run_start = %{
@@ -522,6 +547,8 @@ defmodule Axiom.Solver.Prove do
       trace_level: "json",
       match_event_count: match_count,
       pruned_branch_count: pruned_total,
+      rewrite_event_count: rewrite_count,
+      rewrite_summary: rewrite_summary,
       elapsed_ms: elapsed_ms,
       body_stack_depth: Map.get(run_meta, :body_stack_depth, nil),
       has_pre: Map.get(run_meta, :has_pre, false),
@@ -585,11 +612,18 @@ defmodule Axiom.Solver.Prove do
     |> Enum.reverse()
   end
 
+  defp maybe_put(map, _key, _value, false), do: map
+  defp maybe_put(map, key, value, true), do: Map.put(map, key, value)
+
   defp with_phase(env, phase), do: Map.put(env, "__prove_phase__", phase)
 
   defp result_reasons({:unknown, reason}), do: {reason, nil}
   defp result_reasons({:error, reason}), do: {nil, reason}
   defp result_reasons(_), do: {nil, nil}
+
+  defp human_trace_line(%{event: "rewrite_applied"} = event, _level) do
+    "REWRITE #{Map.get(event, :rule, "unknown")}: #{Map.get(event, :before, "?")} => #{Map.get(event, :after, "?")}"
+  end
 
   defp human_trace_line(event, :summary) do
     pruned_txt =

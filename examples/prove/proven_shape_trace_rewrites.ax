@@ -1,0 +1,55 @@
+# proven_shape_trace_rewrites.ax — JSON trace rewrite diagnostics (v0.6.0x)
+#
+# Run with:
+#   AXIOM_PROVE_TRACE=json mix axiom.run examples/prove/proven_shape_trace_rewrites.ax
+
+TYPE shape = Circle int | Square int
+
+DEF is_square : shape -> bool
+  MATCH
+    Circle { DROP F }
+    Square { DROP T }
+  END
+END
+
+DEF is_square_or_pos : int shape -> bool
+  DUP 0 GT
+  ROT
+  is_square
+  ROT
+  DROP
+  OR
+END
+
+DEF is_square_or_not_pos : int shape -> bool
+  DUP 0 GT NOT
+  ROT
+  is_square
+  ROT
+  DROP
+  OR
+END
+
+# PRE shape:
+# (is_square(shape) OR amount > 0) AND (is_square(shape) OR amount <= 0)
+# This exercises consensus reduction and exposes rewrite events in JSON trace.
+DEF square_only_abs_trace_rewrites : int shape -> int
+  PRE {
+    OVER OVER
+    is_square_or_pos
+    SWAP
+    ROT
+    SWAP
+    is_square_or_not_pos
+    AND
+  }
+  SWAP
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  SWAP DROP
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs_trace_rewrites

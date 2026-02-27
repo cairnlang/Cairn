@@ -1059,7 +1059,10 @@ defmodule Axiom.Solver.Symbolic do
       match_pos: pos,
       match_site_id: "#{func}:#{phase}:#{pos}",
       assumptions: assumption,
-      match_type: type_name
+      match_type: type_name,
+      pre_raw: Map.get(env, "__prove_pre_raw__", nil),
+      pre_normalized: Map.get(env, "__prove_pre_normalized__", nil),
+      pre_rewrite_summary: Map.get(env, "__prove_pre_rewrite_summary__", %{})
     }
   end
 
@@ -1083,7 +1086,10 @@ defmodule Axiom.Solver.Symbolic do
         phase: to_string(Map.get(details, :phase, "body")),
         match_pos: Map.get(details, :match_pos, -1),
         match_site_id: to_string(Map.get(details, :match_site_id, "?")),
-        assumptions: Map.get(details, :assumptions, %{eq: nil, neq: []})
+        assumptions: Map.get(details, :assumptions, %{eq: nil, neq: []}),
+        pre_raw: Map.get(details, :pre_raw, nil),
+        pre_normalized: Map.get(details, :pre_normalized, nil),
+        pre_rewrite_summary: Map.get(details, :pre_rewrite_summary, %{})
       }
 
       append_trace_event(event)

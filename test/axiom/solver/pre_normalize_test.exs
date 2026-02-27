@@ -160,4 +160,15 @@ defmodule Axiom.Solver.PreNormalizeTest do
              {:and, {:or, b, a}, {:or, c, a}}
            ]
   end
+
+  test "normalize_with_rewrites captures consensus rewrite metadata" do
+    a = {:eq, {:var, "p0_tag"}, {:const, 1}}
+    b = {:gt, {:var, "x"}, {:const, 0}}
+    input = {:and, {:or, a, b}, {:or, a, {:not, b}}}
+
+    {normalized, rewrites} = PreNormalize.normalize_with_rewrites(input)
+
+    assert normalized == a
+    assert Enum.any?(rewrites, fn r -> Map.get(r, :rule) == "and_reduce_consensus" end)
+  end
 end

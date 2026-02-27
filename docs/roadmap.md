@@ -230,6 +230,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Reused existing complement detection so reduction also works for comparison-negation complements
 - Added `examples/prove/proven_shape_consensus.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
 
+### v0.6.0x — Rewrite-Aware JSON Trace
+- Added explicit `rewrite_applied` JSON trace events for PRE normalization rewrites (`rule`, local `before`, local `after`)
+- Added PRE context snapshots to `match_decision` events (`pre_raw`, `pre_normalized`, `pre_rewrite_summary`)
+- Added run-end rewrite aggregates (`rewrite_event_count`, `rewrite_summary`) and a focused trace example: `examples/prove/proven_shape_trace_rewrites.ax`
+
 ---
 
 ## Next Up
@@ -241,10 +246,10 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 **Deliverables:**
 
 - **Broader constructor inference** — recognize additional refinement-like PRE patterns around MATCH helpers
-- **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
+- **Richer structured diagnostics** — add stable schemas and richer event context beyond current rewrite/lifecycle coverage
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** consensus reduction is now covered; next gains are deeper inference coverage and broader proof context.
+**Why now:** rewrite-aware JSON trace is now covered; next gains are deeper constructor inference and proof-context breadth.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

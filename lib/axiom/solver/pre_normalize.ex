@@ -43,6 +43,21 @@ defmodule Axiom.Solver.PreNormalize do
 
   def normalize(c), do: c
 
+  @spec normalize_with_rewrites(term()) :: {term(), [map()]}
+  def normalize_with_rewrites(term) do
+    previous = Process.get(:axiom_pre_normalize_rewrites, :unset)
+    Process.put(:axiom_pre_normalize_rewrites, [])
+    normalized = normalize(term)
+    rewrites = Process.get(:axiom_pre_normalize_rewrites, []) |> Enum.reverse()
+
+    case previous do
+      :unset -> Process.delete(:axiom_pre_normalize_rewrites)
+      _ -> Process.put(:axiom_pre_normalize_rewrites, previous)
+    end
+
+    {normalized, rewrites}
+  end
+
   defp push_not_via_demorgan({op, a, b}, new_op) when op in [:and, :or] do
     {new_op, {:not, a}, {:not, b}}
   end
@@ -68,30 +83,44 @@ defmodule Axiom.Solver.PreNormalize do
         false
 
       true ->
-        simplified =
+        canonicalized =
           terms
           |> Enum.reject(&(&1 == true))
           |> canonical_terms()
-          |> merge_interval_terms()
+
+        simplified = merge_interval_terms(canonicalized)
+        maybe_record_rewrite("and_merge_intervals", build_constraint(:and, canonicalized), simplified_to_constraint(simplified, :and))
 
         case simplified do
           :contradiction ->
+            maybe_record_rewrite("and_contradiction", build_constraint(:and, canonicalized), false)
             false
 
           merged_terms ->
-          merged_terms
-          |> reduce_implication_terms()
-          |> reduce_consensus_terms()
-          |> remove_absorbed_terms(:and)
-          |> flatten_terms(:and)
-          |> canonical_terms()
-            |> then(fn canonical ->
-              cond do
-                has_complement_pair?(canonical) -> false
-                pair_short_circuit?(canonical, :and) -> false
-                true -> build_constraint(:and, canonical)
-              end
-            end)
+            after_implication = reduce_implication_terms(merged_terms)
+            maybe_record_rewrite("and_reduce_implication", build_constraint(:and, merged_terms), build_constraint(:and, after_implication))
+            after_consensus = reduce_consensus_terms(after_implication)
+            maybe_record_rewrite("and_reduce_consensus", build_constraint(:and, after_implication), build_constraint(:and, after_consensus))
+            after_absorption = remove_absorbed_terms(after_consensus, :and)
+            maybe_record_rewrite("and_absorption", build_constraint(:and, after_consensus), build_constraint(:and, after_absorption))
+
+            canonical =
+              after_absorption
+              |> flatten_terms(:and)
+              |> canonical_terms()
+
+            cond do
+              has_complement_pair?(canonical) ->
+                maybe_record_rewrite("and_complement_pair", build_constraint(:and, canonical), false)
+                false
+
+              pair_short_circuit?(canonical, :and) ->
+                maybe_record_rewrite("and_pair_short_circuit", build_constraint(:and, canonical), false)
+                false
+
+              true ->
+                build_constraint(:and, canonical)
+            end
         end
     end
   end
@@ -102,20 +131,33 @@ defmodule Axiom.Solver.PreNormalize do
         true
 
       true ->
-        terms
-        |> Enum.reject(&(&1 == false))
-        |> canonical_terms()
-        |> reduce_or_pair_terms()
-        |> remove_absorbed_terms(:or)
-        |> flatten_terms(:or)
-        |> canonical_terms()
-        |> then(fn canonical ->
-          cond do
-            has_complement_pair?(canonical) -> true
-            pair_short_circuit?(canonical, :or) -> true
-            true -> build_constraint(:or, canonical)
-          end
-        end)
+        canonicalized =
+          terms
+          |> Enum.reject(&(&1 == false))
+          |> canonical_terms()
+
+        after_pair = reduce_or_pair_terms(canonicalized)
+        maybe_record_rewrite("or_pair_reduction", build_constraint(:or, canonicalized), build_constraint(:or, after_pair))
+        after_absorption = remove_absorbed_terms(after_pair, :or)
+        maybe_record_rewrite("or_absorption", build_constraint(:or, after_pair), build_constraint(:or, after_absorption))
+
+        canonical =
+          after_absorption
+          |> flatten_terms(:or)
+          |> canonical_terms()
+
+        cond do
+          has_complement_pair?(canonical) ->
+            maybe_record_rewrite("or_complement_pair", build_constraint(:or, canonical), true)
+            true
+
+          pair_short_circuit?(canonical, :or) ->
+            maybe_record_rewrite("or_pair_short_circuit", build_constraint(:or, canonical), true)
+            true
+
+          true ->
+            build_constraint(:or, canonical)
+        end
     end
   end
 
@@ -140,6 +182,23 @@ defmodule Axiom.Solver.PreNormalize do
   end
 
   defp constraint_sort_key(term), do: :erlang.term_to_binary(term)
+
+  defp maybe_record_rewrite(_rule, before_term, after_term) when before_term == after_term, do: :ok
+  defp maybe_record_rewrite(_rule, :contradiction, :contradiction), do: :ok
+
+  defp maybe_record_rewrite(rule, before_term, after_term) do
+    case Process.get(:axiom_pre_normalize_rewrites, :disabled) do
+      events when is_list(events) ->
+        event = %{rule: rule, before: inspect(before_term), after: inspect(after_term)}
+        Process.put(:axiom_pre_normalize_rewrites, [event | events])
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp simplified_to_constraint(:contradiction, _op), do: :contradiction
+  defp simplified_to_constraint(terms, op), do: build_constraint(op, terms)
 
   defp has_complement_pair?(terms) do
     terms

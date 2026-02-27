@@ -1967,9 +1967,14 @@ defmodule Axiom.SolverTest do
       assert stderr =~ "\"phase\":\"body\""
       assert stderr =~ "\"match_site_id\":\"square_only_abs_trace_json:body:"
       assert stderr =~ "\"assumptions\":"
+      assert stderr =~ "\"pre_raw\":"
+      assert stderr =~ "\"pre_normalized\":"
+      assert stderr =~ "\"pre_rewrite_summary\":"
       assert stderr =~ "\"elapsed_ms\":"
       assert stderr =~ "\"match_event_count\":"
       assert stderr =~ "\"pruned_branch_count\":"
+      assert stderr =~ "\"rewrite_event_count\":"
+      assert stderr =~ "\"rewrite_summary\":"
       assert stderr =~ "\"body_stack_depth\":"
       assert stderr =~ "\"has_pre\":true"
       assert stderr =~ "\"has_post\":true"
@@ -1980,6 +1985,86 @@ defmodule Axiom.SolverTest do
       assert stderr =~ "\"explored\":"
       assert stderr =~ "\"pruned\":"
       assert stderr =~ "\"reason\":"
+    end
+
+    test "trace json mode emits rewrite_applied events and rewrite summary when PRE normalizer rewrites" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF is_square_or_pos : int shape -> bool
+        DUP 0 GT
+        ROT
+        is_square
+        ROT
+        DROP
+        OR
+      END
+
+      DEF is_square_or_not_pos : int shape -> bool
+        DUP 0 GT NOT
+        ROT
+        is_square
+        ROT
+        DROP
+        OR
+      END
+
+      DEF square_only_abs_trace_rewrites_test : int shape -> int
+        PRE {
+          OVER OVER
+          is_square_or_pos
+          SWAP
+          ROT
+          SWAP
+          is_square_or_not_pos
+          AND
+        }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace_rewrites_test
+      """
+
+      parent = self()
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          stdout =
+            ExUnit.CaptureIO.capture_io(fn ->
+              Axiom.eval_with_env(source, %{"__prove_trace__" => :json})
+            end)
+
+          send(parent, {:captured_stdout, stdout})
+        end)
+
+      stdout =
+        receive do
+          {:captured_stdout, out} -> out
+        end
+
+      assert stdout =~ "PROVE square_only_abs_trace_rewrites_test: PROVEN"
+      assert stderr =~ "\"event\":\"rewrite_applied\""
+      assert stderr =~ "\"phase\":\"pre_normalize\""
+      assert stderr =~ "\"rule\":\"and_reduce_consensus\""
+      assert stderr =~ "\"before\":"
+      assert stderr =~ "\"after\":"
+      assert stderr =~ "\"rewrite_event_count\":"
+      assert stderr =~ "\"rewrite_summary\":"
+      assert stderr =~ "\"pre_rewrite_summary\":"
+      assert stderr =~ "\"and_reduce_consensus\":1"
     end
 
     test "trace json mode includes unknown_reason in run_end for UNKNOWN proofs" do

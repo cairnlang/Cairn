@@ -1840,7 +1840,7 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_consensus: PROVEN"
     end
 
-    test "tag-bound PRE comparison helper remains PROVE-compatible" do
+    test "tag-bound PRE comparison helper prunes unsupported MATCH arm" do
       source = """
       TYPE shape = Circle int | Square int
 
@@ -1855,7 +1855,7 @@ defmodule Axiom.SolverTest do
       DEF square_only_abs_bounds : shape -> int
         PRE { DUP tag_is_positive }
         MATCH
-          Circle { ABS }
+          Circle { LEN }
           Square { ABS }
         END
         POST DUP 0 GTE
@@ -2132,6 +2132,56 @@ defmodule Axiom.SolverTest do
       assert stderr =~ "\"rewrite_summary\":"
       assert stderr =~ "\"pre_rewrite_summary\":"
       assert stderr =~ "\"and_reduce_consensus\":1"
+    end
+
+    test "trace json mode reports helper_cmp inference source when helper comparison narrows tag" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF tag_is_positive : shape -> bool
+        MATCH
+          Circle { DROP 0 }
+          Square { DROP 1 }
+        END
+        0 GT
+      END
+
+      DEF square_only_abs_trace_helper_cmp : shape -> int
+        PRE { DUP tag_is_positive }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace_helper_cmp
+      """
+
+      parent = self()
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          stdout =
+            ExUnit.CaptureIO.capture_io(fn ->
+              Axiom.eval_with_env(source, %{"__prove_trace__" => :json})
+            end)
+
+          send(parent, {:captured_stdout, stdout})
+        end)
+
+      stdout =
+        receive do
+          {:captured_stdout, out} -> out
+        end
+
+      assert stdout =~ "PROVE square_only_abs_trace_helper_cmp: PROVEN"
+      assert stderr =~ "\"match_site_id\":\"square_only_abs_trace_helper_cmp:body:"
+      assert stderr =~ "\"reason\":\"eq\""
+      assert stderr =~ "\"inference_source\":[\"helper_cmp\"]"
+      assert stderr =~ "\"assumptions\":"
+      assert stderr =~ "\"source\":[\"helper_cmp\"]"
+      assert stderr =~ "\"pruned\":[\"Circle\"]"
     end
 
     test "trace json mode includes unknown_reason in run_end for UNKNOWN proofs" do

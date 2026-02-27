@@ -240,6 +240,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - MATCH candidate filtering now respects these bounds when assumptions are present, and trace assumption snapshots include bound fields
 - Added coverage in solver tests plus `examples/prove/proven_shape_tag_bounds.ax`
 
+### v0.6.0z — Helper-Comparison Tag Inference
+- Added assumption extraction for helper-comparison shapes over tag booleans encoded as integer `ite` expressions
+- This enables real MATCH pruning from patterns like `tag_helper(...) > 0` even when PRE does not contain direct tag comparisons
+- JSON trace `match_decision` now includes `inference_source`, and assumption snapshots include source labels (e.g. `helper_cmp`)
+
 ---
 
 ## Next Up
@@ -250,11 +255,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 **Deliverables:**
 
-- **Broader constructor inference** — recognize and reduce more helper-generated PRE patterns into direct tag constraints (including bounded forms)
+- **Broader constructor inference** — extend helper-pattern coverage beyond current bounded `ite` boolean encodings
 - **Richer structured diagnostics** — add stable schemas and richer event context beyond current rewrite/lifecycle coverage
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** tag-bound assumption plumbing is now covered; next gains are more source-level inference paths that produce those bounds.
+**Why now:** helper-comparison extraction now lands end-to-end; next gains are breadth across additional helper/generated PRE encodings.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

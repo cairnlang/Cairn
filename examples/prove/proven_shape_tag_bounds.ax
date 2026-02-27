@@ -1,4 +1,4 @@
-# proven_shape_tag_bounds.ax — constructor narrowing from tag-bound PRE comparisons (v0.6.0y)
+# proven_shape_tag_bounds.ax — helper-comparison tag narrowing in PRE (v0.6.0z)
 
 TYPE shape = Circle int | Square int
 
@@ -10,11 +10,11 @@ DEF tag_is_positive : shape -> bool
   0 GT
 END
 
-# PRE implies shape tag > 0, which narrows to Square for this 2-constructor ADT.
+# PRE helper comparison implies shape tag > 0, which narrows to Square for this 2-constructor ADT.
 DEF square_only_abs_bounds : shape -> int
   PRE { DUP tag_is_positive }
   MATCH
-    Circle { ABS }
+    Circle { LEN }
     Square { ABS }
   END
   POST DUP 0 GTE

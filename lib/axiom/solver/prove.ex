@@ -350,53 +350,59 @@ defmodule Axiom.Solver.Prove do
   end
 
   defp do_assumption_map_from_constraint({:eq, {:var, var}, {:const, value}}) when is_integer(value) do
-    %{var => new_tag_assumption(eq: value)}
+    %{var => new_tag_assumption(eq: value, source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({:eq, {:const, value}, {:var, var}}) when is_integer(value) do
-    %{var => new_tag_assumption(eq: value)}
+    %{var => new_tag_assumption(eq: value, source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({:neq, {:var, var}, {:const, value}}) when is_integer(value) do
-    %{var => new_tag_assumption(neq: MapSet.new([value]))}
+    %{var => new_tag_assumption(neq: MapSet.new([value]), source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({:neq, {:const, value}, {:var, var}}) when is_integer(value) do
-    %{var => new_tag_assumption(neq: MapSet.new([value]))}
+    %{var => new_tag_assumption(neq: MapSet.new([value]), source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({op, left, right}) when op in [:gt, :gte, :lt, :lte] do
-    case normalize_comparison(op, left, right) do
-      {:ok, {normalized_op, var, value}} ->
-        assumption =
-          case normalized_op do
-            :gt -> new_tag_assumption(min: value, min_inclusive: false)
-            :gte -> new_tag_assumption(min: value, min_inclusive: true)
-            :lt -> new_tag_assumption(max: value, max_inclusive: false)
-            :lte -> new_tag_assumption(max: value, max_inclusive: true)
-          end
-
+    case helper_tag_cmp_assumption(op, left, right) do
+      {:ok, {var, assumption}} ->
         %{var => assumption}
 
       :error ->
-        %{}
+        case normalize_comparison(op, left, right) do
+          {:ok, {normalized_op, var, value}} ->
+            assumption =
+              case normalized_op do
+                :gt -> new_tag_assumption(min: value, min_inclusive: false, source: MapSet.new(["direct_cmp"]))
+                :gte -> new_tag_assumption(min: value, min_inclusive: true, source: MapSet.new(["direct_cmp"]))
+                :lt -> new_tag_assumption(max: value, max_inclusive: false, source: MapSet.new(["direct_cmp"]))
+                :lte -> new_tag_assumption(max: value, max_inclusive: true, source: MapSet.new(["direct_cmp"]))
+              end
+
+            %{var => assumption}
+
+          :error ->
+            %{}
+        end
     end
   end
 
   defp do_assumption_map_from_constraint({:not, {:eq, {:var, var}, {:const, value}}}) when is_integer(value) do
-    %{var => new_tag_assumption(neq: MapSet.new([value]))}
+    %{var => new_tag_assumption(neq: MapSet.new([value]), source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({:not, {:eq, {:const, value}, {:var, var}}}) when is_integer(value) do
-    %{var => new_tag_assumption(neq: MapSet.new([value]))}
+    %{var => new_tag_assumption(neq: MapSet.new([value]), source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({:not, {:neq, {:var, var}, {:const, value}}}) when is_integer(value) do
-    %{var => new_tag_assumption(eq: value)}
+    %{var => new_tag_assumption(eq: value, source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({:not, {:neq, {:const, value}, {:var, var}}}) when is_integer(value) do
-    %{var => new_tag_assumption(eq: value)}
+    %{var => new_tag_assumption(eq: value, source: MapSet.new(["eq_neq"]))}
   end
 
   defp do_assumption_map_from_constraint({:not, {:not, inner}}) do
@@ -452,6 +458,7 @@ defmodule Axiom.Solver.Prove do
     neq = MapSet.union(left.neq, right.neq)
     lower = tighter_lower_bound(left, right)
     upper = tighter_upper_bound(left, right)
+    source = MapSet.union(left.source, right.source)
 
     cond do
       eq == :conflict ->
@@ -467,7 +474,7 @@ defmodule Axiom.Solver.Prove do
         new_tag_assumption()
 
       true ->
-        new_tag_assumption(eq: eq, neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
+        new_tag_assumption(eq: eq, neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1), source: source)
     end
   end
 
@@ -481,18 +488,72 @@ defmodule Axiom.Solver.Prove do
     neq = MapSet.intersection(left.neq, right.neq)
     lower = weaker_lower_bound(left, right)
     upper = weaker_upper_bound(left, right)
+    source = MapSet.intersection(left.source, right.source)
 
     cond do
       is_integer(eq) and MapSet.member?(neq, eq) ->
-        new_tag_assumption(neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
+        new_tag_assumption(neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1), source: source)
 
       is_integer(eq) and not eq_satisfies_bounds?(eq, lower, upper) ->
-        new_tag_assumption(neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
+        new_tag_assumption(neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1), source: source)
 
       true ->
-        new_tag_assumption(eq: eq, neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1))
+        new_tag_assumption(eq: eq, neq: neq, min: elem(lower, 0), min_inclusive: elem(lower, 1), max: elem(upper, 0), max_inclusive: elem(upper, 1), source: source)
     end
   end
+
+  defp helper_tag_cmp_assumption(op, left, right) do
+    case parse_tag_bool_ite(op, left, right) do
+      {:ok, {var, tag_value, true_val, false_val, cmp_op, threshold}} ->
+        true_holds = cmp_holds?(cmp_op, true_val, threshold)
+        false_holds = cmp_holds?(cmp_op, false_val, threshold)
+        helper_assumption_for_bool(var, tag_value, true_holds, false_holds)
+
+      :error ->
+        :error
+    end
+  end
+
+  defp parse_tag_bool_ite(op, {:ite, {:eq, {:var, var}, {:const, tag_value}}, {:const, true_val}, {:const, false_val}}, {:const, threshold})
+       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
+    {:ok, {var, tag_value, true_val, false_val, op, threshold}}
+  end
+
+  defp parse_tag_bool_ite(op, {:ite, {:eq, {:const, tag_value}, {:var, var}}, {:const, true_val}, {:const, false_val}}, {:const, threshold})
+       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
+    {:ok, {var, tag_value, true_val, false_val, op, threshold}}
+  end
+
+  defp parse_tag_bool_ite(op, {:const, threshold}, {:ite, {:eq, {:var, var}, {:const, tag_value}}, {:const, true_val}, {:const, false_val}})
+       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
+    {:ok, {var, tag_value, true_val, false_val, flip_comparison(op), threshold}}
+  end
+
+  defp parse_tag_bool_ite(op, {:const, threshold}, {:ite, {:eq, {:const, tag_value}, {:var, var}}, {:const, true_val}, {:const, false_val}})
+       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
+    {:ok, {var, tag_value, true_val, false_val, flip_comparison(op), threshold}}
+  end
+
+  defp parse_tag_bool_ite(_op, _left, _right), do: :error
+
+  defp cmp_holds?(op, left_value, right_value) do
+    case op do
+      :gt -> left_value > right_value
+      :gte -> left_value >= right_value
+      :lt -> left_value < right_value
+      :lte -> left_value <= right_value
+    end
+  end
+
+  defp helper_assumption_for_bool(var, tag_value, true, false) do
+    {:ok, {var, new_tag_assumption(eq: tag_value, source: MapSet.new(["helper_cmp"]))}}
+  end
+
+  defp helper_assumption_for_bool(var, tag_value, false, true) do
+    {:ok, {var, new_tag_assumption(neq: MapSet.new([tag_value]), source: MapSet.new(["helper_cmp"]))}}
+  end
+
+  defp helper_assumption_for_bool(_var, _tag_value, _true_holds, _false_holds), do: :error
 
   defp normalize_comparison(op, {:var, var}, {:const, value}) when is_integer(value), do: {:ok, {op, var, value}}
 
@@ -514,12 +575,13 @@ defmodule Axiom.Solver.Prove do
       min: Keyword.get(fields, :min, nil),
       min_inclusive: Keyword.get(fields, :min_inclusive, true),
       max: Keyword.get(fields, :max, nil),
-      max_inclusive: Keyword.get(fields, :max_inclusive, true)
+      max_inclusive: Keyword.get(fields, :max_inclusive, true),
+      source: Keyword.get(fields, :source, MapSet.new())
     }
   end
 
   defp empty_tag_assumption?(assumption) do
-    assumption.eq == nil and MapSet.size(assumption.neq) == 0 and assumption.min == nil and assumption.max == nil
+    assumption.eq == nil and MapSet.size(assumption.neq) == 0 and assumption.min == nil and assumption.max == nil and MapSet.size(assumption.source) == 0
   end
 
   defp tighter_lower_bound(left, right) do

@@ -994,16 +994,19 @@ defmodule Axiom.Solver.Symbolic do
 
     case Map.get(assumptions, var_name) do
       value when is_integer(value) ->
-        %{eq: value, neq: MapSet.new(), min: nil, min_inclusive: true, max: nil, max_inclusive: true}
+        %{eq: value, neq: MapSet.new(), min: nil, min_inclusive: true, max: nil, max_inclusive: true, source: MapSet.new()}
+
+      %{eq: eq, neq: neq, min: min, min_inclusive: min_inc, max: max, max_inclusive: max_inc, source: source} ->
+        %{eq: eq, neq: neq, min: min, min_inclusive: min_inc, max: max, max_inclusive: max_inc, source: source}
 
       %{eq: eq, neq: neq, min: min, min_inclusive: min_inc, max: max, max_inclusive: max_inc} ->
-        %{eq: eq, neq: neq, min: min, min_inclusive: min_inc, max: max, max_inclusive: max_inc}
+        %{eq: eq, neq: neq, min: min, min_inclusive: min_inc, max: max, max_inclusive: max_inc, source: MapSet.new()}
 
       %{eq: eq, neq: neq} ->
-        %{eq: eq, neq: neq, min: nil, min_inclusive: true, max: nil, max_inclusive: true}
+        %{eq: eq, neq: neq, min: nil, min_inclusive: true, max: nil, max_inclusive: true, source: MapSet.new()}
 
       _ ->
-        %{eq: nil, neq: MapSet.new(), min: nil, min_inclusive: true, max: nil, max_inclusive: true}
+        %{eq: nil, neq: MapSet.new(), min: nil, min_inclusive: true, max: nil, max_inclusive: true, source: MapSet.new()}
     end
   end
 
@@ -1068,10 +1071,10 @@ defmodule Axiom.Solver.Symbolic do
 
   defp assumption_snapshot({:var, var_name}, env) do
     a = get_tag_assumption(var_name, env)
-    %{eq: a.eq, neq: Enum.sort(MapSet.to_list(a.neq)), min: a.min, min_inclusive: a.min_inclusive, max: a.max, max_inclusive: a.max_inclusive}
+    %{eq: a.eq, neq: Enum.sort(MapSet.to_list(a.neq)), min: a.min, min_inclusive: a.min_inclusive, max: a.max, max_inclusive: a.max_inclusive, source: Enum.sort(MapSet.to_list(a.source))}
   end
 
-  defp assumption_snapshot(_tag, _env), do: %{eq: nil, neq: [], min: nil, min_inclusive: true, max: nil, max_inclusive: true}
+  defp assumption_snapshot(_tag, _env), do: %{eq: nil, neq: [], min: nil, min_inclusive: true, max: nil, max_inclusive: true, source: []}
 
   defp trace_match_decision(env, type_name, explored, pruned, reason, details) do
     if Map.get(env, "__prove_trace_enabled__", false) do
@@ -1087,6 +1090,7 @@ defmodule Axiom.Solver.Symbolic do
         match_pos: Map.get(details, :match_pos, -1),
         match_site_id: to_string(Map.get(details, :match_site_id, "?")),
         assumptions: Map.get(details, :assumptions, %{eq: nil, neq: []}),
+        inference_source: Map.get(details, :assumptions, %{}) |> Map.get(:source, []),
         pre_raw: Map.get(details, :pre_raw, nil),
         pre_normalized: Map.get(details, :pre_normalized, nil),
         pre_rewrite_summary: Map.get(details, :pre_rewrite_summary, %{})

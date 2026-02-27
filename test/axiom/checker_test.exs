@@ -131,6 +131,14 @@ defmodule Axiom.CheckerTest do
       assert {:ok, %{pops: [:str], pushes: [:int]}} = Effects.lookup(:to_int!)
       assert {:ok, %{pops: [:str], pushes: [:float]}} = Effects.lookup(:to_float!)
     end
+
+    test "collection helper operators have effects" do
+      assert {:ok, %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:list, :any}}]}} =
+               Effects.lookup(:zip)
+
+      assert {:ok, %{pops: [{:list, :any}], pushes: [{:list, {:list, :any}}]}} =
+               Effects.lookup(:enumerate)
+    end
   end
 
   # ── Literal type tracking ──
@@ -440,6 +448,10 @@ defmodule Axiom.CheckerTest do
       check_ok("[ 1 2 3 ] { SQ } MAP")
     end
 
+    test "FLAT_MAP with block" do
+      check_ok("[ 1 2 3 ] { DUP 10 MUL [ ] CONS CONS } FLAT_MAP")
+    end
+
     test "REDUCE with block" do
       check_ok("[ 1 2 3 4 5 ] 0 { ADD } REDUCE")
     end
@@ -478,6 +490,8 @@ defmodule Axiom.CheckerTest do
       check_ok("[ 1 2 3 ] LEN")
       check_ok("[ 1 2 3 ] HEAD")
       check_ok("[ 1 2 3 ] TAIL")
+      check_ok("[ 1 2 3 ] [ 4 5 6 ] ZIP")
+      check_ok("[ 1 2 3 ] ENUMERATE")
     end
 
     test "SORT and REVERSE" do
@@ -499,6 +513,11 @@ defmodule Axiom.CheckerTest do
 
     test "CONCAT with strings" do
       check_ok("\"hello \" \"world\" CONCAT")
+    end
+
+    test "FLAT_MAP block must return a list" do
+      errors = check_errors("[ 1 2 3 ] { SQ } FLAT_MAP")
+      assert Enum.any?(errors, fn e -> e.message =~ "FLAT_MAP block must return a list" end)
     end
   end
 

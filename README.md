@@ -111,6 +111,7 @@ mix axiom.run examples/bank.ax
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
 See [`docs/prove.md`](docs/prove.md) for PROVE-specific details, solver behavior, and trace modes.
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
+`examples/collections.ax` is the first focused collection-helper showcase for `ZIP`, `ENUMERATE`, and `FLAT_MAP`.
 Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, and `supervisor_worker.ax` exercise the current runtime actor path (`protocol_ping_pong.ax` is the first bounded protocol-conformance example and now demonstrates helper-function conformance inside protocol-bound actors, `notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` and `protocol_mismatch.ax` intentionally fail and are kept out of the normal runnable examples list.
 
 ### Practical Mini-Apps
@@ -221,10 +222,10 @@ AND OR NOT
 DUP DROP SWAP OVER ROT ROT4
 
 # List operations
-SUM LEN HEAD TAIL CONS CONCAT SORT REVERSE RANGE
+SUM LEN HEAD TAIL CONS CONCAT SORT REVERSE RANGE ZIP ENUMERATE
 
 # Higher-order (take a block and a list)
-FILTER MAP REDUCE
+FILTER MAP FLAT_MAP REDUCE
 
 # Iteration
 TIMES WHILE

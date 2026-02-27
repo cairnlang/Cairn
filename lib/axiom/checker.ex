@@ -601,6 +601,10 @@ defmodule Axiom.Checker do
     check_map(pos, rest, state)
   end
 
+  defp walk([{:op, :flat_map, pos} | rest], state) do
+    check_flat_map(pos, rest, state)
+  end
+
   defp walk([{:op, :reduce, pos} | rest], state) do
     check_reduce(pos, rest, state)
   end
@@ -1136,6 +1140,46 @@ defmodule Axiom.Checker do
       :underflow ->
         state = add_error(state, pos, "REDUCE requires 3 values on the stack (stack underflow)")
         walk(rest, %{state | stack: state.stack |> Stack.push(:any)})
+    end
+  end
+
+  defp check_flat_map(pos, rest, state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, block_tokens}, {:list, elem_type}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        {result_type, errors} =
+          case Stack.pop(block_state.stack) do
+            {:ok, {:list, inner_type}, _} -> {{:list, inner_type}, block_state.errors}
+            {:ok, other, _} -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list, got #{format_type(other)}", position: pos} | block_state.errors]}
+            :underflow -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list", position: pos} | block_state.errors]}
+          end
+
+        state = %{state | stack: Stack.push(base, result_type), errors: errors}
+        walk(rest, state)
+
+      {[{:list, elem_type}, {:block, block_tokens}], base} ->
+        block_stack = Stack.new() |> Stack.push(elem_type)
+        block_state = %{state | stack: block_stack}
+        block_state = walk(block_tokens, block_state)
+
+        {result_type, errors} =
+          case Stack.pop(block_state.stack) do
+            {:ok, {:list, inner_type}, _} -> {{:list, inner_type}, block_state.errors}
+            {:ok, other, _} -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list, got #{format_type(other)}", position: pos} | block_state.errors]}
+            :underflow -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list", position: pos} | block_state.errors]}
+          end
+
+        state = %{state | stack: Stack.push(base, result_type), errors: errors}
+        walk(rest, state)
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "FLAT_MAP requires a list and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "FLAT_MAP requires 2 values on the stack (stack underflow)"))
     end
   end
 

@@ -21,6 +21,7 @@ defmodule AxiomTest do
     test "tokenizes operators" do
       assert {:ok, [{:op, :add, 0}]} = Axiom.Lexer.tokenize("ADD")
       assert {:ok, [{:op, :filter, 0}]} = Axiom.Lexer.tokenize("FILTER")
+      assert {:ok, [{:op, :flat_map, 0}]} = Axiom.Lexer.tokenize("FLAT_MAP")
       assert {:ok, [{:op, :dup, 0}]} = Axiom.Lexer.tokenize("DUP")
     end
 
@@ -194,6 +195,8 @@ defmodule AxiomTest do
       assert Axiom.eval("[ 1 2 3 ] LEN") == [3]
       assert Axiom.eval("[ 1 2 3 ] HEAD") == [1]
       assert Axiom.eval("[ 1 2 3 ] TAIL") == [[2, 3]]
+      assert Axiom.eval("[ 1 2 3 ] [ 10 20 30 ] ZIP") == [[[1, 10], [2, 20], [3, 30]]]
+      assert Axiom.eval("[ \"a\" \"b\" ] ENUMERATE") == [[[1, "a"], [2, "b"]]]
     end
 
     test "filter with block" do
@@ -202,6 +205,17 @@ defmodule AxiomTest do
 
     test "map with block" do
       assert Axiom.eval("[ 1 2 3 ] { SQ } MAP") == [[1, 4, 9]]
+    end
+
+    test "flat_map with block" do
+      source = "[ 1 2 3 ] { DUP 10 MUL [ ] CONS CONS } FLAT_MAP"
+      assert Axiom.eval(source) == [[1, 10, 2, 20, 3, 30]]
+    end
+
+    test "flat_map requires a list result from the block" do
+      assert_raise Axiom.StaticError, ~r/FLAT_MAP block must return a list/, fn ->
+        Axiom.eval("[ 1 2 3 ] { SQ } FLAT_MAP")
+      end
     end
 
     test "filter then map then sum (the showcase example)" do

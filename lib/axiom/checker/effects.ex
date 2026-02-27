@@ -48,6 +48,8 @@ defmodule Axiom.Checker.Effects do
     tail: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
     cons: %{pops: [{:list, :any}, :any], pushes: [{:list, :any}]},
     concat: %{pops: [:any, :any], pushes: [:any]},
+    zip: %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:list, :any}}]},
+    enumerate: %{pops: [{:list, :any}], pushes: [{:list, {:list, :any}}]},
     sort: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
     reverse: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
     range: %{pops: [:int], pushes: [{:list, :int}]},

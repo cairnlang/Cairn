@@ -480,6 +480,8 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 
 **Why first:** highest value-per-effort, no deep architectural commitment, and directly useful for practical examples.
 
+**First bounded slice now landed:** `ZIP`, `ENUMERATE`, and `FLAT_MAP` are in, with a pragmatic `any`-leaning type story for the shape-heavy cases and a focused `examples/collections.ax` showcase.
+
 #### 2. Float Math As Explicit Float Ops
 **Goal:** Add practical numeric capability without forcing a broader numeric-type redesign yet.
 

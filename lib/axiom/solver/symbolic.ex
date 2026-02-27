@@ -383,29 +383,30 @@ defmodule Axiom.Solver.Symbolic do
   end
 
   # MATCH support (narrow scope): option
-  defp walk([{:match_kw, _, _} | rest], [{:option_expr, tag, payload} | stack], env, depth) do
+  defp walk([{:match_kw, _, pos} | rest], [{:option_expr, tag, payload} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
     possible = possible_tag_indexes(tag, 2, env)
     candidate_names = option_candidate_names(possible)
+    details = match_trace_details("option", tag, env, pos, candidate_names)
 
     with {:ok, some_tokens, none_tokens} <- resolve_option_arms(arms) do
       case possible do
         [1] ->
-          trace_match_decision(env, "option", "Some", ["None"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
+          trace_match_decision(env, "option", "Some", ["None"], reason_for_tag_prune(tag, env), details)
 
           with {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth) do
             walk(remaining, some_stack, env, depth)
           end
 
         [0] ->
-          trace_match_decision(env, "option", "None", ["Some"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
+          trace_match_decision(env, "option", "None", ["Some"], reason_for_tag_prune(tag, env), details)
 
           with {:ok, none_stack} <- walk(none_tokens, stack, env, depth) do
             walk(remaining, none_stack, env, depth)
           end
 
         _ ->
-          trace_match_decision(env, "option", "Some+None", [], "unknown", %{candidates: candidate_names, tag: inspect(tag)})
+          trace_match_decision(env, "option", "Some+None", [], "unknown", details)
 
           with {:ok, some_stack} <- walk(some_tokens, [{:int_expr, payload} | stack], env, depth),
                {:ok, none_stack} <- walk(none_tokens, stack, env, depth),
@@ -417,29 +418,30 @@ defmodule Axiom.Solver.Symbolic do
   end
 
   # MATCH support (narrow scope): result
-  defp walk([{:match_kw, _, _} | rest], [{:result_expr, tag, ok_payload, err_id} | stack], env, depth) do
+  defp walk([{:match_kw, _, pos} | rest], [{:result_expr, tag, ok_payload, err_id} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
     possible = possible_tag_indexes(tag, 2, env)
     candidate_names = result_candidate_names(possible)
+    details = match_trace_details("result", tag, env, pos, candidate_names)
 
     with {:ok, ok_tokens, err_tokens} <- resolve_result_arms(arms) do
       case possible do
         [1] ->
-          trace_match_decision(env, "result", "Ok", ["Err"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
+          trace_match_decision(env, "result", "Ok", ["Err"], reason_for_tag_prune(tag, env), details)
 
           with {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth) do
             walk(remaining, ok_stack, env, depth)
           end
 
         [0] ->
-          trace_match_decision(env, "result", "Err", ["Ok"], reason_for_tag_prune(tag, env), %{candidates: candidate_names, tag: inspect(tag)})
+          trace_match_decision(env, "result", "Err", ["Ok"], reason_for_tag_prune(tag, env), details)
 
           with {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth) do
             walk(remaining, err_stack, env, depth)
           end
 
         _ ->
-          trace_match_decision(env, "result", "Ok+Err", [], "unknown", %{candidates: candidate_names, tag: inspect(tag)})
+          trace_match_decision(env, "result", "Ok+Err", [], "unknown", details)
 
           with {:ok, ok_stack} <- walk(ok_tokens, [{:int_expr, ok_payload} | stack], env, depth),
                {:ok, err_stack} <- walk(err_tokens, [{:opaque_expr, err_id} | stack], env, depth),
@@ -451,13 +453,13 @@ defmodule Axiom.Solver.Symbolic do
   end
 
   # MATCH support (generic non-recursive int-field ADTs)
-  defp walk([{:match_kw, _, _} | rest], [{:variant_expr, type_name, tag, payload_map} | stack], env, depth) do
+  defp walk([{:match_kw, _, pos} | rest], [{:variant_expr, type_name, tag, payload_map} | stack], env, depth) do
     {arms, remaining} = collect_match_arms(rest, [])
     types = Map.get(env, "__types__", %{})
 
     with {:ok, typedef} <- fetch_typedef(type_name, types),
          {:ok, arm_tokens_by_ctor} <- resolve_generic_arms(typedef, arms),
-         {:ok, merged_stack} <- execute_and_merge_generic_match(typedef, tag, payload_map, stack, arm_tokens_by_ctor, env, depth) do
+         {:ok, merged_stack} <- execute_and_merge_generic_match(typedef, tag, payload_map, stack, arm_tokens_by_ctor, env, depth, pos) do
       walk(remaining, merged_stack, env, depth)
     end
   end
@@ -734,12 +736,13 @@ defmodule Axiom.Solver.Symbolic do
     end
   end
 
-  defp execute_and_merge_generic_match(typedef, tag, payload_map, base_stack, arm_map, env, depth) do
+  defp execute_and_merge_generic_match(typedef, tag, payload_map, base_stack, arm_map, env, depth, pos) do
     ctors = ctor_order(typedef)
     possible = possible_tag_indexes(tag, length(ctors), env)
     possible_ctors = Enum.map(possible, &Enum.at(ctors, &1))
     pruned_ctors = ctors -- possible_ctors
-    trace_match_decision(env, typedef.name, Enum.join(possible_ctors, "+"), pruned_ctors, reason_for_tag_prune(tag, env), %{candidates: possible_ctors, tag: inspect(tag)})
+    details = match_trace_details(typedef.name, tag, env, pos, possible_ctors)
+    trace_match_decision(env, typedef.name, Enum.join(possible_ctors, "+"), pruned_ctors, reason_for_tag_prune(tag, env), details)
 
     case possible do
       [idx] when is_integer(idx) and idx >= 0 and idx < length(ctors) ->
@@ -1044,6 +1047,29 @@ defmodule Axiom.Solver.Symbolic do
     end)
   end
 
+  defp match_trace_details(type_name, tag, env, pos, candidates) do
+    phase = Map.get(env, "__prove_phase__", "body")
+    func = Map.get(env, "__prove_func_name__", "<anon>")
+    assumption = assumption_snapshot(tag, env)
+
+    %{
+      candidates: candidates,
+      tag: inspect(tag),
+      phase: phase,
+      match_pos: pos,
+      match_site_id: "#{func}:#{phase}:#{pos}",
+      assumptions: assumption,
+      match_type: type_name
+    }
+  end
+
+  defp assumption_snapshot({:var, var_name}, env) do
+    a = get_tag_assumption(var_name, env)
+    %{eq: a.eq, neq: Enum.sort(MapSet.to_list(a.neq))}
+  end
+
+  defp assumption_snapshot(_tag, _env), do: %{eq: nil, neq: []}
+
   defp trace_match_decision(env, type_name, explored, pruned, reason, details) do
     if Map.get(env, "__prove_trace_enabled__", false) do
       event = %{
@@ -1053,7 +1079,11 @@ defmodule Axiom.Solver.Symbolic do
         pruned: Enum.map(pruned, &to_string/1),
         reason: to_string(reason),
         candidates: Map.get(details, :candidates, []) |> Enum.map(&to_string/1),
-        tag: to_string(Map.get(details, :tag, "?"))
+        tag: to_string(Map.get(details, :tag, "?")),
+        phase: to_string(Map.get(details, :phase, "body")),
+        match_pos: Map.get(details, :match_pos, -1),
+        match_site_id: to_string(Map.get(details, :match_site_id, "?")),
+        assumptions: Map.get(details, :assumptions, %{eq: nil, neq: []})
       }
 
       append_trace_event(event)

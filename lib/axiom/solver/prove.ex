@@ -29,26 +29,27 @@ defmodule Axiom.Solver.Prove do
   def prove(%Function{} = func, env \\ %{}) do
     trace_level = trace_level(env)
     clear_trace_events()
+    trace_started_at_ms = System.monotonic_time(:millisecond)
 
     with :ok <- check_z3_available(),
-         prove_env <- with_trace_flag(env, trace_level),
+         prove_env <- with_trace_flag(env, trace_level, func.name),
          {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, prove_env),
-         {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, prove_env),
+         {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, with_phase(prove_env, "pre")),
          prove_env <- enrich_env_with_pre_assumptions(prove_env, pre_constraint),
-         {:ok, result_stack} <- execute_body(func, body_stack, prove_env),
-         {:ok, post_constraint} <- execute_post(func, result_stack, prove_env) do
+         {:ok, result_stack} <- execute_body(func, body_stack, with_phase(prove_env, "body")),
+         {:ok, post_constraint} <- execute_post(func, result_stack, with_phase(prove_env, "post")) do
       result = query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env)
-      maybe_emit_trace(func.name, result, trace_level)
+      maybe_emit_trace(func.name, result, trace_level, trace_started_at_ms)
       result
     else
       {:unsupported, reason} ->
         result = {:unknown, reason}
-        maybe_emit_trace(func.name, result, trace_level)
+        maybe_emit_trace(func.name, result, trace_level, trace_started_at_ms)
         result
 
       {:error, reason} ->
         result = {:error, reason}
-        maybe_emit_trace(func.name, result, trace_level)
+        maybe_emit_trace(func.name, result, trace_level, trace_started_at_ms)
         result
     end
   end
@@ -357,17 +358,18 @@ defmodule Axiom.Solver.Prove do
   defp normalize_trace_value("json"), do: :json
   defp normalize_trace_value(_), do: :off
 
-  defp with_trace_flag(env, :off), do: env
+  defp with_trace_flag(env, :off, func_name), do: Map.put(env, "__prove_func_name__", func_name)
 
-  defp with_trace_flag(env, level) when level in [:summary, :verbose, :json] do
+  defp with_trace_flag(env, level, func_name) when level in [:summary, :verbose, :json] do
     env
     |> Map.put("__prove_trace_enabled__", true)
     |> Map.put("__prove_trace_level__", level)
+    |> Map.put("__prove_func_name__", func_name)
   end
 
-  defp maybe_emit_trace(_func_name, _result, :off), do: :ok
+  defp maybe_emit_trace(_func_name, _result, :off, _started_at_ms), do: :ok
 
-  defp maybe_emit_trace(func_name, result, :json) do
+  defp maybe_emit_trace(func_name, result, :json, started_at_ms) do
     status =
       case result do
         {:proven, _} -> "PROVEN"
@@ -377,13 +379,38 @@ defmodule Axiom.Solver.Prove do
       end
 
     events = get_trace_events()
+    elapsed_ms = max(System.monotonic_time(:millisecond) - started_at_ms, 0)
+    pruned_total = Enum.reduce(events, 0, fn e, acc -> acc + length(Map.get(e, :pruned, [])) end)
+    match_count = length(events)
 
-    Enum.each(events, fn event ->
+    run_start = %{
+      event: "prove_run_start",
+      function: func_name,
+      status: status,
+      trace_level: "json"
+    }
+
+    run_end = %{
+      event: "prove_run_end",
+      function: func_name,
+      status: status,
+      trace_level: "json",
+      match_event_count: match_count,
+      pruned_branch_count: pruned_total,
+      elapsed_ms: elapsed_ms
+    }
+
+    all_events = [run_start | events] ++ [run_end]
+
+    all_events
+    |> Enum.with_index()
+    |> Enum.each(fn {event, idx} ->
       payload =
         event
-        |> Map.put(:function, func_name)
-        |> Map.put(:status, status)
-        |> Map.put(:trace_level, "json")
+        |> Map.put_new(:function, func_name)
+        |> Map.put_new(:status, status)
+        |> Map.put_new(:trace_level, "json")
+        |> Map.put(:event_index, idx)
 
       IO.puts(:stderr, json_encode(payload))
     end)
@@ -391,7 +418,7 @@ defmodule Axiom.Solver.Prove do
     :ok
   end
 
-  defp maybe_emit_trace(func_name, result, trace_level) when trace_level in [:summary, :verbose] do
+  defp maybe_emit_trace(func_name, result, trace_level, _started_at_ms) when trace_level in [:summary, :verbose] do
     status =
       case result do
         {:proven, _} -> "PROVEN"
@@ -422,6 +449,8 @@ defmodule Axiom.Solver.Prove do
     (Process.get(:axiom_prove_trace_events) || [])
     |> Enum.reverse()
   end
+
+  defp with_phase(env, phase), do: Map.put(env, "__prove_phase__", phase)
 
   defp human_trace_line(event, :summary) do
     pruned_txt =

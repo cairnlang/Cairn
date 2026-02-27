@@ -150,6 +150,13 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Preserved human-readable summary/verbose trace formatting as default diagnostics
 - Added solver coverage for JSON trace shape and stderr routing behavior
 
+### v0.6.0j — Richer JSON Trace Metadata
+- JSON trace now emits `prove_run_start` and `prove_run_end` events
+- Added stable `event_index` sequencing across JSON trace events
+- Added deterministic `match_site_id` (`function:phase:token_pos`) and `phase` metadata on MATCH decisions
+- Added inferred assumption snapshots (`eq` / `neq`) to MATCH decision events
+- Added solver coverage for schema stability of run metadata and match context fields
+
 ---
 
 ## Next Up
@@ -161,10 +168,10 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 **Deliverables:**
 
 - **Broader constructor inference** — recognize additional refinement-like PRE patterns around MATCH helpers
-- **Richer structured diagnostics** — include additional proof context fields for tooling workflows
+- **Richer structured diagnostics** — expand proof context fields beyond match-level pruning data
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** structured trace is in place; next gains are deeper inference and richer proof metadata.
+**Why now:** richer JSON metadata is in place; next gains are deeper inference and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

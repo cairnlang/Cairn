@@ -1,4 +1,4 @@
-# proven_shape_trace.ax — trace mode demo for PRE-driven MATCH pruning (v0.6.0g)
+# proven_shape_trace.ax — trace mode demo for PRE-driven MATCH pruning (v0.6.0j)
 #
 # Run with:
 #   AXIOM_PROVE_TRACE=summary mix axiom.run examples/prove/proven_shape_trace.ax

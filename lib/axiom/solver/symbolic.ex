@@ -37,11 +37,12 @@ defmodule Axiom.Solver.Symbolic do
   Returns `{:ok, stack, vars, base_constraint}`.
   `base_constraint` encodes domain assumptions for symbolic types (e.g. option tags).
   """
-  @spec build_initial_stack([Axiom.Types.axiom_type()]) ::
+  @spec build_initial_stack([Axiom.Types.axiom_type()], map()) ::
           {:ok, [Formula.sym_val()], [String.t()], Formula.constraint()}
           | {:unsupported, String.t()}
-  def build_initial_stack(param_types) do
+  def build_initial_stack(param_types, env \\ %{}) do
     indexed = Enum.with_index(param_types)
+    types = Map.get(env, "__types__", %{})
 
     result =
       Enum.reduce_while(indexed, {:ok, [], [], []}, fn {type, i}, {:ok, stack, vars, constraints} ->
@@ -79,10 +80,19 @@ defmodule Axiom.Solver.Symbolic do
              {:ok, [{:result_expr, tag_expr, ok_expr, err_var} | stack], [ok_var, tag_var | vars],
               [result_domain | constraints]}}
 
+          {:user_type, type_name} ->
+            case build_user_type_symbolic_param(type_name, i, types) do
+              {:ok, sym_val, new_vars, constraint} ->
+                {:cont, {:ok, [sym_val | stack], Enum.reverse(new_vars) ++ vars, [constraint | constraints]}}
+
+              {:unsupported, _} = err ->
+                {:halt, err}
+            end
+
           _ ->
             {:halt,
              {:unsupported,
-              "parameter type #{inspect(type)} is not supported by PROVE (supported: int, option, result)"}}
+              "parameter type #{inspect(type)} is not supported by PROVE (supported: int, option, result, and non-recursive int-field user ADTs)"}}
         end
       end)
 
@@ -143,6 +153,28 @@ defmodule Axiom.Solver.Symbolic do
 
   defp walk([{:constructor, "Err", _} | rest], [{:opaque_expr, err_id} | stack], env, depth) do
     walk(rest, [{:result_expr, {:const, 0}, {:const, 0}, err_id} | stack], env, depth)
+  end
+
+  # Generic constructor support for user ADTs (non-recursive int-field slices)
+  defp walk([{:constructor, name, _} | rest], stack, env, depth) do
+    ctors = Map.get(env, "__constructors__", %{})
+    types = Map.get(env, "__types__", %{})
+
+    case Map.get(ctors, name) do
+      nil ->
+        {:unsupported, "constructor '#{name}' is not available in PROVE"}
+
+      {type_name, field_types} ->
+        with {:ok, typedef} <- fetch_typedef(type_name, types),
+             {:ok, field_vals, remaining_stack} <- pop_constructor_fields(stack, field_types) do
+          ctor_order = ctor_order(typedef)
+          tag = ctor_index(ctor_order, name)
+          payload_map = constructor_payload_map(typedef, name, field_vals)
+          walk(rest, [{:variant_expr, type_name, {:const, tag}, payload_map} | remaining_stack], env, depth)
+        else
+          {:unsupported, _} = err -> err
+        end
+    end
   end
 
   # Arithmetic: ADD, SUB, MUL, DIV, MOD
@@ -374,8 +406,20 @@ defmodule Axiom.Solver.Symbolic do
     end
   end
 
+  # MATCH support (generic non-recursive int-field ADTs)
+  defp walk([{:match_kw, _, _} | rest], [{:variant_expr, type_name, tag, payload_map} | stack], env, depth) do
+    {arms, remaining} = collect_match_arms(rest, [])
+    types = Map.get(env, "__types__", %{})
+
+    with {:ok, typedef} <- fetch_typedef(type_name, types),
+         {:ok, arm_tokens_by_ctor} <- resolve_generic_arms(typedef, arms),
+         {:ok, merged_stack} <- execute_and_merge_generic_match(typedef, tag, payload_map, stack, arm_tokens_by_ctor, env, depth) do
+      walk(remaining, merged_stack, env, depth)
+    end
+  end
+
   defp walk([{:match_kw, _, _} | _], [_ | _], _env, _depth) do
-    {:unsupported, "MATCH in PROVE currently supports option/result values only"}
+    {:unsupported, "MATCH in PROVE currently supports option/result and non-recursive int-field user ADTs"}
   end
 
   defp walk([{:match_kw, _, _} | _], [], _env, _depth) do
@@ -559,6 +603,185 @@ defmodule Axiom.Solver.Symbolic do
     end
   end
 
+  defp fetch_typedef(type_name, types) do
+    case Map.get(types, type_name) do
+      nil -> {:unsupported, "type '#{type_name}' is not registered for PROVE"}
+      typedef -> {:ok, typedef}
+    end
+  end
+
+  defp pop_constructor_fields(stack, field_types) do
+    arity = length(field_types)
+    {vals, remaining} = Enum.split(stack, arity)
+
+    if length(vals) < arity do
+      {:unsupported, "constructor expects #{arity} field(s), stack has #{length(vals)}"}
+    else
+      converted =
+        Enum.zip(vals, field_types)
+        |> Enum.map(fn {v, t} -> convert_field_value(v, t) end)
+
+      if Enum.any?(converted, &match?({:unsupported, _}, &1)) do
+        {:unsupported, "constructor field types are not supported by PROVE (supported fields: int)"}
+      else
+        {:ok, Enum.map(converted, fn {:ok, vv} -> vv end), remaining}
+      end
+    end
+  end
+
+  defp convert_field_value({:int_expr, _} = v, :int), do: {:ok, v}
+  defp convert_field_value({:bool_expr, _} = v, :bool), do: {:ok, v}
+  defp convert_field_value({:opaque_expr, _} = v, _), do: {:ok, v}
+  defp convert_field_value({:variant_expr, _, _, _} = v, _), do: {:ok, v}
+  defp convert_field_value(_, _), do: {:unsupported, :field}
+
+  defp constructor_payload_map(typedef, active_ctor, active_vals) do
+    ctor_order(typedef)
+    |> Enum.reduce(%{}, fn ctor, acc ->
+      fields = Map.get(typedef.variants, ctor, [])
+
+      vals =
+        if ctor == active_ctor do
+          active_vals
+        else
+          Enum.map(0..(max(length(fields) - 1, 0)), fn i -> {:opaque_expr, "__#{ctor}_#{i}"} end)
+        end
+
+      vals =
+        if fields == [] do
+          []
+        else
+          vals
+        end
+
+      Map.put(acc, ctor, vals)
+    end)
+  end
+
+  defp resolve_generic_arms(typedef, arms) do
+    ctors = ctor_order(typedef)
+    wildcard = find_arm(arms, :wildcard)
+
+    invalid =
+      Enum.find(arms, fn {name, _} ->
+        name != :wildcard and name not in ctors
+      end)
+
+    case invalid do
+      {name, _} ->
+        {:unsupported, "MATCH in PROVE has unknown arm #{inspect(name)} for type '#{typedef.name}'"}
+
+      nil ->
+        resolved =
+          Enum.map(ctors, fn ctor ->
+            case find_arm(arms, ctor) || wildcard do
+              nil -> {:missing, ctor}
+              tokens -> {ctor, tokens}
+            end
+          end)
+
+        case Enum.find(resolved, &match?({:missing, _}, &1)) do
+          {:missing, ctor} ->
+            {:unsupported, "MATCH on '#{typedef.name}' in PROVE is missing #{ctor} arm (or wildcard)"}
+
+          nil ->
+            {:ok, Map.new(resolved)}
+        end
+    end
+  end
+
+  defp execute_and_merge_generic_match(typedef, tag, payload_map, base_stack, arm_map, env, depth) do
+    ctor_order(typedef)
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, nil}, fn {ctor, idx}, {:ok, acc_stack} ->
+      ctor_payload = Map.get(payload_map, ctor, [])
+      arm_tokens = Map.fetch!(arm_map, ctor)
+      branch_stack = Enum.reverse(ctor_payload) ++ base_stack
+
+      case walk(arm_tokens, branch_stack, env, depth) do
+        {:ok, stack_out} ->
+          cond do
+            acc_stack == nil ->
+              {:cont, {:ok, stack_out}}
+
+            true ->
+              cond_expr = {:eq, tag, {:const, idx}}
+
+              case merge_stacks(cond_expr, stack_out, acc_stack) do
+                {:ok, merged} -> {:cont, {:ok, merged}}
+                {:unsupported, _} = err -> {:halt, err}
+              end
+          end
+
+        {:unsupported, _} = err ->
+          {:halt, err}
+      end
+    end)
+    |> case do
+      {:ok, nil} -> {:unsupported, "MATCH in PROVE has no constructor branches to merge"}
+      {:ok, merged} -> {:ok, merged}
+      {:unsupported, _} = err -> err
+    end
+  end
+
+  defp ctor_order(typedef) do
+    typedef.variants |> Map.keys() |> Enum.sort()
+  end
+
+  defp ctor_index(ctors, ctor_name) do
+    Enum.find_index(ctors, &(&1 == ctor_name)) || 0
+  end
+
+  defp build_user_type_symbolic_param(type_name, i, types) do
+    with {:ok, typedef} <- fetch_typedef(type_name, types),
+         :ok <- ensure_non_recursive_int_fields(typedef) do
+      tag_var = "p#{i}_tag"
+      tag_expr = {:var, tag_var}
+      ctors = ctor_order(typedef)
+
+      {payload_map, payload_vars} =
+        Enum.reduce(ctors, {%{}, []}, fn ctor, {pm, vars} ->
+          field_types = Map.get(typedef.variants, ctor, [])
+
+          {vals, field_vars} =
+            field_types
+            |> Enum.with_index()
+            |> Enum.reduce({[], []}, fn {_t, fi}, {acc_vals, acc_vars} ->
+              vname = "p#{i}_#{ctor}_#{fi}"
+              {[{:int_expr, {:var, vname}} | acc_vals], [vname | acc_vars]}
+            end)
+
+          {Map.put(pm, ctor, Enum.reverse(vals)), Enum.reverse(field_vars) ++ vars}
+        end)
+
+      domain =
+        ctors
+        |> Enum.with_index()
+        |> Enum.map(fn {_ctor, idx} -> {:eq, tag_expr, {:const, idx}} end)
+        |> join_constraints_or()
+
+      {:ok, {:variant_expr, type_name, tag_expr, payload_map}, [tag_var | payload_vars], domain}
+    else
+      {:unsupported, _} = err -> err
+    end
+  end
+
+  defp ensure_non_recursive_int_fields(typedef) do
+    unsupported =
+      typedef.variants
+      |> Enum.flat_map(fn {_ctor, fields} -> fields end)
+      |> Enum.find(fn t -> t != :int end)
+
+    case unsupported do
+      nil ->
+        :ok
+
+      _ ->
+        {:unsupported,
+         "type '#{typedef.name}' is not yet supported by generic PROVE MATCH (only non-recursive int fields)"}
+    end
+  end
+
   defp find_arm(arms, name) do
     case Enum.find(arms, fn {arm_name, _} -> arm_name == name end) do
       nil -> nil
@@ -599,6 +822,21 @@ defmodule Axiom.Solver.Symbolic do
         {{:opaque_expr, topaque}, {:opaque_expr, eopaque}} ->
           {:opaque_expr, if(opaque_same?(topaque, eopaque), do: topaque, else: "__opaque_merged")}
 
+        {{:variant_expr, tname, ttag, tpayloads}, {:variant_expr, ename, etag, epayloads}} ->
+          if tname != ename do
+            :unsupported
+          else
+            merged_payloads = merge_payload_maps(cond, tpayloads, epayloads)
+
+            case merged_payloads do
+              {:ok, payloads} ->
+                {:variant_expr, tname, {:ite, cond, ttag, etag}, payloads}
+
+              {:unsupported, _} ->
+                :unsupported
+            end
+          end
+
         _ ->
           :unsupported
       end)
@@ -616,6 +854,60 @@ defmodule Axiom.Solver.Symbolic do
   defp join_constraints([head | tail]) do
     Enum.reduce(tail, head, fn c, acc -> {:and, acc, c} end)
   end
+
+  defp join_constraints_or([]), do: true
+  defp join_constraints_or([single]), do: single
+
+  defp join_constraints_or([head | tail]) do
+    Enum.reduce(tail, head, fn c, acc -> {:or, acc, c} end)
+  end
+
+  defp merge_payload_maps(cond, p1, p2) do
+    keys = Map.keys(p1) |> Enum.sort()
+
+    merged =
+      Enum.reduce_while(keys, %{}, fn key, acc ->
+        v1 = Map.get(p1, key, [])
+        v2 = Map.get(p2, key, [])
+
+        case merge_payload_lists(cond, v1, v2) do
+          {:ok, vals} -> {:cont, Map.put(acc, key, vals)}
+          {:unsupported, _} = err -> {:halt, err}
+        end
+      end)
+
+    case merged do
+      %{} = map -> {:ok, map}
+      {:unsupported, _} = err -> err
+    end
+  end
+
+  defp merge_payload_lists(_cond, l1, l2) when length(l1) != length(l2),
+    do: {:unsupported, "payload arity mismatch"}
+
+  defp merge_payload_lists(cond, l1, l2) do
+    l1
+    |> Enum.zip(l2)
+    |> Enum.reduce_while({:ok, []}, fn {a, b}, {:ok, acc} ->
+      case merge_symvals(cond, a, b) do
+        {:ok, v} -> {:cont, {:ok, [v | acc]}}
+        {:unsupported, _} = err -> {:halt, err}
+      end
+    end)
+    |> case do
+      {:ok, vals} -> {:ok, Enum.reverse(vals)}
+      {:unsupported, _} = err -> err
+    end
+  end
+
+  defp merge_symvals(cond, {:int_expr, a}, {:int_expr, b}), do: {:ok, {:int_expr, {:ite, cond, a, b}}}
+  defp merge_symvals(cond, {:bool_expr, a}, {:bool_expr, b}), do: {:ok, {:bool_expr, {:ite_bool, cond, a, b}}}
+
+  defp merge_symvals(_cond, {:opaque_expr, a}, {:opaque_expr, b}) do
+    {:ok, {:opaque_expr, if(opaque_same?(a, b), do: a, else: "__opaque_merged")}}
+  end
+
+  defp merge_symvals(_cond, _, _), do: {:unsupported, "incompatible payload symvals"}
 
   defp opaque_same?(a, b), do: a == b
 end

@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.6.0b**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, and `MATCH` on `option` + `result`), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.6.0c**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, and `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -27,6 +27,9 @@ mix axiom.run examples/proven_option.ax
 # Result MATCH proofs (new PROVE v0.6.0b slice)
 mix axiom.run examples/proven_result.ax
 
+# Generic user ADT MATCH proofs (new PROVE v0.6.0c slice)
+mix axiom.run examples/proven_shape.ax
+
 # JSON parser + encoder demo (modular IMPORT example)
 mix axiom.run examples/json/demo.ax
 
@@ -42,7 +45,7 @@ mix run -e "Axiom.REPL.start()"
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (655 tests)
+# Run tests (667 tests)
 mix test
 ```
 
@@ -786,7 +789,7 @@ Errors are reported with position information and the checker continues after er
 
 ### PROVE Solver
 
-`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b` additionally supports `MATCH` in PROVE for `option` and `result` values (narrow slices). Functions with unsupported operations or unsupported MATCH shapes gracefully return UNKNOWN.
+`PROVE function_name` symbolically executes the function's PRE, body, and POST to build constraint formulas, generates an SMT-LIB v2 script asserting `PRE ∧ ¬POST`, and queries Z3. If Z3 returns `unsat`, the contract is mathematically proven. If `sat`, the model is parsed into a counterexample. IF/ELSE branches are encoded as `ite` (if-then-else) nodes in the SMT-LIB formula, allowing Z3 to handle case analysis natively. Function calls are inlined during symbolic execution (up to depth 10), enabling compositional proofs across helper functions. `v0.6.0a/b/c` additionally supports `MATCH` in PROVE for `option`, `result`, and generic non-recursive int-field user ADTs. Functions with unsupported operations or unsupported MATCH shapes gracefully return UNKNOWN.
 
 The content-addressed DAG (ETS-backed) is in place for future use in multi-agent workflows and compilation to BEAM bytecode.
 
@@ -805,8 +808,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.5.4**: Auto-loaded file prelude (`lib/prelude.ax`) with initial `result` utility helpers
 - **v0.5.5**: Modular prelude split (`lib/prelude/result.ax`, `lib/prelude/str.ax`) with reusable result/string helpers
 - **v0.6.0a**: PROVE supports `MATCH` for `option` values (narrow slice) with `examples/proven_option.ax`
-- **v0.6.0b** (current): PROVE supports `MATCH` for `result` values (narrow slice) with `examples/proven_result.ax`
-- **v0.6.x** (next): Expand PROVE MATCH support to more algebraic types and refinement-style reasoning
+- **v0.6.0b** (complete): PROVE supports `MATCH` for `result` values (narrow slice) with `examples/proven_result.ax`
+- **v0.6.0c** (current): PROVE supports `MATCH` for generic non-recursive int-field user ADTs with `examples/proven_shape.ax`
+- **v0.6.x** (next): Use PRE constraints to prune unreachable MATCH branches and improve counterexample reporting for ADT params
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation
 - **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration

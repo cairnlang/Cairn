@@ -28,7 +28,7 @@ defmodule Axiom.Solver.Prove do
   @spec prove(Function.t(), map()) :: prove_result()
   def prove(%Function{} = func, env \\ %{}) do
     with :ok <- check_z3_available(),
-         {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types),
+         {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, env),
          {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, env),
          {:ok, result_stack} <- execute_body(func, body_stack, env),
          {:ok, post_constraint} <- execute_post(func, result_stack, env) do

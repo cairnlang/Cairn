@@ -84,6 +84,32 @@ defmodule Axiom.SolverTest do
       assert base == {:or, {:eq, {:var, "p0_tag"}, {:const, 0}}, {:eq, {:var, "p0_tag"}, {:const, 1}}}
     end
 
+    test "supports non-recursive int-field user ADTs when env types are available" do
+      env = %{
+        "__types__" => %{
+          "shape" => %Axiom.Types.TypeDef{
+            name: "shape",
+            variants: %{"Circle" => [:int], "Square" => [:int]}
+          }
+        }
+      }
+
+      assert {:ok, stack, vars, base} = Symbolic.build_initial_stack([{:user_type, "shape"}], env)
+      assert vars == ["p0_tag", "p0_Square_0", "p0_Circle_0"]
+
+      assert stack == [
+               {:variant_expr, "shape", {:var, "p0_tag"},
+                %{
+                  "Circle" => [{:int_expr, {:var, "p0_Circle_0"}}],
+                  "Square" => [{:int_expr, {:var, "p0_Square_0"}}]
+                }}
+             ]
+
+      assert base ==
+               {:or, {:eq, {:var, "p0_tag"}, {:const, 0}},
+                {:eq, {:var, "p0_tag"}, {:const, 1}}}
+    end
+
     test "rejects non-int params" do
       assert {:unsupported, reason} = Symbolic.build_initial_stack([:int, :bool])
       assert reason =~ "supported: int, option, result"
@@ -394,6 +420,45 @@ defmodule Axiom.SolverTest do
 
       assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack)
       assert {:ite, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:var, "p0_ok"}, {:var, "fallback"}} = result
+    end
+  end
+
+  describe "Symbolic.execute — MATCH on generic user ADT" do
+    test "generic MATCH merges constructor branches with ite" do
+      stack = [
+        {:variant_expr, "shape", {:var, "p0_tag"},
+         %{
+           "Circle" => [{:int_expr, {:var, "p0_Circle_0"}}],
+           "Square" => [{:int_expr, {:var, "p0_Square_0"}}]
+         }}
+      ]
+
+      tokens = [
+        {:match_kw, "MATCH", 0},
+        {:constructor, "Circle", 1},
+        {:block_open, "{", 2},
+        {:op, :dup, 3},
+        {:op, :mul, 4},
+        {:block_close, "}", 5},
+        {:constructor, "Square", 6},
+        {:block_open, "{", 7},
+        {:block_close, "}", 8},
+        {:fn_end, "END", 9}
+      ]
+
+      env = %{
+        "__types__" => %{
+          "shape" => %Axiom.Types.TypeDef{
+            name: "shape",
+            variants: %{"Circle" => [:int], "Square" => [:int]}
+          }
+        }
+      }
+
+      assert {:ok, [{:int_expr, result}]} = Symbolic.execute(tokens, stack, env)
+
+      assert {:ite, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:var, "p0_Square_0"},
+              {:mul, {:var, "p0_Circle_0"}, {:var, "p0_Circle_0"}}} = result
     end
   end
 
@@ -1003,6 +1068,27 @@ defmodule Axiom.SolverTest do
 
       output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
       assert output =~ "PROVE is_ok_bool: PROVEN"
+    end
+  end
+
+  describe "Prove.prove — generic ADT MATCH (v0.6.0c slice)" do
+    test "proves non-negativity on a user ADT beyond option/result" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF size_nonneg : shape -> int
+        MATCH
+          Circle { ABS }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE size_nonneg
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE size_nonneg: PROVEN"
     end
   end
 

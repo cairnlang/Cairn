@@ -108,21 +108,28 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/proven_result.ax` and solver tests for result-MATCH proofs
 - Non-supported MATCH shapes still return `UNKNOWN` with explicit reason
 
+### v0.6.0c — PROVE MATCH (Generic Non-Recursive ADT Slice)
+- PROVE now supports `MATCH` for user-defined ADTs with non-recursive `int` fields
+- Generic symbolic encoding introduces constructor tag/payload vars from type definitions
+- Constructor branch dispatch is encoded as nested `ite` over symbolic constructor tags
+- Added `examples/proven_shape.ax` and solver coverage for generic ADT MATCH proving
+- `PROVE` now passes full type environment into symbolic parameter generation
+
 ---
 
 ## Next Up
 
-### v0.6.x — PROVE MATCH Expansion
+### v0.6.x — PROVE MATCH Refinement
 
-**Goal:** Expand PROVE MATCH support beyond option/result slices.
+**Goal:** Improve precision and ergonomics on top of generic ADT MATCH support.
 
 **Deliverables:**
 
-- **Broader ADT support** — handle MATCH for additional user-defined sum types (e.g. recursive JSON-like types)
-- **Provable examples** — prove more ADT-heavy utilities beyond option/result slices
-- **Refinement follow-ups** — leverage PRE constraints to prune impossible MATCH branches
+- **PRE-driven branch pruning** — leverage PRE constraints to prove constructor impossibility and simplify MATCH obligations
+- **Counterexample UX for ADTs** — decode model tag/payload values back into readable constructor-shaped counterexamples
+- **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** option/result MATCH proving slices validate the architecture; generalizing it unlocks core language goals.
+**Why now:** generic ADT MATCH proving is in place; the next gains are quality-of-proof and usability improvements.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

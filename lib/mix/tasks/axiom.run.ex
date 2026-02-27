@@ -13,15 +13,36 @@ defmodule Mix.Tasks.Axiom.Run do
 
   @shortdoc "Run an Axiom (.ax) source file"
 
+  @prelude_modules [
+    {"lib/prelude/result.ax", ["result_is_ok", "result_is_err", "result_unwrap_or"]},
+    {"lib/prelude/str.ax", ["lines_nonempty", "csv_ints"]},
+    {"lib/prelude.ax", ["to_int_or", "to_float_or", "read_file_or", "ask_or"]}
+  ]
+
   @impl Mix.Task
   def run(args) do
-    case args do
-      [path | argv] ->
-        Process.put(:axiom_argv, argv)
-        run_file(path)
+    {opts, rest, invalid} =
+      OptionParser.parse(args, strict: [help: :boolean, show_prelude: :boolean, verbose: :boolean])
 
-      [] ->
-        Mix.shell().error("Usage: mix axiom.run <file.ax> [args...]")
+    cond do
+      invalid != [] ->
+        Mix.shell().error("Invalid option(s): #{format_invalid_options(invalid)}")
+        print_help()
+
+      opts[:help] ->
+        print_help()
+
+      true ->
+        case rest do
+          [path | argv] ->
+            Process.put(:axiom_argv, argv)
+            maybe_print_prelude_banner(opts)
+            run_file(path)
+
+          [] ->
+            Mix.shell().error("Usage: mix axiom.run <file.ax> [args...]")
+            Mix.shell().error("Run `mix axiom.run --help` for options and environment variables.")
+        end
     end
   end
 
@@ -63,4 +84,41 @@ defmodule Mix.Tasks.Axiom.Run do
   defp format_value(true), do: "T"
   defp format_value(false), do: "F"
   defp format_value(val), do: to_string(val)
+
+  defp maybe_print_prelude_banner(opts) do
+    if opts[:show_prelude] || opts[:verbose] do
+      if System.get_env("AXIOM_NO_PRELUDE") in ["1", "true", "TRUE"] do
+        IO.puts(:stderr, "PRELUDE: disabled (AXIOM_NO_PRELUDE=1)")
+      else
+        IO.puts(:stderr, "PRELUDE: auto-load enabled")
+
+        Enum.each(@prelude_modules, fn {file, functions} ->
+          IO.puts(:stderr, "  #{file}: #{Enum.join(functions, ", ")}")
+        end)
+      end
+    end
+  end
+
+  defp format_invalid_options(invalid) do
+    invalid
+    |> Enum.map(fn {key, _value} -> "--#{key}" end)
+    |> Enum.join(", ")
+  end
+
+  defp print_help do
+    IO.puts("""
+    Usage:
+      mix axiom.run [options] <file.ax> [args...]
+
+    Options:
+      --help            Show this help text
+      --show-prelude    Print loaded prelude modules/functions to stderr before running
+      --verbose         Alias for --show-prelude
+
+    Environment:
+      AXIOM_NO_PRELUDE=1               Disable auto-loading lib/prelude.ax in file mode
+      AXIOM_PROVE_TRACE=summary|verbose|json
+                                      Enable PROVE MATCH trace diagnostics (stderr)
+    """)
+  end
 end

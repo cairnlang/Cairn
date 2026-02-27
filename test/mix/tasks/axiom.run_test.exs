@@ -1,6 +1,24 @@
 defmodule Mix.Tasks.Axiom.RunTest do
   use ExUnit.Case, async: false
 
+  setup do
+    on_exit(fn -> System.delete_env("AXIOM_NO_PRELUDE") end)
+    :ok
+  end
+
+  test "prints help text" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        Mix.Task.reenable("axiom.run")
+        Mix.Tasks.Axiom.Run.run(["--help"])
+      end)
+
+    assert output =~ "Usage:"
+    assert output =~ "--show-prelude"
+    assert output =~ "AXIOM_NO_PRELUDE=1"
+    assert output =~ "AXIOM_PROVE_TRACE=summary|verbose|json"
+  end
+
   test "prints run summary to stderr on successful run" do
     dir = System.tmp_dir!()
     path = Path.join(dir, "axiom_run_summary_test.ax")
@@ -30,5 +48,39 @@ defmodule Mix.Tasks.Axiom.RunTest do
     assert stderr =~ "RUN SUMMARY: status=ok"
     assert stderr =~ "values=2"
     assert stderr =~ "elapsed_ms="
+  end
+
+  test "prints prelude discoverability banner with --show-prelude" do
+    dir = System.tmp_dir!()
+    path = Path.join(dir, "axiom_run_prelude_test.ax")
+    File.write!(path, "1")
+
+    Mix.Task.reenable("axiom.run")
+
+    parent = self()
+
+    stderr =
+      ExUnit.CaptureIO.capture_io(:stderr, fn ->
+        stdout =
+          ExUnit.CaptureIO.capture_io(fn ->
+            Mix.Tasks.Axiom.Run.run(["--show-prelude", path])
+          end)
+
+        send(parent, {:captured_stdout, stdout})
+      end)
+
+    stdout =
+      receive do
+        {:captured_stdout, out} -> out
+      end
+
+    assert stdout =~ "1"
+    assert stderr =~ "PRELUDE: auto-load enabled"
+    assert stderr =~ "lib/prelude/result.ax"
+    assert stderr =~ "result_unwrap_or"
+    assert stderr =~ "lib/prelude/str.ax"
+    assert stderr =~ "csv_ints"
+    assert stderr =~ "lib/prelude.ax"
+    assert stderr =~ "ask_or"
   end
 end

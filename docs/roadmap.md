@@ -272,6 +272,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `mix axiom.run` run-summary diagnostics on stderr (status, value count, elapsed ms)
 - Added CLI/solver coverage for summary output and UNKNOWN hint behavior
 
+### v0.6.1b — Practical Language Usability (CLI/Prelude Discoverability)
+- Added `mix axiom.run --help` with options and environment guidance (`AXIOM_NO_PRELUDE`, `AXIOM_PROVE_TRACE`)
+- Added `mix axiom.run --show-prelude` (and `--verbose`) to print loaded prelude modules/functions before execution
+- Added CLI coverage for help output and prelude discoverability banner behavior
+- Added organized prelude-focused examples under `examples/prelude/` for result flow, CSV parsing, and safe I/O fallback
+
 ---
 
 ## Next Up
@@ -280,12 +286,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.6.1b — Practical Language Usability Release
+### v0.6.1c — Practical Language Usability Release
 **Goal:** Shift active development from solver tactics to practical language ergonomics.
 
 **Deliverables:**
-- CLI/dev UX improvements (clearer `run/test/prove` output, better failure surfaces beyond v0.6.1a)
-- Error message and diagnostics quality pass (type/runtime/prove paths)
+- CLI/dev UX improvements (clearer `run/test/prove` output, better failure surfaces beyond v0.6.1a/v0.6.1b)
+- Error message and diagnostics quality pass (type/runtime/prove paths and consistency)
 - Standard library/prelude usability expansion and discoverability
 - Documentation consolidation for everyday usage (non-research path first)
 

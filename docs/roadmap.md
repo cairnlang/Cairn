@@ -255,6 +255,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This enables narrowing for generated helper forms like `code * 2 == 2` without requiring direct tag comparisons
 - Added `examples/prove/proven_shape_tag_bounds_mul.ax` and solver coverage for helper-encoded `MUL+EQ` narrowing
 
+### v0.6.0ac — PROVE Stabilization Gate
+- Added PRE-normalizer idempotence coverage to prevent canonicalization drift under repeated normalization
+- Added JSON trace stability coverage for contiguous `event_index` sequencing and run boundary events
+- Added a relaxed runtime budget guard for `examples/prove/all_proven.ax` to catch severe performance regressions
+- Documented rule-admission criteria and locked this slice to guardrails (no broad speculative inference expansion)
+
 ---
 
 ## Next Up
@@ -262,15 +268,6 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ### Transition Plan (v0.6.x -> v0.7)
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
-
-### v0.6.0ac — PROVE Stabilization Gate
-**Goal:** Land a final narrow PROVE slice and add explicit guardrails before freezing tactical normalization growth.
-
-**Deliverables:**
-- One final high-frequency inference slice only (no speculative broad rewrite additions)
-- Regression gates for trace schema stability and PRE-normalizer idempotence
-- Performance budget check for `examples/prove/all_proven.ax`
-- Rule-admission criteria documented (new inference rule must prove value across at least two existing scenarios/tests)
 
 ### v0.6.0ad — Tactical PRE Freeze
 **Goal:** Freeze `Axiom.Solver.PreNormalize` feature growth (bugfix-only) and prevent unbounded tactic accretion.
@@ -307,7 +304,7 @@ The current PROVE MATCH refinement line has delivered substantial gains, but PRE
 - Inductive-proof strategy for selected recursive patterns
 - Clear boundary between production solver behavior and research prototypes
 
-**Why now:** current refinement tactics are effective but approaching diminishing returns; this transition preserves gains while restoring practical-language momentum.
+**Why now:** stabilization guardrails are now in place; next gains come from freezing tactic growth and prioritizing practical-language momentum.
 
 ### v0.7.0 — Typed BEAM Concurrency
 

@@ -171,4 +171,18 @@ defmodule Axiom.Solver.PreNormalizeTest do
     assert normalized == a
     assert Enum.any?(rewrites, fn r -> Map.get(r, :rule) == "and_reduce_consensus" end)
   end
+
+  test "normalize is idempotent on normalized output" do
+    input =
+      {:and,
+       {:or, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:gt, {:var, "x"}, {:const, 0}}},
+       {:or, {:eq, {:var, "p0_tag"}, {:const, 1}}, {:not, {:gt, {:var, "x"}, {:const, 0}}}}}
+
+    once = PreNormalize.normalize(input)
+    twice = PreNormalize.normalize(once)
+    thrice = PreNormalize.normalize(twice)
+
+    assert once == twice
+    assert twice == thrice
+  end
 end

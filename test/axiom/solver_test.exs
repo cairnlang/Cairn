@@ -2318,6 +2318,63 @@ defmodule Axiom.SolverTest do
       assert stderr =~ "\"error_reason\":null"
       refute stderr =~ "\"event\":\"z3_query\""
     end
+
+    test "trace json mode keeps contiguous event_index ordering and run boundary events" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square_code : shape -> int
+        MATCH
+          Circle { DROP 0 }
+          Square { DROP 1 }
+        END
+      END
+
+      DEF square_only_abs_trace_ordering : shape -> int
+        PRE { DUP is_square_code 2 MUL 2 EQ }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace_ordering
+      """
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          ExUnit.CaptureIO.capture_io(fn ->
+            Axiom.eval_with_env(source, %{"__prove_trace__" => :json})
+          end)
+        end)
+
+      lines = String.split(stderr, "\n", trim: true)
+      assert List.first(lines) =~ "\"event\":\"prove_run_start\""
+      assert List.last(lines) =~ "\"event\":\"prove_run_end\""
+
+      indexes =
+        Regex.scan(~r/"event_index":(\d+)/, stderr)
+        |> Enum.map(fn [_, idx] -> String.to_integer(idx) end)
+
+      assert indexes == Enum.to_list(0..(length(indexes) - 1))
+    end
+  end
+
+  describe "PROVE stability gates (v0.6.0ac)" do
+    test "all_proven bundle stays within relaxed runtime budget" do
+      all_proven_path = Path.expand("examples/prove/all_proven.ax")
+      t0 = System.monotonic_time(:millisecond)
+
+      stdout =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Axiom.eval_file(all_proven_path)
+        end)
+
+      elapsed_ms = System.monotonic_time(:millisecond) - t0
+      assert stdout =~ "PROVE square_only_abs_trace_rewrites: PROVEN"
+      assert elapsed_ms < 20_000
+    end
   end
 
   describe "Prove.prove — function call inlining" do

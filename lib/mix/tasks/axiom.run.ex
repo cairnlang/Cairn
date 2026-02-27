@@ -22,7 +22,9 @@ defmodule Mix.Tasks.Axiom.Run do
   @impl Mix.Task
   def run(args) do
     {opts, rest, invalid} =
-      OptionParser.parse(args, strict: [help: :boolean, show_prelude: :boolean, verbose: :boolean])
+      OptionParser.parse(args,
+        strict: [help: :boolean, show_prelude: :boolean, verbose: :boolean, json_errors: :boolean]
+      )
 
     cond do
       invalid != [] ->
@@ -37,7 +39,7 @@ defmodule Mix.Tasks.Axiom.Run do
           [path | argv] ->
             Process.put(:axiom_argv, argv)
             maybe_print_prelude_banner(opts)
-            run_file(path)
+            run_file(path, opts)
 
           [] ->
             Mix.shell().error("Usage: mix axiom.run <file.ax> [args...]")
@@ -46,7 +48,7 @@ defmodule Mix.Tasks.Axiom.Run do
     end
   end
 
-  defp run_file(path) do
+  defp run_file(path, opts) do
     started_at_ms = System.monotonic_time(:millisecond)
 
     try do
@@ -60,20 +62,19 @@ defmodule Mix.Tasks.Axiom.Run do
       IO.puts(:stderr, "RUN SUMMARY: status=ok values=#{length(stack)} elapsed_ms=#{elapsed_ms}")
     rescue
       e in Axiom.StaticError ->
-        Mix.shell().error("Static type error: #{e.message}")
+        emit_diagnostic(e, path, opts)
         elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
         IO.puts(:stderr, "RUN SUMMARY: status=error kind=static elapsed_ms=#{elapsed_ms}")
         System.halt(1)
 
       e in Axiom.RuntimeError ->
-        Mix.shell().error("Runtime error: #{e.message}")
+        emit_diagnostic(e, path, opts)
         elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
         IO.puts(:stderr, "RUN SUMMARY: status=error kind=runtime elapsed_ms=#{elapsed_ms}")
         System.halt(1)
 
       e in Axiom.ContractError ->
-        Mix.shell().error("Contract violation: #{e.message}")
-        Mix.shell().error("  stack: #{inspect(e.stack)}")
+        emit_diagnostic(e, path, opts)
         elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
         IO.puts(:stderr, "RUN SUMMARY: status=error kind=contract elapsed_ms=#{elapsed_ms}")
         System.halt(1)
@@ -114,11 +115,22 @@ defmodule Mix.Tasks.Axiom.Run do
       --help            Show this help text
       --show-prelude    Print loaded prelude modules/functions to stderr before running
       --verbose         Alias for --show-prelude
+      --json-errors     Emit structured JSON diagnostics for failures
 
     Environment:
       AXIOM_NO_PRELUDE=1               Disable auto-loading lib/prelude.ax in file mode
       AXIOM_PROVE_TRACE=summary|verbose|json
                                       Enable PROVE MATCH trace diagnostics (stderr)
     """)
+  end
+
+  defp emit_diagnostic(error, path, opts) do
+    diag = Axiom.Diagnostic.from_exception(error, path)
+
+    if opts[:json_errors] do
+      IO.puts(:stderr, Axiom.Diagnostic.format_json(diag))
+    else
+      Enum.each(Axiom.Diagnostic.format_text(diag), &IO.puts(:stderr, &1))
+    end
   end
 end

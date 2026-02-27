@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.6.1b**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, tag-assumption bounds (`gt/gte/lt/lte`), broader helper-comparison inference (including `eq/neq` and bounded affine/multiplicative constant wrappers over tag-boolean `ite` encodings), stabilization guardrails (PRE idempotence checks, trace ordering/schema stability, and all-proven performance budget checks), tactical PRE-freeze governance with rule-admission gating, clearer PROVE UNKNOWN/ERROR hints, CLI run-summary diagnostics, and discoverable CLI/prelude guidance via `mix axiom.run --help` / `--show-prelude`), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
+**v0.6.1c**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX, `MATCH` on `option`, `result`, and generic non-recursive int-field user ADTs, decoded ADT counterexamples, PRE-driven MATCH branch pruning with broader inference including helper-boolean `EQ T` refinement forms, composed-helper boolean normalization, split-guard alias reduction, implication+antecedent reduction, canonical n-ary boolean normalization for noisy generated guards, extracted pre-normalization module coverage, bounded DeMorgan/comparison-negation pushdown, local comparison-pair contradiction/tautology pruning, interval-merge bound tightening, bounded shared-conjunct factoring in disjunctive guards, guarded one-step distribution to expose implication patterns, bounded consensus reduction for conjunctions of disjunctions, enhanced JSON trace diagnostics with rewrite events/summaries and PRE snapshots, tag-assumption bounds (`gt/gte/lt/lte`), broader helper-comparison inference (including `eq/neq` and bounded affine/multiplicative constant wrappers over tag-boolean `ite` encodings), stabilization guardrails (PRE idempotence checks, trace ordering/schema stability, and all-proven performance budget checks), tactical PRE-freeze governance with rule-admission gating, clearer PROVE UNKNOWN/ERROR hints, CLI run-summary diagnostics, discoverable CLI/prelude guidance via `mix axiom.run --help` / `--show-prelude`, and consistent structured diagnostics (`ERROR kind=...` plus optional `--json-errors`)), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), **FMT/SAID**, recursive file imports via **IMPORT**, safe-by-default fallible operations via built-in `result` (`Ok` / `Err`) with explicit unsafe `!` variants, and a modular auto-loaded prelude.
 
 ## Quick Start
 
@@ -86,13 +86,19 @@ mix axiom.run --show-prelude examples/prelude/result_flow.ax
 mix axiom.run examples/prelude/csv_parse.ax
 mix axiom.run examples/prelude/io_safe.ax
 
+# Diagnostics examples (text + JSON)
+mix axiom.run examples/diagnostics/static_type.ax
+mix axiom.run examples/diagnostics/runtime_div_zero.ax
+mix axiom.run examples/diagnostics/contract_fail.ax
+mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax
+
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 
 # Interactive number guessing game
 mix axiom.run examples/guess.ax
 
-# Run tests (728 tests)
+# Run tests (730 tests)
 mix test
 ```
 
@@ -120,6 +126,19 @@ Prelude modules currently loaded by the facade:
 - `result_unwrap_or`
 - `lines_nonempty`, `csv_ints`
 - `to_int_or`, `to_float_or`, `read_file_or`, `ask_or`
+
+### Diagnostics
+
+`mix axiom.run` now emits consistent failure diagnostics on stderr:
+- `ERROR kind=<static|runtime|contract>`
+- `message`, optional `location` + source `snippet`, and `hint`
+- Run summary remains on stderr (`RUN SUMMARY: ...`)
+
+Use `--json-errors` for machine-readable diagnostics:
+
+```bash
+mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax
+```
 
 ## Language Reference
 
@@ -895,8 +914,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.0ac** (complete): PROVE adds stabilization guardrails (PRE idempotence tests, trace ordering/schema checks, and relaxed `all_proven` performance budget)
 - **v0.6.0ad** (complete): Tactical PRE freeze (feature expansion gated for `Axiom.Solver.PreNormalize`) with rule-admission governance (`docs/prove-rule-admission.md`)
 - **v0.6.1a** (complete): Practical language usability pass 1 (clearer PROVE UNKNOWN/ERROR hints and CLI run-summary diagnostics)
-- **v0.6.1b** (current): Practical language usability pass 2 (`mix axiom.run --help`, `--show-prelude`, and refreshed prelude examples)
-- **v0.6.1c** (next): Practical language usability pass 3 (diagnostics breadth and docs consolidation for everyday workflows)
+- **v0.6.1b** (complete): Practical language usability pass 2 (`mix axiom.run --help`, `--show-prelude`, and refreshed prelude examples)
+- **v0.6.1c** (current): Practical language usability pass 3 (diagnostics consistency, `--json-errors`, and diagnostics examples)
+- **v0.6.1d** (next): Practical language usability pass 4 (docs consolidation for everyday workflows and CLI polish)
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation
 - **Future**: Declarative constraint solving, tensor/distribution primitives, multi-agent collaboration

@@ -127,7 +127,8 @@ defmodule Axiom do
               stack: []
 
           {:unknown, reason} ->
-            IO.puts("PROVE #{name}: UNKNOWN — #{reason}")
+            IO.puts("PROVE #{name}: UNKNOWN")
+            IO.puts("  reason: #{reason}")
             maybe_print_prove_hint(reason)
 
           {:error, reason} ->
@@ -135,9 +136,9 @@ defmodule Axiom do
 
             message =
               if hint do
-                "PROVE #{name}: ERROR — #{reason}\n  hint: #{hint}"
+                "PROVE #{name}: ERROR\n  reason: #{reason}\n  hint: #{hint}"
               else
-                "PROVE #{name}: ERROR — #{reason}"
+                "PROVE #{name}: ERROR\n  reason: #{reason}"
               end
 
             raise Axiom.RuntimeError, message

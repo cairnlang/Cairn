@@ -1,0 +1,8 @@
+# diagnostics/contract_fail.ax — contract failure
+DEF must_stay_positive : int -> int
+  PRE { DUP 0 GT }
+  1 SUB
+  POST DUP 0 GT
+END
+
+1 must_stay_positive

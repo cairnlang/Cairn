@@ -278,6 +278,13 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added CLI coverage for help output and prelude discoverability banner behavior
 - Added organized prelude-focused examples under `examples/prelude/` for result flow, CSV parsing, and safe I/O fallback
 
+### v0.6.1c — Practical Language Usability (Diagnostics Consistency Pass)
+- Added unified CLI failure diagnostics (`ERROR kind=...`) for static/runtime/contract failures with message, hint, and optional location/snippet
+- Added `--json-errors` option to emit structured machine-readable diagnostics on stderr
+- Added diagnostic formatting module and focused tests for text/JSON diagnostic shapes
+- Added `examples/diagnostics/` programs covering static, runtime, and contract failure modes
+- Standardized PROVE unknown/error output into explicit `reason` + `hint` lines
+
 ---
 
 ## Next Up
@@ -286,14 +293,14 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.6.1c — Practical Language Usability Release
+### v0.6.1d — Practical Language Usability Release
 **Goal:** Shift active development from solver tactics to practical language ergonomics.
 
 **Deliverables:**
-- CLI/dev UX improvements (clearer `run/test/prove` output, better failure surfaces beyond v0.6.1a/v0.6.1b)
-- Error message and diagnostics quality pass (type/runtime/prove paths and consistency)
-- Standard library/prelude usability expansion and discoverability
+- CLI/dev UX polish (option ergonomics, consistency checks, and output clarity)
 - Documentation consolidation for everyday usage (non-research path first)
+- Standard library/prelude discoverability refinements
+- Examples quality pass for practical workflows
 
 ### v0.6.2 — Practical Programs Milestone
 **Goal:** Demonstrate Axiom as a practical language beyond proof slices.

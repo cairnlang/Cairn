@@ -15,6 +15,7 @@ defmodule Mix.Tasks.Axiom.RunTest do
 
     assert output =~ "Usage:"
     assert output =~ "--show-prelude"
+    assert output =~ "--json-errors"
     assert output =~ "AXIOM_NO_PRELUDE=1"
     assert output =~ "AXIOM_PROVE_TRACE=summary|verbose|json"
   end

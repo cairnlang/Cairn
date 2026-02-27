@@ -245,6 +245,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This enables real MATCH pruning from patterns like `tag_helper(...) > 0` even when PRE does not contain direct tag comparisons
 - JSON trace `match_decision` now includes `inference_source`, and assumption snapshots include source labels (e.g. `helper_cmp`)
 
+### v0.6.0aa — Broader Helper-Comparison Extraction
+- Extended helper-pattern extraction to support `eq/neq` comparisons in addition to inequality forms
+- Added bounded affine support around tag-boolean `ite` encodings (`+ const`, `- const`, `const - expr`) before comparison checks
+- Added `examples/prove/proven_shape_tag_bounds_eq.ax` and solver coverage for helper-encoded `EQ` narrowing
+
 ---
 
 ## Next Up
@@ -255,11 +260,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 **Deliverables:**
 
-- **Broader constructor inference** — extend helper-pattern coverage beyond current bounded `ite` boolean encodings
+- **Broader constructor inference** — extend helper-pattern coverage to additional generated expression families beyond current affine/constant encodings
 - **Richer structured diagnostics** — add stable schemas and richer event context beyond current rewrite/lifecycle coverage
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** helper-comparison extraction now lands end-to-end; next gains are breadth across additional helper/generated PRE encodings.
+**Why now:** broader helper-comparison extraction now lands for common forms; next gains are additional generated PRE expression families.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

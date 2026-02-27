@@ -1,0 +1,22 @@
+# proven_shape_tag_bounds_eq.ax — helper-comparison EQ encoding narrowing (v0.6.0aa)
+
+TYPE shape = Circle int | Square int
+
+DEF is_square_code : shape -> int
+  MATCH
+    Circle { DROP 1 }
+    Square { DROP 0 }
+  END
+END
+
+# PRE helper comparison is_square_code(shape) == 0 narrows to Square.
+DEF square_only_abs_bounds_eq : shape -> int
+  PRE { DUP is_square_code 0 EQ }
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs_bounds_eq

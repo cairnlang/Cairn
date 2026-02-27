@@ -1868,6 +1868,33 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_bounds: PROVEN"
     end
 
+    test "helper EQ encoding also prunes unsupported MATCH arm" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square_code : shape -> int
+        MATCH
+          Circle { DROP 1 }
+          Square { DROP 0 }
+        END
+      END
+
+      DEF square_only_abs_bounds_eq : shape -> int
+        PRE { DUP is_square_code 0 EQ }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_bounds_eq
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_bounds_eq: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

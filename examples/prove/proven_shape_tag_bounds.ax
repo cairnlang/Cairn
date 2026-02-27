@@ -1,4 +1,4 @@
-# proven_shape_tag_bounds.ax — helper-comparison tag narrowing in PRE (v0.6.0z)
+# proven_shape_tag_bounds.ax — helper-comparison tag narrowing in PRE (v0.6.0aa)
 
 TYPE shape = Circle int | Square int
 

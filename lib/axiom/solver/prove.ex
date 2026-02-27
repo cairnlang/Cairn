@@ -365,7 +365,7 @@ defmodule Axiom.Solver.Prove do
     %{var => new_tag_assumption(neq: MapSet.new([value]), source: MapSet.new(["eq_neq"]))}
   end
 
-  defp do_assumption_map_from_constraint({op, left, right}) when op in [:gt, :gte, :lt, :lte] do
+  defp do_assumption_map_from_constraint({op, left, right}) when op in [:eq, :neq, :gt, :gte, :lt, :lte] do
     case helper_tag_cmp_assumption(op, left, right) do
       {:ok, {var, assumption}} ->
         %{var => assumption}
@@ -503,41 +503,85 @@ defmodule Axiom.Solver.Prove do
   end
 
   defp helper_tag_cmp_assumption(op, left, right) do
-    case parse_tag_bool_ite(op, left, right) do
-      {:ok, {var, tag_value, true_val, false_val, cmp_op, threshold}} ->
-        true_holds = cmp_holds?(cmp_op, true_val, threshold)
-        false_holds = cmp_holds?(cmp_op, false_val, threshold)
-        helper_assumption_for_bool(var, tag_value, true_holds, false_holds)
-
-      :error ->
-        :error
+    with {:ok, threshold} <- const_int(right),
+         {:ok, {var, tag_value, true_val, false_val}} <- parse_tag_bool_expr(left) do
+      true_holds = cmp_holds?(op, true_val, threshold)
+      false_holds = cmp_holds?(op, false_val, threshold)
+      helper_assumption_for_bool(var, tag_value, true_holds, false_holds)
+    else
+      _ ->
+        with {:ok, threshold} <- const_int(left),
+             {:ok, {var, tag_value, true_val, false_val}} <- parse_tag_bool_expr(right) do
+          true_holds = cmp_holds?(flip_comparison(op), true_val, threshold)
+          false_holds = cmp_holds?(flip_comparison(op), false_val, threshold)
+          helper_assumption_for_bool(var, tag_value, true_holds, false_holds)
+        else
+          _ -> :error
+        end
     end
   end
 
-  defp parse_tag_bool_ite(op, {:ite, {:eq, {:var, var}, {:const, tag_value}}, {:const, true_val}, {:const, false_val}}, {:const, threshold})
-       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
-    {:ok, {var, tag_value, true_val, false_val, op, threshold}}
+  defp const_int({:const, value}) when is_integer(value), do: {:ok, value}
+  defp const_int(_), do: :error
+
+  defp parse_tag_bool_expr(expr) do
+    case parse_tag_ite(expr) do
+      {:ok, parsed} ->
+        {:ok, parsed}
+
+      :error ->
+        parse_tag_bool_affine(expr)
+    end
   end
 
-  defp parse_tag_bool_ite(op, {:ite, {:eq, {:const, tag_value}, {:var, var}}, {:const, true_val}, {:const, false_val}}, {:const, threshold})
-       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
-    {:ok, {var, tag_value, true_val, false_val, op, threshold}}
+  defp parse_tag_ite({:ite, {:eq, {:var, var}, {:const, tag_value}}, {:const, true_val}, {:const, false_val}})
+       when is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) do
+    {:ok, {var, tag_value, true_val, false_val}}
   end
 
-  defp parse_tag_bool_ite(op, {:const, threshold}, {:ite, {:eq, {:var, var}, {:const, tag_value}}, {:const, true_val}, {:const, false_val}})
-       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
-    {:ok, {var, tag_value, true_val, false_val, flip_comparison(op), threshold}}
+  defp parse_tag_ite({:ite, {:eq, {:const, tag_value}, {:var, var}}, {:const, true_val}, {:const, false_val}})
+       when is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) do
+    {:ok, {var, tag_value, true_val, false_val}}
   end
 
-  defp parse_tag_bool_ite(op, {:const, threshold}, {:ite, {:eq, {:const, tag_value}, {:var, var}}, {:const, true_val}, {:const, false_val}})
-       when op in [:gt, :gte, :lt, :lte] and is_integer(tag_value) and is_integer(true_val) and is_integer(false_val) and is_integer(threshold) do
-    {:ok, {var, tag_value, true_val, false_val, flip_comparison(op), threshold}}
+  defp parse_tag_ite(_), do: :error
+
+  defp parse_tag_bool_affine({:add, a, b}) do
+    with {:ok, c} <- const_int(a),
+         {:ok, {var, tag_value, tv, fv}} <- parse_tag_bool_expr(b) do
+      {:ok, {var, tag_value, tv + c, fv + c}}
+    else
+      _ ->
+        with {:ok, {var, tag_value, tv, fv}} <- parse_tag_bool_expr(a),
+             {:ok, c} <- const_int(b) do
+          {:ok, {var, tag_value, tv + c, fv + c}}
+        else
+          _ -> :error
+        end
+    end
   end
 
-  defp parse_tag_bool_ite(_op, _left, _right), do: :error
+  defp parse_tag_bool_affine({:sub, a, b}) do
+    with {:ok, {var, tag_value, tv, fv}} <- parse_tag_bool_expr(a),
+         {:ok, c} <- const_int(b) do
+      {:ok, {var, tag_value, tv - c, fv - c}}
+    else
+      _ ->
+        with {:ok, c} <- const_int(a),
+             {:ok, {var, tag_value, tv, fv}} <- parse_tag_bool_expr(b) do
+          {:ok, {var, tag_value, c - tv, c - fv}}
+        else
+          _ -> :error
+        end
+    end
+  end
+
+  defp parse_tag_bool_affine(_), do: :error
 
   defp cmp_holds?(op, left_value, right_value) do
     case op do
+      :eq -> left_value == right_value
+      :neq -> left_value != right_value
       :gt -> left_value > right_value
       :gte -> left_value >= right_value
       :lt -> left_value < right_value
@@ -567,6 +611,8 @@ defmodule Axiom.Solver.Prove do
   defp flip_comparison(:gte), do: :lte
   defp flip_comparison(:lt), do: :gt
   defp flip_comparison(:lte), do: :gte
+  defp flip_comparison(:eq), do: :eq
+  defp flip_comparison(:neq), do: :neq
 
   defp new_tag_assumption(fields \\ []) do
     %{

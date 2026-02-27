@@ -285,6 +285,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/diagnostics/` programs covering static, runtime, and contract failure modes
 - Standardized PROVE unknown/error output into explicit `reason` + `hint` lines
 
+### v0.6.1d — Practical Language Usability (Onboarding/CLI Reference Pass)
+- Added `mix axiom.run --examples` to print categorized runnable example paths (basics/prelude/diagnostics/prove)
+- Added a focused `docs/cli.md` quick reference for options, env vars, output conventions, and failure modes
+- Added a README "First 15 Minutes" workflow to cover run/browse/fail/debug/verify/prove progression
+- Added CLI test coverage for examples-index output and help text option surface
+
 ---
 
 ## Next Up
@@ -293,7 +299,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.6.1d — Practical Language Usability Release
+### v0.6.1e — Practical Language Usability Release
 **Goal:** Shift active development from solver tactics to practical language ergonomics.
 
 **Deliverables:**

@@ -18,12 +18,24 @@ defmodule Mix.Tasks.Axiom.Run do
     {"lib/prelude/str.ax", ["lines_nonempty", "csv_ints"]},
     {"lib/prelude.ax", ["to_int_or", "to_float_or", "read_file_or", "ask_or"]}
   ]
+  @example_groups [
+    {"basics", ["examples/hello_world.ax", "examples/collatz.ax", "examples/recur.ax", "examples/bank.ax"]},
+    {"prelude", ["examples/prelude/result_flow.ax", "examples/prelude/csv_parse.ax", "examples/prelude/io_safe.ax"]},
+    {"diagnostics", ["examples/diagnostics/static_type.ax", "examples/diagnostics/runtime_div_zero.ax", "examples/diagnostics/contract_fail.ax"]},
+    {"prove", ["examples/prove/all_proven.ax", "examples/prove/proven_option.ax", "examples/prove/proven_shape_trace.ax"]}
+  ]
 
   @impl Mix.Task
   def run(args) do
     {opts, rest, invalid} =
       OptionParser.parse(args,
-        strict: [help: :boolean, show_prelude: :boolean, verbose: :boolean, json_errors: :boolean]
+        strict: [
+          help: :boolean,
+          show_prelude: :boolean,
+          verbose: :boolean,
+          json_errors: :boolean,
+          examples: :boolean
+        ]
       )
 
     cond do
@@ -34,6 +46,9 @@ defmodule Mix.Tasks.Axiom.Run do
       opts[:help] ->
         print_help()
 
+      opts[:examples] ->
+        print_examples()
+
       true ->
         case rest do
           [path | argv] ->
@@ -43,7 +58,7 @@ defmodule Mix.Tasks.Axiom.Run do
 
           [] ->
             Mix.shell().error("Usage: mix axiom.run <file.ax> [args...]")
-            Mix.shell().error("Run `mix axiom.run --help` for options and environment variables.")
+            Mix.shell().error("Run `mix axiom.run --help` for options, or `mix axiom.run --examples` for runnable samples.")
         end
     end
   end
@@ -113,6 +128,7 @@ defmodule Mix.Tasks.Axiom.Run do
 
     Options:
       --help            Show this help text
+      --examples        Show categorized runnable example files
       --show-prelude    Print loaded prelude modules/functions to stderr before running
       --verbose         Alias for --show-prelude
       --json-errors     Emit structured JSON diagnostics for failures
@@ -122,6 +138,15 @@ defmodule Mix.Tasks.Axiom.Run do
       AXIOM_PROVE_TRACE=summary|verbose|json
                                       Enable PROVE MATCH trace diagnostics (stderr)
     """)
+  end
+
+  defp print_examples do
+    IO.puts("Examples:")
+
+    Enum.each(@example_groups, fn {group, files} ->
+      IO.puts("  #{group}:")
+      Enum.each(files, &IO.puts("    #{&1}"))
+    end)
   end
 
   defp emit_diagnostic(error, path, opts) do

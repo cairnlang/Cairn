@@ -15,9 +15,28 @@ defmodule Mix.Tasks.Axiom.RunTest do
 
     assert output =~ "Usage:"
     assert output =~ "--show-prelude"
+    assert output =~ "--examples"
     assert output =~ "--json-errors"
     assert output =~ "AXIOM_NO_PRELUDE=1"
     assert output =~ "AXIOM_PROVE_TRACE=summary|verbose|json"
+  end
+
+  test "prints categorized examples index" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        Mix.Task.reenable("axiom.run")
+        Mix.Tasks.Axiom.Run.run(["--examples"])
+      end)
+
+    assert output =~ "Examples:"
+    assert output =~ "basics:"
+    assert output =~ "examples/hello_world.ax"
+    assert output =~ "prelude:"
+    assert output =~ "examples/prelude/result_flow.ax"
+    assert output =~ "diagnostics:"
+    assert output =~ "examples/diagnostics/runtime_div_zero.ax"
+    assert output =~ "prove:"
+    assert output =~ "examples/prove/all_proven.ax"
   end
 
   test "prints run summary to stderr on successful run" do

@@ -51,6 +51,7 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 1. Run: `mix axiom.run examples/hello_world.ax`
 2. Browse examples: `mix axiom.run --examples`
 3. Run practical workflows:
+   - `mix axiom.run examples/practical/all_practical.ax`
    - `mix axiom.run examples/practical/main.ax`
    - `mix axiom.run examples/practical/ledger.ax`
    - `mix axiom.run examples/practical/todo.ax`
@@ -60,3 +61,6 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `mix axiom.run examples/practical/cashflow_alerts.ax [optional/ledger.csv] [optional/expenses.csv]`
 4. Inspect loaded prelude: `mix axiom.run --show-prelude examples/prelude/result_flow.ax`
 5. Try diagnostics JSON: `mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax`
+6. Run practical-only tests: `mix test.practical`
+
+See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

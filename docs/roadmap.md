@@ -330,6 +330,13 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded practical examples index and smoke-marker assertions for deterministic alerts-stage outputs
 - Updated docs to present the composed pipeline progression: ledger/expenses -> cashflow -> cashflow_alerts
 
+### v0.6.3 — Practical Programs Milestone (Consolidation)
+- Added `examples/practical/all_practical.ax` to run the consolidated practical chain in one command
+- Added dedicated practical test target `mix test.practical` (alias for `test/practical/pipeline_test.exs`)
+- Added `docs/practical-pipeline.md` documenting staged practical flow, expected outputs, and invariants
+- Polished practical examples for consistent usage headers and source/output marker conventions
+- Expanded practical smoke coverage to include `all_practical.ax` and deterministic marker checks across the full chain
+
 ---
 
 ## Next Up
@@ -338,27 +345,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
-### v0.6.3 — Practical Programs Milestone (Consolidation)
-**Goal:** Demonstrate Axiom as a practical language beyond proof slices.
-
-**Deliverables:**
-- Add larger end-to-end example programs emphasizing modules/import/prelude/IO ergonomics
-- Validate that practical examples remain stable with PROVE optional, not mandatory
-- Establish cadence rule: at least two practical-language slices per one solver-specific slice
-
-### v0.6.x (parallel research track) — Principled Verification Foundations
-**Goal:** Prepare post-tactical verification work without destabilizing the practical-language track.
-
-**Deliverables:**
-- Design notes/prototypes for abstract-interpretation-style domain narrowing
-- Loop-invariant strategy for bounded/structured loops
-- Inductive-proof strategy for selected recursive patterns
-- Clear boundary between production solver behavior and research prototypes
-
-**Why now:** tactical freeze controls are now in place; next gains come from practical-language momentum and usability.
-
 ### v0.7.0 — Typed BEAM Concurrency
-
 **Goal:** Type-safe message passing on the BEAM — the feature no other language has.
 
 Axiom already has algebraic types and contracts. Combining them with BEAM processes creates typed actors with provable state transition invariants.

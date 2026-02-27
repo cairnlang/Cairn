@@ -1,14 +1,24 @@
 # examples/practical/todo.ax — todo summary workflow
+# Usage: mix axiom.run examples/practical/todo.ax [path/to/todo.txt]
 
 IMPORT "lib/todo.ax"
 
-"" "examples/practical/data/todo.txt" read_file_or LET raw
+ARGV DUP LEN 0 GT
+IF
+  HEAD
+ELSE
+  DROP "examples/practical/data/todo.txt"
+END
+LET path
+
+"" path read_file_or LET raw
 raw lines_nonempty LET items
 
 items DUP count_open LET open
 DUP count_done LET done
 LEN LET total
 
+path "source={}" FMT SAID
 open "open={}" FMT SAID
 done "done={}" FMT SAID
 total "total={}" FMT SAID

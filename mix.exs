@@ -7,7 +7,11 @@ defmodule Axiom.MixProject do
       version: "0.1.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      preferred_cli_env: [
+        "test.practical": :test
+      ],
+      aliases: aliases()
     ]
   end
 
@@ -22,6 +26,12 @@ defmodule Axiom.MixProject do
   defp deps do
     [
       {:stream_data, "~> 0.5"}
+    ]
+  end
+
+  defp aliases do
+    [
+      "test.practical": ["test test/practical/pipeline_test.exs"]
     ]
   end
 end

@@ -1,14 +1,24 @@
 # examples/practical/ledger.ax — ledger report workflow
+# Usage: mix axiom.run examples/practical/ledger.ax [path/to/ledger.csv]
 
 IMPORT "lib/ledger.ax"
 
-"" "examples/practical/data/ledger.csv" read_file_or LET raw
+ARGV DUP LEN 0 GT
+IF
+  HEAD
+ELSE
+  DROP "examples/practical/data/ledger.csv"
+END
+LET path
+
+"" path read_file_or LET raw
 raw TRIM csv_ints LET txs
 
 txs DUP tx_balance LET balance
 DUP tx_volume LET volume
 LEN LET count
 
+path "source={}" FMT SAID
 balance "balance={}" FMT SAID
 volume "volume={}" FMT SAID
 count "count={}" FMT SAID

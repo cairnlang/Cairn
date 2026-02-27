@@ -1,10 +1,13 @@
-# examples/practical/main.ax — imports + prelude + file IO + VERIFY
+# examples/practical/main.ax — baseline practical workflow
+# Usage: mix axiom.run examples/practical/main.ax
 
 IMPORT "lib/stats.ax"
 
-"" "examples/practical/data/scores.csv" read_file_or LET csv
+ "examples/practical/data/scores.csv" LET path
+"" path read_file_or LET csv
 csv TRIM csv_ints LET scores
 
+path "source={}" FMT SAID
 scores DUP score_total "total={}" FMT SAID
 mean_int "avg={}" FMT SAID
 

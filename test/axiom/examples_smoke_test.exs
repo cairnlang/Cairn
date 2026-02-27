@@ -1,7 +1,7 @@
 defmodule Axiom.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax"]
+  @examples ["examples/hello_world.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -10,9 +10,15 @@ defmodule Axiom.ExamplesSmokeTest do
   end
 
   test "practical examples print expected output markers" do
-    assert_output_markers("examples/practical/main.ax", ["total=71", "avg=14", "VERIFY score_total: OK"])
+    assert_output_markers("examples/practical/main.ax", [
+      "source=examples/practical/data/scores.csv",
+      "total=71",
+      "avg=14",
+      "VERIFY score_total: OK"
+    ])
 
     assert_output_markers("examples/practical/ledger.ax", [
+      "source=examples/practical/data/ledger.csv",
       "balance=65",
       "volume=115",
       "count=5",
@@ -21,6 +27,7 @@ defmodule Axiom.ExamplesSmokeTest do
     ])
 
     assert_output_markers("examples/practical/todo.ax", [
+      "source=examples/practical/data/todo.txt",
       "open=3",
       "done=2",
       "total=5",

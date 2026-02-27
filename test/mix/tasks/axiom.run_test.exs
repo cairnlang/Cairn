@@ -32,6 +32,7 @@ defmodule Mix.Tasks.Axiom.RunTest do
     assert output =~ "basics:"
     assert output =~ "examples/hello_world.ax"
     assert output =~ "practical:"
+    assert output =~ "examples/practical/all_practical.ax"
     assert output =~ "examples/practical/main.ax"
     assert output =~ "examples/practical/ledger.ax"
     assert output =~ "examples/practical/todo.ax"

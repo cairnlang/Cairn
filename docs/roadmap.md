@@ -291,6 +291,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added a README "First 15 Minutes" workflow to cover run/browse/fail/debug/verify/prove progression
 - Added CLI test coverage for examples-index output and help text option surface
 
+### v0.6.1e — Practical Language Usability (Examples/Docs Quality Pass)
+- Added a practical mini-app under `examples/practical/` combining IMPORTs, prelude helpers, file I/O fallback, and VERIFY
+- Added curated examples smoke coverage (`test/axiom/examples_smoke_test.exs`) to detect docs/examples drift early
+- Expanded CLI examples index with a `practical` category and refreshed docs to point to practical workflows
+- Updated README and `docs/cli.md` to keep quick-start/onboarding aligned with current capabilities
+
 ---
 
 ## Next Up
@@ -298,15 +304,6 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ### Transition Plan (v0.6.x -> v0.7)
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
-
-### v0.6.1e — Practical Language Usability Release
-**Goal:** Shift active development from solver tactics to practical language ergonomics.
-
-**Deliverables:**
-- CLI/dev UX polish (option ergonomics, consistency checks, and output clarity)
-- Documentation consolidation for everyday usage (non-research path first)
-- Standard library/prelude discoverability refinements
-- Examples quality pass for practical workflows
 
 ### v0.6.2 — Practical Programs Milestone
 **Goal:** Demonstrate Axiom as a practical language beyond proof slices.

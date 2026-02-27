@@ -1,0 +1,11 @@
+# examples/practical/main.ax — imports + prelude + file IO + VERIFY
+
+IMPORT "lib/stats.ax"
+
+"" "examples/practical/data/scores.csv" read_file_or LET csv
+csv TRIM csv_ints LET scores
+
+scores DUP score_total "total={}" FMT SAID
+mean_int "avg={}" FMT SAID
+
+VERIFY score_total 40

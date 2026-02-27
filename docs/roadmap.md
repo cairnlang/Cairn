@@ -415,6 +415,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Kept the slice example-first: no new runtime semantics, just stronger coverage of the current lifecycle model
 - Expanded runnable example discovery plus type/runtime tests around the explicit supervisor/worker pattern
 
+### v0.7.0n — Bounded Protocol-Checked Actors
+- Add a checker-only protocol layer for finite two-party flows over the existing `TYPE msg = ...` message vocabulary and `pid[msg]` transport
+- Keep the first slice deliberately bounded: no recursion, no multiparty protocols, no protocol inference, and no `PROVE` integration
+- Statically check that actor endpoints follow a declared send/receive sequence and reject invalid next-step message exchanges
+- Add one successful protocol example (`ping_pong`) plus one failing mismatch example to validate the model before adding ergonomics
+
 ---
 
 ## Next Up
@@ -449,6 +455,8 @@ END
 ```
 
 **Why after v0.6.x transition:** Typed concurrency benefits enormously from PROVE — imagine proving that a state machine's transitions never violate an invariant across all message types while the core language ergonomics are already stable.
+
+**Bounded next slice inside v0.7.0:** before broader ergonomics, introduce a minimal protocol-checking layer (session-type-inspired, but practical) that statically validates finite two-party message order without touching the solver.
 
 ### v0.8.0 — BEAM Bytecode Compilation
 

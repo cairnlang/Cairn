@@ -21,6 +21,7 @@ defmodule Axiom.Checker do
           :ok | {:error, [Error.t()]}
   def check(items, env \\ %{}) do
     {type_env, types} = build_checker_env(env)
+    actor_required = compute_actor_required_functions(items, type_env)
 
     # Pre-register all type definitions and function signatures upfront so that
     # mutually recursive functions can see each other regardless of source order.
@@ -38,7 +39,11 @@ defmodule Axiom.Checker do
           {te, Map.put(tys, typedef.name, typedef)}
 
         %Axiom.Types.Function{} = func, {te, tys} ->
-          {Map.put(te, func.name, %{param_types: func.param_types, return_types: func.return_types}),
+          {Map.put(te, func.name, %{
+             param_types: func.param_types,
+             return_types: func.return_types,
+             actor_required: MapSet.member?(actor_required, func.name)
+           }),
            tys}
 
         _, acc ->
@@ -51,7 +56,8 @@ defmodule Axiom.Checker do
       errors: [],
       next_tvar: 0,
       types: types,
-      current_actor_type: nil
+      current_actor_type: nil,
+      actor_required: actor_required
     }
 
     state = Enum.reduce(items, state, &check_item/2)
@@ -111,7 +117,8 @@ defmodule Axiom.Checker do
     # Register function in type env
     state = put_in(state.env[func.name], %{
       param_types: func.param_types,
-      return_types: func.return_types
+      return_types: func.return_types,
+      actor_required: MapSet.member?(state.actor_required, func.name)
     })
 
     # Check function body: start with param types on stack
@@ -121,7 +128,8 @@ defmodule Axiom.Checker do
       |> Enum.reverse()
       |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
-    body_state = %{state | stack: body_stack}
+    body_actor_type = if MapSet.member?(state.actor_required, func.name), do: :any, else: nil
+    body_state = %{state | stack: body_stack, current_actor_type: body_actor_type}
     body_state = check_tokens(func.body, body_state)
 
     # Check return types
@@ -135,7 +143,7 @@ defmodule Axiom.Checker do
           |> Enum.reverse()
           |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
-        pre_state = %{body_state | stack: pre_stack}
+        pre_state = %{body_state | stack: pre_stack, current_actor_type: body_actor_type}
         pre_state = check_tokens(func.pre_condition, pre_state)
         %{pre_state | stack: body_state.stack}
       else
@@ -154,7 +162,7 @@ defmodule Axiom.Checker do
             |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
           end
 
-        post_state = %{body_state | stack: post_stack}
+        post_state = %{body_state | stack: post_stack, current_actor_type: body_actor_type}
         post_state = check_tokens(func.post_condition, post_state)
         %{post_state | stack: body_state.stack}
       else
@@ -162,7 +170,7 @@ defmodule Axiom.Checker do
       end
 
     # Restore stack for next item (function defs don't affect expression stack)
-    %{body_state | stack: state.stack}
+    %{body_state | stack: state.stack, current_actor_type: state.current_actor_type}
   end
 
   defp check_item(%Axiom.Types.TypeDef{} = typedef, state) do
@@ -606,7 +614,14 @@ defmodule Axiom.Checker do
       %{let_binding: true, return_types: [type]} ->
         walk(rest, %{state | stack: Stack.push(state.stack, type)})
 
-      %{param_types: param_types, return_types: return_types} ->
+      %{param_types: param_types, return_types: return_types} = entry ->
+        state =
+          if Map.get(entry, :actor_required, false) and is_nil(state.current_actor_type) do
+            add_error(state, pos, "function '#{name}' requires actor context")
+          else
+            state
+          end
+
         arity = length(param_types)
 
         case Stack.pop_n(state.stack, arity) do
@@ -1357,6 +1372,62 @@ defmodule Axiom.Checker do
 
   defp resolve_concurrency_type(_token, _types) do
     {:error, "SPAWN requires a valid message type before the block"}
+  end
+
+  defp compute_actor_required_functions(items, type_env) do
+    functions =
+      Enum.reduce(items, %{}, fn
+        %Axiom.Types.Function{} = func, acc -> Map.put(acc, func.name, func)
+        _, acc -> acc
+      end)
+
+    initial =
+      functions
+      |> Enum.reduce(MapSet.new(), fn {name, func}, acc ->
+        if tokens_require_actor?(func.body) or tokens_require_actor?(func.pre_condition) or
+             tokens_require_actor?(func.post_condition) do
+          MapSet.put(acc, name)
+        else
+          acc
+        end
+      end)
+
+    expand_actor_required(functions, type_env, initial)
+  end
+
+  defp expand_actor_required(functions, type_env, required) do
+    expanded =
+      Enum.reduce(functions, required, fn {name, func}, acc ->
+        if MapSet.member?(acc, name) or function_calls_actor_required?(func, acc, type_env) do
+          MapSet.put(acc, name)
+        else
+          acc
+        end
+      end)
+
+    if MapSet.equal?(expanded, required), do: expanded, else: expand_actor_required(functions, type_env, expanded)
+  end
+
+  defp function_calls_actor_required?(func, required, type_env) do
+    referenced_names(func.body)
+    |> Enum.concat(referenced_names(func.pre_condition))
+    |> Enum.concat(referenced_names(func.post_condition))
+    |> Enum.any?(fn name ->
+      MapSet.member?(required, name) and Map.has_key?(type_env, name)
+    end)
+  end
+
+  defp tokens_require_actor?(nil), do: false
+  defp tokens_require_actor?(tokens), do: Enum.any?(tokens, &match?({:op, :self, _}, &1))
+
+  defp referenced_names(nil), do: []
+
+  defp referenced_names(tokens) do
+    tokens
+    |> Enum.flat_map(fn
+      {:ident, name, _} -> [name]
+      _ -> []
+    end)
   end
 
   # Count {} placeholders in a format string, skipping {{ and }}

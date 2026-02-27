@@ -119,6 +119,33 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert Enum.any?(errors, fn e -> e.message =~ "SELF is only available inside a SPAWN block" end)
   end
 
+  test "functions that use SELF require actor context at call sites" do
+    check_ok("""
+    TYPE msg = Boot
+
+    DEF send_boot : void
+      SELF Boot SEND
+    END
+
+    DEF actor : pid[msg]
+      SPAWN msg { send_boot DROP }
+    END
+    """)
+
+    errors =
+      check_errors("""
+      TYPE msg = Boot
+
+      DEF send_boot : void
+        SELF Boot SEND
+      END
+
+      send_boot
+      """)
+
+    assert Enum.any?(errors, fn e -> e.message =~ "function 'send_boot' requires actor context" end)
+  end
+
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")

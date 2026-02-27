@@ -138,4 +138,26 @@ defmodule Axiom.Solver.PreNormalizeTest do
     normalized = PreNormalize.normalize(input)
     assert normalized in [{:or, a, {:and, b, c}}, {:or, {:and, b, c}, a}]
   end
+
+  test "reduces consensus form to shared disjunct" do
+    a = {:eq, {:var, "p0_tag"}, {:const, 1}}
+    b = {:gt, {:var, "x"}, {:const, 0}}
+    input = {:and, {:or, a, b}, {:or, a, {:not, b}}}
+
+    assert PreNormalize.normalize(input) == a
+  end
+
+  test "does not reduce non-consensus OR pair in conjunction" do
+    a = {:eq, {:var, "p0_tag"}, {:const, 1}}
+    b = {:gt, {:var, "x"}, {:const, 0}}
+    c = {:lt, {:var, "x"}, {:const, 10}}
+    input = {:and, {:or, a, b}, {:or, a, c}}
+
+    normalized = PreNormalize.normalize(input)
+
+    assert normalized in [
+             {:and, {:or, a, b}, {:or, a, c}},
+             {:and, {:or, b, a}, {:or, c, a}}
+           ]
+  end
 end

@@ -224,6 +224,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - This exposes implication-friendly clauses that combine with existing complement/implication rewrites
 - Added `examples/prove/proven_shape_distribute.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
 
+### v0.6.0w — Consensus Reduction
+- Added bounded pairwise consensus reduction in conjunctions of disjunctions:
+  `(A OR B) AND (A OR NOT B) => A`
+- Reused existing complement detection so reduction also works for comparison-negation complements
+- Added `examples/prove/proven_shape_consensus.ax` and coverage in both `pre_normalize_test.exs` and solver integration tests
+
 ---
 
 ## Next Up
@@ -238,7 +244,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - **Richer structured diagnostics** — expand proof context fields beyond current lifecycle/match metadata
 - **Provable examples** — add MATCH-heavy examples showing refinement-like reasoning over ADT contracts
 
-**Why now:** guarded distribution is now covered; next gains are deeper inference coverage and broader proof context.
+**Why now:** consensus reduction is now covered; next gains are deeper inference coverage and broader proof context.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

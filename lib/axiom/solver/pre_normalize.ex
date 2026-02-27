@@ -79,11 +79,12 @@ defmodule Axiom.Solver.PreNormalize do
             false
 
           merged_terms ->
-            merged_terms
-            |> reduce_implication_terms()
-            |> remove_absorbed_terms(:and)
-            |> flatten_terms(:and)
-            |> canonical_terms()
+          merged_terms
+          |> reduce_implication_terms()
+          |> reduce_consensus_terms()
+          |> remove_absorbed_terms(:and)
+          |> flatten_terms(:and)
+          |> canonical_terms()
             |> then(fn canonical ->
               cond do
                 has_complement_pair?(canonical) -> false
@@ -465,6 +466,66 @@ defmodule Axiom.Solver.PreNormalize do
   end
 
   defp reduce_implication_term(term, _all_terms), do: term
+
+  # Consensus-style reduction (bounded, pairwise):
+  # (A OR B) AND (A OR NOT B) => A
+  defp reduce_consensus_terms(terms) do
+    case find_consensus_pair(terms) do
+      {:ok, reduced_terms} ->
+        reduced_terms
+        |> flatten_terms(:and)
+        |> canonical_terms()
+        |> reduce_consensus_terms()
+
+      :none ->
+        terms
+    end
+  end
+
+  defp find_consensus_pair(terms) do
+    indexed = Enum.with_index(terms)
+
+    Enum.reduce_while(indexed, :none, fn {left, i}, _acc ->
+      right_candidates = Enum.drop(indexed, i + 1)
+
+      case Enum.find_value(right_candidates, fn {right, j} ->
+             case reduce_consensus_pair(left, right) do
+               {:reduced, reduced} ->
+                 remaining =
+                   indexed
+                   |> Enum.reject(fn {_term, idx} -> idx == i or idx == j end)
+                   |> Enum.map(fn {term, _idx} -> term end)
+
+                 {:ok, [normalize(reduced) | remaining]}
+
+               :none ->
+                 nil
+             end
+           end) do
+        nil -> {:cont, :none}
+        {:ok, _} = found -> {:halt, found}
+      end
+    end)
+  end
+
+  defp reduce_consensus_pair(left, right) do
+    case {or_terms(left), or_terms(right)} do
+      {{:ok, {l1, l2}}, {:ok, {r1, r2}}} ->
+        cond do
+          l1 == r1 and constraint_complements?(l2, r2) -> {:reduced, l1}
+          l1 == r2 and constraint_complements?(l2, r1) -> {:reduced, l1}
+          l2 == r1 and constraint_complements?(l1, r2) -> {:reduced, l2}
+          l2 == r2 and constraint_complements?(l1, r1) -> {:reduced, l2}
+          true -> :none
+        end
+
+      _ ->
+        :none
+    end
+  end
+
+  defp or_terms({:or, x, y}), do: {:ok, {x, y}}
+  defp or_terms(_), do: :error
 
   defp reduce_or_pair_terms(terms) do
     case find_reduced_or_pair(terms) do

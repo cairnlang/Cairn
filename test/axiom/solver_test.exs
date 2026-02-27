@@ -1741,6 +1741,66 @@ defmodule Axiom.SolverTest do
       assert output =~ "PROVE square_only_abs_distribute: PROVEN"
     end
 
+    test "consensus reduction in PRE conjunction exposes shared narrowing atom" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF is_square : shape -> bool
+        MATCH
+          Circle { DROP F }
+          Square { DROP T }
+        END
+      END
+
+      DEF is_square_or_pos : int shape -> bool
+        DUP 0 GT
+        ROT
+        is_square
+        ROT
+        DROP
+        OR
+      END
+
+      DEF is_square_or_not_pos : int shape -> bool
+        DUP 0 GT NOT
+        ROT
+        is_square
+        ROT
+        DROP
+        OR
+      END
+
+      DEF square_consensus_guard : int shape -> bool
+        OVER OVER
+        is_square_or_pos
+        SWAP
+        ROT
+        SWAP
+        is_square_or_not_pos
+        AND
+      END
+
+      # PRE shape:
+      # (is_square(shape) OR amount > 0) AND (is_square(shape) OR amount <= 0)
+      # Consensus reduction yields is_square(shape).
+      DEF square_only_abs_consensus : int shape -> int
+        PRE { square_consensus_guard }
+        SWAP
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        SWAP DROP
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_consensus
+      """
+
+      output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
+      assert output =~ "PROVE square_only_abs_consensus: PROVEN"
+    end
+
     test "trace summary mode prints to stderr (not stdout)" do
       source = """
       TYPE shape = Circle int | Square int

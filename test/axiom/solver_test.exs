@@ -1243,6 +1243,40 @@ defmodule Axiom.SolverTest do
       output = ExUnit.CaptureIO.capture_io(fn -> Axiom.eval(source) end)
       assert output =~ "PROVE square_only_abs_not: PROVEN"
     end
+
+    test "trace mode prints pruned MATCH branch diagnostics when enabled" do
+      source = """
+      TYPE shape = Circle int | Square int
+
+      DEF square_only_abs_trace : shape -> int
+        PRE {
+          MATCH
+            Circle { DROP T }
+            Square { DROP F }
+          END
+          NOT
+        }
+        MATCH
+          Circle { LEN }
+          Square { ABS }
+        END
+        POST DUP 0 GTE
+      END
+
+      PROVE square_only_abs_trace
+      """
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Axiom.eval_with_env(source, %{"__prove_trace__" => true})
+        end)
+
+      assert output =~ "PROVE square_only_abs_trace: PROVEN"
+      assert output =~ "PROVE TRACE square_only_abs_trace (PROVEN):"
+      assert output =~ "MATCH shape:"
+      assert output =~ "pruned="
+      assert output =~ "reason="
+    end
   end
 
   describe "Prove.prove — function call inlining" do

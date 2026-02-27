@@ -27,16 +27,29 @@ defmodule Axiom.Solver.Prove do
   """
   @spec prove(Function.t(), map()) :: prove_result()
   def prove(%Function{} = func, env \\ %{}) do
+    trace_enabled = trace_enabled?(env)
+    clear_trace_events()
+
     with :ok <- check_z3_available(),
-         {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, env),
-         {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, env),
-         prove_env <- enrich_env_with_pre_assumptions(env, pre_constraint),
+         prove_env <- with_trace_flag(env, trace_enabled),
+         {:ok, initial_stack, vars, base_constraint} <- Symbolic.build_initial_stack(func.param_types, prove_env),
+         {:ok, pre_constraint, body_stack} <- execute_pre(func, initial_stack, prove_env),
+         prove_env <- enrich_env_with_pre_assumptions(prove_env, pre_constraint),
          {:ok, result_stack} <- execute_body(func, body_stack, prove_env),
          {:ok, post_constraint} <- execute_post(func, result_stack, prove_env) do
-      query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env)
+      result = query_z3(vars, combine_constraints(base_constraint, pre_constraint), post_constraint, func, env)
+      maybe_emit_trace(func.name, result, trace_enabled)
+      result
     else
-      {:unsupported, reason} -> {:unknown, reason}
-      {:error, reason} -> {:error, reason}
+      {:unsupported, reason} ->
+        result = {:unknown, reason}
+        maybe_emit_trace(func.name, result, trace_enabled)
+        result
+
+      {:error, reason} ->
+        result = {:error, reason}
+        maybe_emit_trace(func.name, result, trace_enabled)
+        result
     end
   end
 
@@ -302,6 +315,45 @@ defmodule Axiom.Solver.Prove do
     else
       %{eq: eq, neq: neq}
     end
+  end
+
+  defp trace_enabled?(env) do
+    Map.get(env, "__prove_trace__", false) or System.get_env("AXIOM_PROVE_TRACE") == "1"
+  end
+
+  defp with_trace_flag(env, true), do: Map.put(env, "__prove_trace_enabled__", true)
+  defp with_trace_flag(env, false), do: env
+
+  defp maybe_emit_trace(_func_name, _result, false), do: :ok
+
+  defp maybe_emit_trace(func_name, result, true) do
+    status =
+      case result do
+        {:proven, _} -> "PROVEN"
+        {:disproven, _, _} -> "DISPROVEN"
+        {:unknown, _} -> "UNKNOWN"
+        {:error, _} -> "ERROR"
+      end
+
+    events = get_trace_events()
+
+    if events == [] do
+      IO.puts("PROVE TRACE #{func_name} (#{status}): no MATCH branch events")
+    else
+      IO.puts("PROVE TRACE #{func_name} (#{status}):")
+      Enum.each(events, &IO.puts("  - " <> &1))
+    end
+
+    :ok
+  end
+
+  defp clear_trace_events do
+    Process.put(:axiom_prove_trace_events, [])
+  end
+
+  defp get_trace_events do
+    (Process.get(:axiom_prove_trace_events) || [])
+    |> Enum.reverse()
   end
 
   defp combine_constraints(true, c), do: c

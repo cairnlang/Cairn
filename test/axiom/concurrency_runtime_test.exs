@@ -64,4 +64,14 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert output =~ "ping1"
     assert output =~ "ping2"
   end
+
+  test "stateful counter actor can carry stack state across repeated receives" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/counter.ax")
+        Process.sleep(30)
+      end)
+
+    assert output =~ "count=1"
+  end
 end

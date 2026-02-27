@@ -1,0 +1,44 @@
+# examples/concurrency/counter.ax
+# Stateful actor example: state lives on the stack across repeated actor-local RECEIVE steps.
+
+TYPE msg = Inc | Dec | Emit
+
+DEF queue_script : void
+  SELF Inc SEND
+  SELF Inc SEND
+  SELF Dec SEND
+  SELF Emit SEND
+END
+
+SPAWN msg {
+  queue_script
+  0
+
+  RECEIVE
+    Inc { 1 ADD }
+    Dec { 1 SUB }
+    Emit { DUP "count={}" FMT SAID }
+  END
+
+  RECEIVE
+    Inc { 1 ADD }
+    Dec { 1 SUB }
+    Emit { DUP "count={}" FMT SAID }
+  END
+
+  RECEIVE
+    Inc { 1 ADD }
+    Dec { 1 SUB }
+    Emit { DUP "count={}" FMT SAID }
+  END
+
+  RECEIVE
+    Inc { DUP "count={}" FMT SAID }
+    Dec { DUP "count={}" FMT SAID }
+    Emit { DUP "count={}" FMT SAID }
+  END
+
+  DROP
+  DROP
+}
+DROP

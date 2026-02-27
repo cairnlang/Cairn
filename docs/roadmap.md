@@ -368,6 +368,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/concurrency/two_pings.ax` to demonstrate handling two messages in sequence
 - Expanded concurrency type/runtime tests and examples index coverage for repeated actor-local receives
 
+### v0.7.0f — Stateful Actor Pattern
+- Added `examples/concurrency/counter.ax` as the first stateful actor example built on repeated actor-local `RECEIVE`
+- Demonstrated stack-carried actor state across multiple message-handling steps without new syntax
+- Expanded concurrency runtime coverage for multi-step state transitions
+- Expanded examples index and docs to present the stateful actor pattern explicitly
+
 ---
 
 ## Next Up
@@ -382,7 +388,7 @@ The current PROVE MATCH refinement line has delivered substantial gains, but PRE
 Axiom already has algebraic types and contracts. Combining them with BEAM processes creates typed actors with provable state transition invariants.
 
 **Deliverables:**
-- Broader actor-context ergonomics beyond the current `SELF`/actor-local-`RECEIVE` propagation model
+- Broader actor ergonomics beyond the current `SELF`/actor-local-`RECEIVE` plus stack-state model
 - Richer `RECEIVE` forms (loop-friendly patterns, multi-message actor workflows)
 - `pid[MessageType]` — typed process identifiers with stronger runtime ergonomics
 - `RECEIVE` with MATCH-style pattern dispatch on message type across larger actor state machines

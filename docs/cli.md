@@ -65,10 +65,11 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `mix axiom.run examples/concurrency/ping_once.ax`
    - `mix axiom.run examples/concurrency/self_boot.ax`
    - `mix axiom.run examples/concurrency/two_pings.ax`
+   - `mix axiom.run examples/concurrency/counter.ax`
 5. Inspect loaded prelude: `mix axiom.run --show-prelude examples/prelude/result_flow.ax`
 6. Try diagnostics JSON: `mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax`
 7. Run practical-only tests: `mix test.practical`
 
-`ping_pong_types.ax` and `traffic_light_types.ax` are type-focused. `ping_once.ax` exercises the current minimal runtime, `self_boot.ax` demonstrates `SELF` through a helper function, and `two_pings.ax` demonstrates repeated actor-local `RECEIVE`.
+`ping_pong_types.ax` and `traffic_light_types.ax` are type-focused. `ping_once.ax` exercises the current minimal runtime, `self_boot.ax` demonstrates `SELF` through a helper function, `two_pings.ax` demonstrates repeated actor-local `RECEIVE`, and `counter.ax` demonstrates stack-carried actor state.
 
 See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

@@ -374,6 +374,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded concurrency runtime coverage for multi-step state transitions
 - Expanded examples index and docs to present the stateful actor pattern explicitly
 
+### v0.7.0g — Named Stateful Actor Transitions
+- Added `examples/concurrency/traffic_light.ax` as a richer stateful actor example with named transition helpers
+- Demonstrated a clearer application-level actor pattern (phase emission + phase transition) without new runtime features
+- Expanded concurrency runtime coverage for multi-step named state transitions
+- Expanded examples index and docs to present the traffic-light actor pattern explicitly
+
 ---
 
 ## Next Up

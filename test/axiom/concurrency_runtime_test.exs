@@ -74,4 +74,16 @@ defmodule Axiom.ConcurrencyRuntimeTest do
 
     assert output =~ "count=1"
   end
+
+  test "traffic light actor can step through named phases" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light.ax")
+        Process.sleep(30)
+      end)
+
+    assert output =~ "phase=green"
+    assert output =~ "phase=yellow"
+    assert output =~ "phase=red"
+  end
 end

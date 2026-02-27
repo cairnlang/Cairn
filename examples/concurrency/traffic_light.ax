@@ -1,0 +1,76 @@
+# examples/concurrency/traffic_light.ax
+# Stateful actor example with named phase transitions over stack-carried state.
+
+TYPE msg = Tick | Emit
+
+DEF queue_cycle : void
+  SELF Emit SEND
+  SELF Tick SEND
+  SELF Emit SEND
+  SELF Tick SEND
+  SELF Emit SEND
+  SELF Tick SEND
+  SELF Emit SEND
+END
+
+DEF next_phase : str -> str
+  DUP "green" EQ
+  IF
+    DROP "yellow"
+  ELSE
+    DUP "yellow" EQ
+    IF
+      DROP "red"
+    ELSE
+      DROP "green"
+    END
+  END
+END
+
+DEF emit_phase : str -> str
+  DUP "phase={}" FMT SAID
+END
+
+SPAWN msg {
+  queue_cycle
+  "green"
+
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+
+  DROP
+  DROP
+}
+DROP

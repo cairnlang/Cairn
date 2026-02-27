@@ -167,6 +167,7 @@ defmodule Axiom.ConcurrencyTypesTest do
   test "concurrency examples load successfully" do
     assert {[], _env} = Axiom.eval_file("examples/concurrency/ping_pong_types.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light_types.ax")
+    assert {[], _env} = Axiom.eval_file("examples/concurrency/traffic_light.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/self_boot.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/two_pings.ax")
     assert {[], _env} = Axiom.eval_file("examples/concurrency/counter.ax")

@@ -240,6 +240,17 @@ defmodule Axiom.Runtime do
     [line | stack]
   end
 
+  # ASK: pop prompt string, print it, read a line, push trimmed string
+  def execute(:ask, [prompt | rest]) when is_binary(prompt) do
+    line = IO.gets(prompt) |> String.trim_trailing("\n")
+    [line | rest]
+  end
+
+  # RANDOM: pop N, push random integer in [1, N]
+  def execute(:random, [n | rest]) when is_integer(n) and n > 0 do
+    [Enum.random(1..n) | rest]
+  end
+
   # Error cases
   def execute(op, stack) do
     raise Axiom.RuntimeError,

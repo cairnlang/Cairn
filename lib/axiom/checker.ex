@@ -258,6 +258,19 @@ defmodule Axiom.Checker do
     walk(remaining, %{state | stack: Stack.push(state.stack, {:list, elem_type})})
   end
 
+  # LET — pop top type, bind name in env for subsequent type checking
+  defp walk([{:let_kw, _, pos}, {:ident, name, _} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, type, new_stack} ->
+        state = %{state | stack: new_stack}
+        state = put_in(state.env[name], %{param_types: [], return_types: [type], let_binding: true})
+        walk(rest, state)
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "LET requires a value on the stack (stack underflow)"))
+    end
+  end
+
   # Block literals: { ... }
   defp walk([{:block_open, _, _} | rest], state) do
     {block_tokens, remaining} = collect_block_tokens(rest, 0, [])
@@ -461,11 +474,15 @@ defmodule Axiom.Checker do
     end
   end
 
-  # Function calls (identifiers)
+  # Function calls and LET bindings (identifiers)
   defp walk([{:ident, name, pos} | rest], state) do
     case Map.get(state.env, name) do
       nil ->
         walk(rest, add_error(state, pos, "undefined function '#{name}'"))
+
+      # LET binding — just push the bound type
+      %{let_binding: true, return_types: [type]} ->
+        walk(rest, %{state | stack: Stack.push(state.stack, type)})
 
       %{param_types: param_types, return_types: return_types} ->
         arity = length(param_types)

@@ -4,7 +4,7 @@ An AI-native programming language targeting the BEAM.
 
 Stack-based, postfix, contract-checked. Designed around the idea that an AI-first language should optimize for **reasoning correctness** over human readability — with declarative constraints, content-addressed structure, and the BEAM's actor model as the foundation for multi-agent collaboration.
 
-**v0.4.1**: Interpreted postfix core with a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, and a **JSON parser + encoder** written entirely in Axiom.
+**v0.5.0**: Interpreted postfix core with **LET bindings**, a **static type checker**, **algebraic data types** (TYPE/MATCH with wildcard `_` catch-all), **property-based verification** (VERIFY, including user-defined sum types), **compile-time proof** (PROVE via Z3 — supports IF/ELSE, function inlining, ABS/MIN/MAX), runtime contracts (PRE/POST), **maps**, closures, loops, comprehensive string primitives, interactive I/O (ASK, RANDOM), and a **JSON parser + encoder** written entirely in Axiom.
 
 ## Quick Start
 
@@ -27,7 +27,10 @@ mix axiom.run examples/json.ax
 # Start the REPL
 mix run -e "Axiom.REPL.start()"
 
-# Run tests (587 tests)
+# Interactive number guessing game
+mix axiom.run examples/guess.ax
+
+# Run tests (626 tests)
 mix test
 ```
 
@@ -127,11 +130,35 @@ JOIN                           # pop separator, pop list of strings, push joined
 # I/O
 PRINT                          # non-destructive debug output (with label)
 SAY                            # non-destructive clean output (IO.puts)
+ASK                            # pop prompt string, print it, read line, push input
 ARGV                           # push command-line args as a list of strings
 READ_FILE                      # pop filename, push file contents
 WRITE_FILE                     # pop contents and filename, write to file
 READ_LINE                      # read one line from stdin
+RANDOM                         # pop N, push random integer in [1, N]
 ```
+
+### LET Bindings
+
+`LET` names a value for readability. It pops the top of the stack and binds it to a name. The binding is scoped to the enclosing function body (or top-level expression). Rebinding the same name shadows the previous value.
+
+```
+42 LET x                        # pops 42, binds x
+x x ADD                         # pushes 42 twice, adds => 84
+
+# Multiple bindings and intermediate results
+10 LET base
+base base MUL LET squared       # squared = 100
+squared base ADD                # => 110
+
+# Inside functions
+DEF add_ten : int -> int
+  10 LET n
+  n ADD
+END
+```
+
+**Note**: LET bindings inside blocks (`{ }`) are scoped to that block execution. In WHILE loops, prefer using the stack to carry state between iterations.
 
 ### Control Flow
 
@@ -604,6 +631,46 @@ mix axiom.run examples/json.ax
 # Parses and prints JSON values, extracts names, round-trips through encode
 ```
 
+### Number Guessing Game
+
+An interactive game using LET, ASK, and RANDOM (`examples/guess.ax`):
+
+```
+100 RANDOM LET secret
+"I'm thinking of a number between 1 and 100." SAY DROP
+
+# Stack carries: tries_count
+0
+
+{
+  "Your guess? " ASK TO_INT LET guess
+  1 ADD
+  guess secret EQ IF
+    DUP NUM_STR "Got it in " SWAP CONCAT " tries!" CONCAT SAY DROP
+    F
+  ELSE
+    guess secret LT IF
+      "Too low!" SAY DROP
+    ELSE
+      "Too high!" SAY DROP
+    END
+    T
+  END
+} { } WHILE
+DROP
+```
+
+```bash
+mix axiom.run examples/guess.ax
+# I'm thinking of a number between 1 and 100.
+# Your guess? 50
+# Too high!
+# Your guess? 25
+# Too low!
+# ...
+# Got it in 7 tries!
+```
+
 ### Cat / Word Count / Grep
 
 ```bash
@@ -674,8 +741,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.2.0** (complete): PROVE — compile-time contract verification via Z3 SMT solver
 - **v0.3.0** (complete): Algebraic data types (TYPE/MATCH) — Option, Result, and user-defined sum types with exhaustiveness checking
 - **v0.4.0** (complete): JSON parser/encoder milestone — wildcard MATCH, string primitives, ROT4, PAIRS, NUM_STR, VERIFY for sum types
-- **v0.4.1** (current): PROVE for IF/ELSE branches (via SMT-LIB `ite`), ABS/MIN/MAX, function call inlining
-- **v0.5.0** (next): Practical language features — LET bindings, IMPORT/modules, error handling, standard library
+- **v0.4.1**: PROVE for IF/ELSE branches (via SMT-LIB `ite`), ABS/MIN/MAX, function call inlining
+- **v0.5.0** (current): LET bindings, ASK (prompted input), RANDOM, number guessing game example
+- **v0.5.x** (next): Practical language features — IMPORT/modules, error handling, standard library
 - **v0.6.0**: PROVE for MATCH/algebraic types, refinement-style reasoning
 - **v0.7.0**: Typed BEAM concurrency (typed message passing, stateful actors)
 - **v0.8.0**: BEAM bytecode compilation

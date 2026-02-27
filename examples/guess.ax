@@ -1,0 +1,27 @@
+# Number Guessing Game
+# After Tim Hartnell, "Giant Book of Computer Games" (1984)
+
+100 RANDOM LET secret
+"I'm thinking of a number between 1 and 100." SAY DROP
+
+# Stack carries: tries_count
+0
+
+{
+  "Your guess? " ASK TO_INT LET guess
+  1 ADD
+
+  guess secret EQ IF
+    DUP NUM_STR "Got it in " SWAP CONCAT " tries!" CONCAT SAY DROP
+    F
+  ELSE
+    guess secret LT IF
+      "Too low!" SAY DROP
+    ELSE
+      "Too high!" SAY DROP
+    END
+    T
+  END
+} { } WHILE
+
+DROP

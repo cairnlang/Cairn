@@ -49,19 +49,24 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - `examples/proven.ax` — abs, distance, clamp, symmetry proofs
 - 610 tests passing
 
+### v0.5.0 — LET Bindings + Interactive I/O
+- `42 LET x` — pops top value, binds to name, scoped to enclosing function/expression
+- Rebinding shadows (e.g., `1 LET x 2 LET x x` → `[2]`)
+- Type checker tracks LET binding types through the symbolic stack
+- `ASK` — prompted input (`"Name? " ASK` prints prompt, reads line, pushes string)
+- `RANDOM` — `100 RANDOM` pushes random int in [1, 100]
+- `examples/guess.ax` — Tim Hartnell number guessing game using all three features
+- 626 tests passing
+
 ---
 
 ## Next Up
 
-### v0.5.0 — Practical Language Features
+### v0.5.x — More Practical Language Features
 
-**Goal:** Make Axiom usable for real programs beyond toy examples. The language has strong verification foundations but lacks practical features that any working language needs.
+**Goal:** Continue making Axiom usable for real programs beyond toy examples.
 
 **Deliverables:**
-
-- **LET bindings** — named local values for readability
-  `LET x 42` pushes 42 and binds it to `x`; `x` pushes a copy.
-  Stack-only code is fine for small functions but unreadable past 5-6 operations. Even Forth has variables.
 
 - **String interpolation or formatting** — SAY/PRINT are bare-bones, no way to build formatted output
 
@@ -71,7 +76,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 - **Standard library extraction** — move common patterns (abs, max, min, clamp, etc.) from inline definitions into a prelude that's always available
 
-**Why now:** Axiom has a JSON parser, algebraic types, a type checker, VERIFY, and PROVE — but you still can't split code across files, name intermediate values, or handle errors gracefully. These gaps block any project larger than a single-file example.
+**Why now:** Axiom has a JSON parser, algebraic types, a type checker, VERIFY, and PROVE — but you still can't split code across files or handle errors gracefully. These gaps block any project larger than a single-file example.
 
 ### v0.6.0 — PROVE for Algebraic Types + Refinements
 

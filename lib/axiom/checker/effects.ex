@@ -87,7 +87,13 @@ defmodule Axiom.Checker.Effects do
     mlen: %{pops: [{:map, :any, :any}], pushes: [:int]},
     merge:   %{pops: [{:map, :any, :any}, {:map, :any, :any}], pushes: [{:map, :any, :any}]},
     pairs:   %{pops: [{:map, :any, :any}], pushes: [{:list, {:list, :any}}]},
-    num_str: %{pops: [:num], pushes: [:str]}
+    num_str: %{pops: [:num], pushes: [:str]},
+
+    # ASK: pop prompt string, push input string
+    ask: %{pops: [:str], pushes: [:str]},
+
+    # RANDOM: pop int N, push random int in [1, N]
+    random: %{pops: [:int], pushes: [:int]}
   }
 
   @doc """

@@ -1502,4 +1502,126 @@ defmodule AxiomTest do
       assert output =~ "PROVEN"
     end
   end
+
+  # ── LET bindings ──
+
+  describe "LET bindings" do
+    test "binds and retrieves a value" do
+      assert Axiom.eval("42 LET x x") == [42]
+    end
+
+    test "multiple bindings" do
+      assert Axiom.eval("1 LET a 2 LET b a b ADD") == [3]
+    end
+
+    test "rebinding shadows previous value" do
+      assert Axiom.eval("1 LET x 2 LET x x") == [2]
+    end
+
+    test "LET with strings" do
+      assert Axiom.eval(~s|"hello" LET s s|) == ["hello"]
+    end
+
+    test "LET with booleans" do
+      assert Axiom.eval("T LET flag flag") == [true]
+    end
+
+    test "LET inside function body" do
+      source = """
+      DEF add_ten : int -> int
+        10 LET n
+        n ADD
+      END
+      5 add_ten
+      """
+      assert Axiom.eval(source) == [15]
+    end
+
+    test "LET preserves stack correctly" do
+      # 1 LET x pushes 1 then pops it into x; 2 stays on stack
+      assert Axiom.eval("2 1 LET x x ADD") == [3]
+    end
+
+    test "LET used with computation" do
+      # LET to name intermediate results in a multi-step computation
+      source = """
+      10 LET base
+      base base MUL LET squared
+      squared base ADD
+      """
+      assert Axiom.eval(source) == [110]
+    end
+
+    test "LET on empty stack raises static error" do
+      assert_raise Axiom.StaticError, ~r/LET.*underflow/, fn ->
+        Axiom.eval("LET x")
+      end
+    end
+
+    test "type checker accepts LET programs" do
+      source = "42 LET x x"
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert :ok = Axiom.Checker.check(items)
+    end
+
+    test "type checker rejects LET on empty stack" do
+      source = "LET x"
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert {:error, errors} = Axiom.Checker.check(items)
+      assert Enum.any?(errors, fn e -> e.message =~ "LET" and e.message =~ "underflow" end)
+    end
+
+    test "type checker tracks LET binding types" do
+      source = """
+      DEF use_let : int -> int
+        LET x
+        x x ADD
+      END
+      """
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert :ok = Axiom.Checker.check(items)
+    end
+  end
+
+  # ── ASK ──
+
+  describe "ASK" do
+    test "reads input with prompt" do
+      output = ExUnit.CaptureIO.capture_io([input: "Alice\n"], fn ->
+        result = Axiom.eval(~s|"Name? " ASK|)
+        # Send result to test process
+        send(self(), {:result, result})
+      end)
+      assert output =~ "Name? "
+      assert_received {:result, ["Alice"]}
+    end
+
+    test "type checker accepts ASK" do
+      source = ~s|"prompt" ASK|
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert :ok = Axiom.Checker.check(items)
+    end
+  end
+
+  # ── RANDOM ──
+
+  describe "RANDOM" do
+    test "produces integer in range" do
+      results = for _ <- 1..100, do: hd(Axiom.eval("10 RANDOM"))
+      assert Enum.all?(results, fn r -> is_integer(r) and r >= 1 and r <= 10 end)
+      # Should have some variety (not all the same)
+      assert length(Enum.uniq(results)) > 1
+    end
+
+    test "type checker accepts RANDOM" do
+      source = "100 RANDOM"
+      {:ok, tokens} = Axiom.Lexer.tokenize(source)
+      {:ok, items} = Axiom.Parser.parse(tokens)
+      assert :ok = Axiom.Checker.check(items)
+    end
+  end
 end

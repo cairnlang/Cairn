@@ -15,7 +15,8 @@ defmodule Axiom.Lexer do
                 ARGV READ_FILE WRITE_FILE READ_LINE
                 WORDS LINES CONTAINS
                 CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT NUM_STR JOIN
-                GET PUT DEL KEYS VALUES HAS MLEN MERGE PAIRS)
+                GET PUT DEL KEYS VALUES HAS MLEN MERGE PAIRS
+                ASK RANDOM)
 
   @type_names ~w(int float bool any void str)
 
@@ -90,6 +91,7 @@ defmodule Axiom.Lexer do
   defp classify("PROVE"), do: {:ok, {:prove_kw, "PROVE"}}
   defp classify("TYPE"), do: {:ok, {:type_kw, "TYPE"}}
   defp classify("MATCH"), do: {:ok, {:match_kw, "MATCH"}}
+  defp classify("LET"), do: {:ok, {:let_kw, "LET"}}
   defp classify("|"), do: {:ok, {:pipe, "|"}}
   defp classify("="), do: {:ok, {:equals, "="}}
   defp classify("T"), do: {:ok, {:bool_lit, true}}

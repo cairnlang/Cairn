@@ -44,6 +44,15 @@ defmodule Axiom.Evaluator do
     run(rest, stack, env)
   end
 
+  # LET — pop top value, bind to the following identifier name
+  defp run([{:let_kw, _, _pos}, {:ident, name, _} | rest], [value | stack], env) do
+    run(rest, stack, Map.put(env, name, {:let_binding, value}))
+  end
+
+  defp run([{:let_kw, _, pos}, {:ident, _name, _} | _rest], [], _env) do
+    raise Axiom.RuntimeError, "LET at word #{pos + 1}: empty stack"
+  end
+
   # Operators — delegate to Runtime
   defp run([{:op, op, _} | rest], stack, env), do: run(rest, Runtime.execute(op, stack), env)
 
@@ -103,6 +112,9 @@ defmodule Axiom.Evaluator do
     case Map.get(env, name) do
       nil ->
         raise Axiom.RuntimeError, "undefined '#{name}' at word #{pos + 1}"
+
+      {:let_binding, value} ->
+        run(rest, [value | stack], env)
 
       %Axiom.Types.Function{} = func ->
         stack = eval_function_call(func, stack, env)

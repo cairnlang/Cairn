@@ -61,6 +61,25 @@ defmodule Axiom.Checker.Unify do
     end
   end
 
+  # Monitor unification
+  def unify({:monitor, a}, {:monitor, b}) do
+    case unify(a, b) do
+      {:ok, unified} -> {:ok, {:monitor, unified}}
+      :error -> :error
+    end
+  end
+
+  # Block return-shape unification
+  def unify({:block, {:returns, a}}, {:block, {:returns, b}}) do
+    case unify(a, b) do
+      {:ok, unified} -> {:ok, {:block, {:returns, unified}}}
+      :error -> :error
+    end
+  end
+
+  def unify({:block, {:returns, _}} = a, {:block, _}), do: {:ok, a}
+  def unify({:block, _}, {:block, {:returns, _}} = b), do: {:ok, b}
+
   # Block types unify with each other
   def unify({:block, _} = a, {:block, _}), do: {:ok, a}
 

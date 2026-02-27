@@ -87,16 +87,10 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "SEND at word #{pos + 1}: stack underflow"
   end
 
-  # MONITOR — waits for a pid to exit and returns a normalized string reason.
-  defp run([{:op, :monitor, _pos} | rest], [{:pid, _msg_type, pid} | stack], env) when is_pid(pid) do
+  # MONITOR — creates a non-blocking monitor handle for a pid.
+  defp run([{:op, :monitor, _pos} | rest], [{:pid, msg_type, pid} | stack], env) when is_pid(pid) do
     ref = Process.monitor(pid)
-
-    reason =
-      receive do
-        {:DOWN, ^ref, :process, ^pid, down_reason} -> normalize_down_reason(down_reason)
-      end
-
-    run(rest, [reason | stack], env)
+    run(rest, [{:monitor, msg_type, pid, ref} | stack], env)
   end
 
   defp run([{:op, :monitor, pos} | _], [other | _], _env) do
@@ -105,6 +99,24 @@ defmodule Axiom.Evaluator do
 
   defp run([{:op, :monitor, pos} | _], [], _env) do
     raise Axiom.RuntimeError, "MONITOR at word #{pos + 1}: empty stack"
+  end
+
+  # AWAIT — blocks on a monitor handle and returns a normalized string reason.
+  defp run([{:op, :await, _pos} | rest], [{:monitor, _msg_type, pid, ref} | stack], env) do
+    reason =
+      receive do
+        {:DOWN, ^ref, :process, ^pid, down_reason} -> normalize_down_reason(down_reason)
+      end
+
+    run(rest, [reason | stack], env)
+  end
+
+  defp run([{:op, :await, pos} | _], [other | _], _env) do
+    raise Axiom.RuntimeError, "AWAIT at word #{pos + 1}: expected monitor on stack, got #{inspect(other)}"
+  end
+
+  defp run([{:op, :await, pos} | _], [], _env) do
+    raise Axiom.RuntimeError, "AWAIT at word #{pos + 1}: empty stack"
   end
 
   # SELF — push the current process's typed pid handle
@@ -580,14 +592,18 @@ defmodule Axiom.Evaluator do
   defp matches_type?(v, :str) when is_binary(v), do: true
   defp matches_type?(v, {:list, _}) when is_list(v), do: true
   defp matches_type?(v, {:map, _, _}) when is_map(v), do: true
+  defp matches_type?({:block, _tokens, _env}, {:block, _}), do: true
   defp matches_type?({:pid, inner, _pid}, {:pid, expected_inner}), do: type_descriptor_matches?(inner, expected_inner)
   defp matches_type?({:pid, inner}, {:pid, expected_inner}), do: type_descriptor_matches?(inner, expected_inner)
+  defp matches_type?({:monitor, inner, _pid, _ref}, {:monitor, expected_inner}),
+    do: type_descriptor_matches?(inner, expected_inner)
   defp matches_type?({:variant, type_name, _, _}, {:user_type, type_name}), do: true
   defp matches_type?(_, _), do: false
 
   defp format_type({:list, inner}), do: "[#{inner}]"
   defp format_type({:map, k, v}), do: "map[#{k} #{v}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
+  defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
   defp format_type({:user_type, name}), do: name
   defp format_type(type), do: to_string(type)
 
@@ -600,6 +616,7 @@ defmodule Axiom.Evaluator do
   end
 
   defp type_descriptor_matches?({:pid, a}, {:pid, b}), do: type_descriptor_matches?(a, b)
+  defp type_descriptor_matches?({:monitor, a}, {:monitor, b}), do: type_descriptor_matches?(a, b)
   defp type_descriptor_matches?(_, :any), do: true
   defp type_descriptor_matches?(_, _), do: false
 

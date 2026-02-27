@@ -130,8 +130,8 @@ defmodule Axiom.ConcurrencyRuntimeTest do
     assert_receive {:DOWN, ^ref, :process, ^pid, "child_failed"}, 200
   end
 
-  test "MONITOR returns the child exit reason without killing the caller" do
-    assert ["child_failed"] =
+  test "MONITOR returns a non-blocking handle" do
+    assert [{:monitor, {:user_type, "msg"}, pid, ref}] =
              Axiom.eval("""
              TYPE msg = Fail
 
@@ -142,6 +142,24 @@ defmodule Axiom.ConcurrencyRuntimeTest do
                END
              }
              MONITOR
+             """)
+
+    assert is_pid(pid)
+    assert is_reference(ref)
+  end
+
+  test "AWAIT returns the child exit reason without killing the caller" do
+    assert ["child_failed"] =
+             Axiom.eval("""
+             TYPE msg = Fail
+
+             SPAWN msg {
+               SELF Fail SEND
+               RECEIVE
+                 Fail { "child_failed" SWAP DROP EXIT }
+               END
+             }
+             MONITOR AWAIT
              """)
   end
 

@@ -12,7 +12,7 @@ defmodule Axiom.Lexer do
                 SQ ABS NEG
                 TIMES WHILE APPLY
                 RANGE PRINT SAY SELF EXIT
-                SEND MONITOR
+                SEND MONITOR AWAIT
                 ARGV READ_FILE WRITE_FILE READ_FILE! WRITE_FILE! READ_LINE
                 WORDS LINES CONTAINS
                 CHARS SPLIT TRIM STARTS_WITH SLICE TO_INT TO_FLOAT TO_INT! TO_FLOAT! NUM_STR JOIN
@@ -101,6 +101,7 @@ defmodule Axiom.Lexer do
   defp classify("="), do: {:ok, {:equals, "="}}
   defp classify("T"), do: {:ok, {:bool_lit, true}}
   defp classify("F"), do: {:ok, {:bool_lit, false}}
+  defp classify("block"), do: {:ok, {:type, {:block, :opaque}}}
   defp classify("[]"), do: {:ok, {:list_lit, []}}
   defp classify("M["), do: {:ok, {:map_open, "M["}}
   defp classify("M[]"), do: {:ok, {:map_lit, %{}}}
@@ -137,6 +138,24 @@ defmodule Axiom.Lexer do
         case parse_map_inner_type(inner) do
           {:ok, t} -> {:ok, {:type, {:pid, t}}}
           :error -> {:error, "unknown pid type: #{word}"}
+        end
+
+      # monitor type like monitor[int] or monitor[msg]
+      Regex.match?(~r/^monitor\[.+\]$/, word) ->
+        inner = String.slice(word, 8..-2)
+
+        case parse_map_inner_type(inner) do
+          {:ok, t} -> {:ok, {:type, {:monitor, t}}}
+          :error -> {:error, "unknown monitor type: #{word}"}
+        end
+
+      # block return type like block[pid[msg]] or block[str]
+      Regex.match?(~r/^block\[.+\]$/, word) ->
+        inner = String.slice(word, 6..-2)
+
+        case parse_map_inner_type(inner) do
+          {:ok, t} -> {:ok, {:type, {:block, {:returns, t}}}}
+          :error -> {:error, "unknown block type: #{word}"}
         end
 
       # map type like map[str int]
@@ -196,6 +215,22 @@ defmodule Axiom.Lexer do
 
           case parse_map_inner_type(inner) do
             {:ok, t} -> {:ok, {:pid, t}}
+            :error -> :error
+          end
+
+        Regex.match?(~r/^monitor\[.+\]$/, s) ->
+          inner = String.slice(s, 8..-2)
+
+          case parse_map_inner_type(inner) do
+            {:ok, t} -> {:ok, {:monitor, t}}
+            :error -> :error
+          end
+
+        Regex.match?(~r/^block\[.+\]$/, s) ->
+          inner = String.slice(s, 6..-2)
+
+          case parse_map_inner_type(inner) do
+            {:ok, t} -> {:ok, {:block, {:returns, t}}}
             :error -> :error
           end
 

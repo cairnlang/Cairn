@@ -10,6 +10,8 @@ defmodule Axiom.Types do
           | {:list, axiom_type}
           | {:map, axiom_type, axiom_type}
           | {:pid, axiom_type}
+          | {:monitor, axiom_type}
+          | {:block, term()}
           | {:user_type, String.t()}
           | :any
           | :void

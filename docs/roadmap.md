@@ -404,6 +404,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `examples/concurrency/restart_once.ax` as the first runnable restart workflow
 - Expanded runtime/type coverage plus the runnable examples index for supervision-oriented flows
 
+### v0.7.0l — Non-Blocking Monitor Handles And Reusable Restart Helpers
+- Changed `MONITOR` into a non-blocking monitor-handle primitive that returns `monitor[T]`
+- Added `AWAIT` to block on a monitor handle and yield the normalized exit reason
+- Added `block[T]` return-shape typing so helper functions can safely `APPLY` pid-producing blocks
+- Upgraded `examples/concurrency/lib/supervision.ax` to provide `watch_exit`, `await_exit`, and a reusable `restart_once` helper
+
 ---
 
 ## Next Up

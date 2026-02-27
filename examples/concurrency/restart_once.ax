@@ -25,12 +25,4 @@ DEF boot_worker : pid[msg]
   }
 END
 
-DEF restart_once : void
-  fail_worker await_exit
-  "first_exit={}" FMT SAID
-
-  boot_worker await_exit
-  "second_exit={}" FMT SAID
-END
-
-restart_once
+{ fail_worker } { boot_worker } restart_once

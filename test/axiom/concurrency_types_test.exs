@@ -27,6 +27,14 @@ defmodule Axiom.ConcurrencyTypesTest do
              Axiom.Lexer.tokenize("pid[msg]")
   end
 
+  test "lexer tokenizes monitor[user_type] and block return types" do
+    assert {:ok, [{:type, {:monitor, {:user_type, "msg"}}, 0}]} =
+             Axiom.Lexer.tokenize("monitor[msg]")
+
+    assert {:ok, [{:type, {:block, {:returns, {:pid, {:user_type, "msg"}}}}, 0}]} =
+             Axiom.Lexer.tokenize("block[pid[msg]]")
+  end
+
   test "pid types parse in signatures and recursive type fields" do
     items =
       parse("""
@@ -182,17 +190,24 @@ defmodule Axiom.ConcurrencyTypesTest do
     assert Enum.any?(errors, fn e -> e.message =~ "EXIT is only available inside a SPAWN or SPAWN_LINK block" end)
   end
 
-  test "MONITOR returns a string reason and rejects non-pids" do
+  test "MONITOR returns a handle, AWAIT returns a string, and invalid inputs are rejected" do
     check_ok("""
     TYPE msg = Fail
 
-    DEF wait_exit : pid[msg] -> str
+    DEF watch_exit : pid[msg] -> monitor[msg]
       MONITOR
+    END
+
+    DEF wait_exit : monitor[msg] -> str
+      AWAIT
     END
     """)
 
     errors = check_errors("42 MONITOR")
     assert Enum.any?(errors, fn e -> e.message =~ "MONITOR requires a pid on the stack" end)
+
+    errors = check_errors("42 AWAIT")
+    assert Enum.any?(errors, fn e -> e.message =~ "AWAIT requires a monitor on the stack" end)
   end
 
   test "concurrency examples load successfully" do

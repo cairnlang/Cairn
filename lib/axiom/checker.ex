@@ -494,6 +494,12 @@ defmodule Axiom.Checker do
   # APPLY - execute a block inline
   defp walk([{:op, :apply, pos} | rest], state) do
     case Stack.pop(state.stack) do
+      {:ok, {:block, {:returns, :void}}, new_stack} ->
+        walk(rest, %{state | stack: new_stack})
+
+      {:ok, {:block, {:returns, return_type}}, new_stack} ->
+        walk(rest, %{state | stack: Stack.push(new_stack, return_type)})
+
       {:ok, {:block, block_tokens}, new_stack} ->
         block_state = %{state | stack: new_stack}
         block_state = walk(block_tokens, block_state)
@@ -597,11 +603,11 @@ defmodule Axiom.Checker do
     end
   end
 
-  # MONITOR — pid[msg] MONITOR => str
+  # MONITOR — pid[msg] MONITOR => monitor[msg]
   defp walk([{:op, :monitor, pos} | rest], state) do
     case Stack.pop(state.stack) do
-      {:ok, {:pid, _msg_type}, base} ->
-        walk(rest, %{state | stack: Stack.push(base, :str)})
+      {:ok, {:pid, msg_type}, base} ->
+        walk(rest, %{state | stack: Stack.push(base, {:monitor, msg_type})})
 
       {:ok, other, _} ->
         walk(rest,
@@ -610,6 +616,22 @@ defmodule Axiom.Checker do
 
       :underflow ->
         walk(rest, add_error(state, pos, "MONITOR requires a pid on the stack (stack underflow)"))
+    end
+  end
+
+  # AWAIT — monitor[msg] AWAIT => str
+  defp walk([{:op, :await, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, {:monitor, _msg_type}, base} ->
+        walk(rest, %{state | stack: Stack.push(base, :str)})
+
+      {:ok, other, _} ->
+        walk(rest,
+          add_error(state, pos, "AWAIT requires a monitor on the stack, got #{format_type(other)}")
+        )
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "AWAIT requires a monitor on the stack (stack underflow)"))
     end
   end
 
@@ -1346,6 +1368,7 @@ defmodule Axiom.Checker do
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
+  defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
   defp format_type({:block, _}), do: "block"
   defp format_type({:tvar, id}), do: "t#{id}"
   defp format_type({:user_type, name}), do: name

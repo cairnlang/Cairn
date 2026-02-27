@@ -1,5 +1,22 @@
 # Small supervision helpers for actor lifecycle examples.
 
-DEF await_exit : pid[any] -> str
+DEF watch_exit : pid[any] -> monitor[any]
   MONITOR
+END
+
+DEF await_exit : pid[any] -> str
+  MONITOR AWAIT
+END
+
+# Expects two blocks that each produce a pid when applied:
+#   { failing_worker } { replacement_worker } restart_once
+DEF restart_once : block[pid[any]] block[pid[any]] -> void
+  SWAP
+  APPLY
+  watch_exit AWAIT
+  "first_exit={}" FMT SAID
+
+  APPLY
+  watch_exit AWAIT
+  "second_exit={}" FMT SAID
 END

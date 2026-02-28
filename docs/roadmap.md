@@ -350,7 +350,15 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ### v0.8.4a — File-Backed Web Todo (Read + Mutate)
 - Added `examples/web/todo_app.crn` as the first file-backed web app
 - Added `examples/web/lib/todo_web.crn` to reuse the existing `open|title` todo format over HTTP
-- The new web todo app renders escaped HTML from the todo file and persists bounded `GET /add` and `GET /done` mutations back to disk
+- The new web todo app renders escaped HTML from the todo file and persists bounded mutations back to disk
+
+### v0.8.4c — Bounded POST Form Support
+- Extended `HTTP_SERVE` so handlers now also receive a parsed form map beneath `path`, `method`, and `query`
+- Added bounded `application/x-www-form-urlencoded` body parsing for `POST`
+- Added configurable `body_max` (default `8192`) alongside the existing transport limits
+- Oversized form bodies now return `413 Payload Too Large`
+- Unsupported `POST` body content types now return `415 Unsupported Media Type`
+- Upgraded `examples/web/todo_app.crn` so add/complete mutations now use real `POST` forms instead of query-driven `GET` routes
 
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)

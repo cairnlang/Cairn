@@ -24,7 +24,7 @@ DEF render_todo_line : [any] -> str
   IF
     safe_title "<li><strong>done</strong> {}</li>" FMT
   ELSE
-    todo_id safe_title "<li>{} <a href=\"/done?id={}\">mark done</a></li>" FMT
+    todo_id safe_title "<li>{} <form action=\"/done\" method=\"post\" style=\"display:inline\"><input type=\"hidden\" name=\"id\" value=\"{}\"><button type=\"submit\">mark done</button></form></li>" FMT
   END
 END
 
@@ -46,7 +46,7 @@ DEF render_todo_page : [str] -> str
   DUP LEN LET total_count
   render_todo_items LET items_html
 
-  items_html total_count done_count open_count "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Todo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Cairn Todo</h1>\n      <p>Open: {} | Done: {} | Total: {}</p>\n      <form action=\"/add\" method=\"get\">\n        <input name=\"title\" placeholder=\"New task\" />\n        <button type=\"submit\">Add</button>\n      </form>\n      <ul>\n{}\n      </ul>\n    </main>\n  </body>\n</html>\n" FMT
+  items_html total_count done_count open_count "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Todo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Cairn Todo</h1>\n      <p>Open: {} | Done: {} | Total: {}</p>\n      <form action=\"/add\" method=\"post\">\n        <input name=\"title\" placeholder=\"New task\" />\n        <button type=\"submit\">Add</button>\n      </form>\n      <ul>\n{}\n      </ul>\n    </main>\n  </body>\n</html>\n" FMT
 END
 
 DEF render_todo_response : [str] -> str str int
@@ -94,9 +94,9 @@ END
 
 DEF handle_todo_add : str map[str str] -> str str int
   LET todo_path
-  LET query
+  LET form
 
-  "title" query "" map_get_or
+  "title" form "" map_get_or
   todo_path load_todo_items
   SWAP add_todo_item
   todo_path save_todo_items
@@ -105,9 +105,9 @@ END
 
 DEF handle_todo_done : str map[str str] -> str str int
   LET todo_path
-  LET query
+  LET form
 
-  "id" query "0" map_get_or
+  "id" form "0" map_get_or
   0 SWAP to_int_or
   LET target_id
 
@@ -117,11 +117,12 @@ DEF handle_todo_done : str map[str str] -> str str int
   render_todo_response
 END
 
-DEF handle_todo_request : str str str map[str str] -> str str int
+DEF handle_todo_request : str str str map[str str] map[str str] -> str str int
   LET todo_path
   LET path
   LET method
   LET query
+  LET form
 
   method "GET" EQ
   IF
@@ -129,19 +130,24 @@ DEF handle_todo_request : str str str map[str str] -> str str int
     IF
       todo_path handle_todo_index
     ELSE
+      "not found\n" http_text_not_found
+    END
+  ELSE
+    method "POST" EQ
+    IF
       path "/add" EQ
       IF
-        query todo_path handle_todo_add
+        form todo_path handle_todo_add
       ELSE
         path "/done" EQ
         IF
-          query todo_path handle_todo_done
+          form todo_path handle_todo_done
         ELSE
           "not found\n" http_text_not_found
         END
       END
+    ELSE
+      "method not allowed\n" http_text_method_not_allowed
     END
-  ELSE
-    "method not allowed\n" http_text_method_not_allowed
   END
 END

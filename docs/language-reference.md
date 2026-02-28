@@ -408,6 +408,7 @@ READ_LINE SAID
 M[
   "request_line_max" 4096
   "read_timeout_ms" 5000
+  "body_max" 8192
 ]
 "127.0.0.1" 8089 {
   handle_static_request
@@ -421,10 +422,11 @@ path method "/about" "<p>About</p>" route_get_text
 route_or
 method route_finish_get
 
-# HTTP_SERVE handlers now receive path, method, and query (path on top):
+# HTTP_SERVE handlers now receive path, method, query, and form (path on top):
 LET path
 LET method
 LET query
+LET form
 "name" query "friend" map_get_or
 
 # Escape untrusted text before embedding it into HTML:
@@ -433,6 +435,7 @@ LET query
 # Current HTTP_SERVE defaults:
 # - request_line_max = 4096   (oversized first line -> 414 URI Too Long)
 # - read_timeout_ms  = 5000   (idle client -> quiet close)
+# - body_max         = 8192   (oversized form body -> 413 Payload Too Large)
 ```
 
 ## Examples

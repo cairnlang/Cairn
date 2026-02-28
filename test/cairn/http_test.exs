@@ -117,6 +117,24 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "HTTP_SERVE exposes parsed POST form parameters to the handler" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, index_path, about_path)
+
+    response =
+      http_post_form(port, "/submit", %{
+        "name" => "Cairn"
+      })
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "posted, Cairn"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   test "HTTP_SERVE returns 414 for oversized request lines and keeps listening" do
     index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
@@ -139,6 +157,35 @@ defmodule Cairn.HTTPTest do
     assert long_response =~ "uri too long"
     assert ok_response =~ "HTTP/1.1 200 OK"
     assert ok_response =~ "<h1>Hello from Cairn</h1>"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "HTTP_SERVE returns 413 for oversized form bodies" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task =
+      start_server_with_options(
+        "127.0.0.1",
+        port,
+        ~s|M[ "request_line_max" 4096 "read_timeout_ms" 500 "body_max" 8 ]|,
+        index_path,
+        about_path
+      )
+
+    response =
+      http_request(
+        port,
+        "POST",
+        "/submit",
+        [{"Content-Type", "application/x-www-form-urlencoded"}],
+        "name=CairnTooLong"
+      )
+
+    assert response =~ "HTTP/1.1 413 Payload Too Large"
+    assert response =~ "payload too large"
 
     assert nil == Task.shutdown(task, :brutal_kill)
   end
@@ -185,6 +232,28 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "HTTP_SERVE returns 415 for unsupported POST content types" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, index_path, about_path)
+
+    response =
+      http_request(
+        port,
+        "POST",
+        "/submit",
+        [{"Content-Type", "text/plain"}],
+        "name=Cairn"
+      )
+
+    assert response =~ "HTTP/1.1 415 Unsupported Media Type"
+    assert response =~ "unsupported media type"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   test "web todo app renders file-backed items as escaped HTML" do
     port = free_port()
     todo_path = write_temp_todo_file(["open|buy milk", "done|book train", "open|<script>alert('hola')</script>"])
@@ -205,14 +274,14 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
-  test "web todo app can add and complete file-backed items through GET routes" do
+  test "web todo app can add and complete file-backed items through POST routes" do
     port = free_port()
     todo_path = write_temp_todo_file(["open|buy milk", "open|prepare slides"])
 
     task = start_todo_app(port, todo_path)
 
-    add_response = http_get(port, "/add?title=book%20flight")
-    done_response = http_get(port, "/done?id=1")
+    add_response = http_post_form(port, "/add", %{"title" => "book flight"})
+    done_response = http_post_form(port, "/done", %{"id" => "1"})
     saved = File.read!(todo_path)
 
     assert add_response =~ "HTTP/1.1 200 OK"
@@ -229,8 +298,17 @@ defmodule Cairn.HTTPTest do
     http_request(port, "GET", path)
   end
 
+  defp http_post_form(port, path, fields) do
+    body = URI.encode_query(fields)
+    http_request(port, "POST", path, [{"Content-Type", "application/x-www-form-urlencoded"}], body)
+  end
+
   defp http_request(port, method, path) do
-    connect_and_request(port, method, path, 50)
+    http_request(port, method, path, [], "")
+  end
+
+  defp http_request(port, method, path, headers, body) do
+    connect_and_request(port, method, path, headers, body, 50)
   end
 
   defp wait_for_connect(_port, 0), do: flunk("server did not accept an idle client in time")
@@ -246,11 +324,22 @@ defmodule Cairn.HTTPTest do
     end
   end
 
-  defp connect_and_request(_port, _method, _path, 0), do: flunk("server did not start in time")
+  defp connect_and_request(_port, _method, _path, _headers, _body, 0),
+    do: flunk("server did not start in time")
 
-  defp connect_and_request(port, method, path, attempts) do
+  defp connect_and_request(port, method, path, headers, body, attempts) do
     case :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, packet: :raw, active: false], 100) do
       {:ok, socket} ->
+        header_lines =
+          Enum.map(headers, fn {name, value} -> [name, ": ", value, "\r\n"] end)
+
+        content_length_line =
+          if body == "" do
+            []
+          else
+            ["Content-Length: ", Integer.to_string(byte_size(body)), "\r\n"]
+          end
+
         :ok =
           :gen_tcp.send(
             socket,
@@ -260,7 +349,10 @@ defmodule Cairn.HTTPTest do
               path,
               " HTTP/1.1\r\n",
               "Host: localhost\r\n",
-              "Connection: close\r\n\r\n"
+              header_lines,
+              content_length_line,
+              "Connection: close\r\n\r\n",
+              body
             ]
           )
 
@@ -270,7 +362,7 @@ defmodule Cairn.HTTPTest do
 
       {:error, _reason} ->
         Process.sleep(20)
-        connect_and_request(port, method, path, attempts - 1)
+        connect_and_request(port, method, path, headers, body, attempts - 1)
     end
   end
 
@@ -325,6 +417,7 @@ defmodule Cairn.HTTPTest do
         LET path
         LET method
         LET query
+        LET form
 
         method "GET" EQ
         IF
@@ -364,10 +457,29 @@ defmodule Cairn.HTTPTest do
             END
           END
         ELSE
-          path DROP
-          405
-          "text/plain; charset=utf-8"
-          "method not allowed\\n"
+          method "POST" EQ
+          IF
+            path "/submit" EQ
+            IF
+              200
+              "text/plain; charset=utf-8"
+              form "name" HAS
+              IF
+                form "name" GET
+              ELSE
+                "friend"
+              END
+              "posted, {}\\n" FMT
+            ELSE
+              405
+              "text/plain; charset=utf-8"
+              "method not allowed\\n"
+            END
+          ELSE
+            405
+            "text/plain; charset=utf-8"
+            "method not allowed\\n"
+          END
         END
       } HTTP_SERVE
       """

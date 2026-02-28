@@ -44,10 +44,12 @@ DEF route_get_hello_html : map[str str] str str -> result
   END
 END
 
-DEF handle_static_request : str str map[str str] -> str str int
+DEF handle_static_request : str str map[str str] map[str str] -> str str int
   LET path
   LET method
   LET query
+  LET form
+  form DROP
 
   path method "/" "examples/web/static/index.html" route_get_html_file
   path method "/about" "examples/web/static/about.html" route_get_html_file

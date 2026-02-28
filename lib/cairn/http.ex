@@ -5,7 +5,7 @@ defmodule Cairn.HTTP do
   The current slice stays intentionally narrow:
   - one long-lived listener
   - one lightweight worker per connection
-  - minimal request-line parsing (`method`, `path`, `query`)
+  - minimal request parsing (`method`, `path`, `query`, `form`)
   - simple response framing
 
   This keeps the transport boundary honest while letting Cairn own routing and
@@ -15,33 +15,34 @@ defmodule Cairn.HTTP do
   @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true]
   @default_options %{
     "request_line_max" => 4096,
-    "read_timeout_ms" => 5000
+    "read_timeout_ms" => 5000,
+    "body_max" => 8192
   }
 
-  @spec serve(integer(), (String.t(), String.t(), map() -> {integer(), String.t(), String.t()})) ::
+  @spec serve(integer(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
-  def serve(port, handler) when is_integer(port) and is_function(handler, 3) do
+  def serve(port, handler) when is_integer(port) and is_function(handler, 4) do
     serve("127.0.0.1", port, @default_options, handler)
   end
 
-  @spec serve(integer(), map(), (String.t(), String.t(), map() -> {integer(), String.t(), String.t()})) ::
+  @spec serve(integer(), map(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(port, options, handler)
-      when is_integer(port) and is_map(options) and is_function(handler, 3) do
+      when is_integer(port) and is_map(options) and is_function(handler, 4) do
     serve("127.0.0.1", port, options, handler)
   end
 
-  @spec serve(String.t(), integer(), (String.t(), String.t(), map() -> {integer(), String.t(), String.t()})) ::
+  @spec serve(String.t(), integer(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(bind_host, port, handler)
-      when is_binary(bind_host) and is_integer(port) and is_function(handler, 3) do
+      when is_binary(bind_host) and is_integer(port) and is_function(handler, 4) do
     serve(bind_host, port, @default_options, handler)
   end
 
-  @spec serve(String.t(), integer(), map(), (String.t(), String.t(), map() -> {integer(), String.t(), String.t()})) ::
+  @spec serve(String.t(), integer(), map(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(bind_host, port, options, handler)
-      when is_binary(bind_host) and is_integer(port) and is_map(options) and is_function(handler, 3) do
+      when is_binary(bind_host) and is_integer(port) and is_map(options) and is_function(handler, 4) do
     if port <= 0 or port > 65_535 do
       raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
     end
@@ -60,13 +61,31 @@ defmodule Cairn.HTTP do
     serve_loop(listener, handler, options)
   end
 
-  defp response_for_request(line, handler) do
-    case parse_request_line(line) do
-      {:invalid, :invalid} ->
+  defp response_for_request(client, options, handler) do
+    case read_request(client, options) do
+      {:error, :bad_request} ->
         http_response(400, "text/plain; charset=utf-8", "bad request\n")
 
-      {method, path, query} ->
-        case handler.(method, path, query) do
+      {:error, :too_long} ->
+        http_response(414, "text/plain; charset=utf-8", "uri too long\n")
+
+      {:error, :payload_too_large} ->
+        http_response(413, "text/plain; charset=utf-8", "payload too large\n")
+
+      {:error, :unsupported_media_type} ->
+        http_response(415, "text/plain; charset=utf-8", "unsupported media type\n")
+
+      {:error, :timeout} ->
+        :close
+
+      {:error, :closed} ->
+        :close
+
+      {:error, reason} ->
+        raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
+
+      {:ok, method, path, query, form} ->
+        case handler.(method, path, query, form) do
           {status, content_type, body}
               when is_integer(status) and is_binary(content_type) and is_binary(body) ->
             http_response(status, content_type, body)
@@ -137,6 +156,8 @@ defmodule Cairn.HTTP do
 
   defp status_line(200), do: "200 OK"
   defp status_line(400), do: "400 Bad Request"
+  defp status_line(413), do: "413 Payload Too Large"
+  defp status_line(415), do: "415 Unsupported Media Type"
   defp status_line(405), do: "405 Method Not Allowed"
   defp status_line(404), do: "404 Not Found"
   defp status_line(414), do: "414 URI Too Long"
@@ -171,40 +192,50 @@ defmodule Cairn.HTTP do
 
   defp handle_client(client, handler, options) do
     try do
-      case read_request_line(client, options["request_line_max"], options["read_timeout_ms"]) do
-        {:ok, line} ->
-          :ok = :gen_tcp.send(client, response_for_request(line, handler))
+      case response_for_request(client, options, handler) do
+        response when is_binary(response) ->
+          :ok = :gen_tcp.send(client, response)
 
-        {:error, :too_long} ->
-          :ok = :gen_tcp.send(client, http_response(414, "text/plain; charset=utf-8", "uri too long\n"))
-
-        {:error, :timeout} ->
+        :close ->
           :ok
-
-        {:error, :bad_request} ->
-          :ok = :gen_tcp.send(client, http_response(400, "text/plain; charset=utf-8", "bad request\n"))
-
-        {:error, :closed} ->
-          :ok
-
-        {:error, reason} ->
-          raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
       end
     after
       :gen_tcp.close(client)
     end
   end
 
-  defp read_request_line(_client, max_bytes, _timeout, acc \\ "")
+  defp read_request(client, options) do
+    with {:ok, head_block, remainder} <-
+           read_until_header_terminator(
+             client,
+             options["request_line_max"],
+             options["read_timeout_ms"]
+           ),
+         {:ok, method, path, query, headers} <- parse_request_head(head_block),
+         {:ok, form} <-
+           read_form_body(
+             client,
+             remainder,
+             method,
+             headers,
+             options["body_max"],
+             options["read_timeout_ms"]
+           ) do
+      {:ok, method, path, query, form}
+    end
+  end
 
-  defp read_request_line(_client, max_bytes, _timeout, acc) when byte_size(acc) > max_bytes do
+  defp read_until_header_terminator(_client, max_bytes, _timeout, acc \\ "")
+
+  defp read_until_header_terminator(_client, max_bytes, _timeout, acc)
+       when byte_size(acc) > max_bytes do
     {:error, :too_long}
   end
 
-  defp read_request_line(client, max_bytes, timeout, acc) do
-    case extract_request_line(acc, max_bytes) do
-      {:ok, line} ->
-        {:ok, line}
+  defp read_until_header_terminator(client, max_bytes, timeout, acc) do
+    case extract_header_block(acc, max_bytes) do
+      {:ok, head_block, remainder} ->
+        {:ok, head_block, remainder}
 
       :too_long ->
         {:error, :too_long}
@@ -212,7 +243,7 @@ defmodule Cairn.HTTP do
       :continue ->
         case :gen_tcp.recv(client, 0, timeout) do
           {:ok, chunk} ->
-            read_request_line(client, max_bytes, timeout, acc <> chunk)
+            read_until_header_terminator(client, max_bytes, timeout, acc <> chunk)
 
           {:error, :timeout} ->
             {:error, :timeout}
@@ -229,19 +260,137 @@ defmodule Cairn.HTTP do
     end
   end
 
-  defp extract_request_line(data, max_bytes) do
-    case String.split(data, "\r\n", parts: 2) do
-      [line, _rest] ->
-        if byte_size(line) <= max_bytes, do: {:ok, line}, else: :too_long
+  defp extract_header_block(data, max_bytes) do
+    cond do
+      String.contains?(data, "\r\n\r\n") ->
+        [head_block, remainder] = String.split(data, "\r\n\r\n", parts: 2)
 
-      [^data] ->
-        case String.split(data, "\n", parts: 2) do
-          [line, _rest] ->
-            if byte_size(line) <= max_bytes, do: {:ok, String.trim_trailing(line, "\r")}, else: :too_long
+        if byte_size(head_block) <= max_bytes,
+          do: {:ok, head_block, remainder},
+          else: :too_long
 
-          [_partial] ->
-            if byte_size(data) > max_bytes, do: :too_long, else: :continue
+      String.contains?(data, "\n\n") ->
+        [head_block, remainder] = String.split(data, "\n\n", parts: 2)
+
+        if byte_size(head_block) <= max_bytes,
+          do: {:ok, head_block, remainder},
+          else: :too_long
+
+      byte_size(data) > max_bytes ->
+        :too_long
+
+      true ->
+        :continue
+    end
+  end
+
+  defp parse_request_head(head_block) do
+    lines =
+      head_block
+      |> String.replace("\r\n", "\n")
+      |> String.split("\n")
+
+    case lines do
+      [request_line | header_lines] ->
+        case parse_request_line(request_line) do
+          {:invalid, :invalid} ->
+            {:error, :bad_request}
+
+          {method, path, query} ->
+            {:ok, method, path, query, parse_headers(header_lines)}
         end
+
+      _ ->
+        {:error, :bad_request}
+    end
+  end
+
+  defp parse_headers(lines) do
+    lines
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.reduce(%{}, fn line, acc ->
+      case String.split(line, ":", parts: 2) do
+        [name, value] ->
+          Map.put(acc, String.downcase(String.trim(name)), String.trim(value))
+
+        _ ->
+          acc
+      end
+    end)
+  end
+
+  defp read_form_body(_client, _remainder, method, _headers, _body_max, _timeout)
+       when method != "POST" do
+    {:ok, %{}}
+  end
+
+  defp read_form_body(client, remainder, "POST", headers, body_max, timeout) do
+    body_length = content_length(headers)
+
+    cond do
+      is_nil(body_length) or body_length == 0 ->
+        {:ok, %{}}
+
+      body_length < 0 ->
+        {:error, :bad_request}
+
+      body_length > body_max ->
+        {:error, :payload_too_large}
+
+      not supported_form_content_type?(headers) ->
+        {:error, :unsupported_media_type}
+
+      true ->
+        case read_exact_body(client, remainder, body_length, timeout) do
+          {:ok, body} ->
+            {:ok, parse_query(body)}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+    end
+  end
+
+  defp content_length(headers) do
+    case Map.get(headers, "content-length") do
+      nil ->
+        nil
+
+      value ->
+        case Integer.parse(value) do
+          {length, ""} -> length
+          _ -> -1
+        end
+    end
+  end
+
+  defp supported_form_content_type?(headers) do
+    case Map.get(headers, "content-type") do
+      nil -> false
+      value -> String.starts_with?(String.downcase(value), "application/x-www-form-urlencoded")
+    end
+  end
+
+  defp read_exact_body(_client, remainder, content_length, _timeout)
+       when byte_size(remainder) >= content_length do
+    {:ok, binary_part(remainder, 0, content_length)}
+  end
+
+  defp read_exact_body(client, remainder, content_length, timeout) do
+    missing = content_length - byte_size(remainder)
+
+    case :gen_tcp.recv(client, missing, timeout) do
+      {:ok, chunk} ->
+        {:ok, remainder <> chunk}
+
+      {:error, :timeout} ->
+        {:error, :bad_request}
+
+      {:error, :closed} ->
+        {:error, :bad_request}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -252,9 +401,13 @@ defmodule Cairn.HTTP do
     read_timeout_ms =
       normalize_positive_integer_option!(options, "read_timeout_ms", @default_options["read_timeout_ms"])
 
+    body_max =
+      normalize_positive_integer_option!(options, "body_max", @default_options["body_max"])
+
     %{
       "request_line_max" => request_line_max,
-      "read_timeout_ms" => read_timeout_ms
+      "read_timeout_ms" => read_timeout_ms,
+      "body_max" => body_max
     }
   end
 

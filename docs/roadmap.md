@@ -527,6 +527,13 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 
 **Why second:** runtime support is cheap and the semantics are clear, but the checker and `PROVE` behavior still need a disciplined slice.
 
+**Bounded slice now landed (`v0.7.2a`):**
+- Added `SIN`, `COS`, `EXP`, `LOG`, and `SQRT` as explicit `float -> float` runtime operators backed by Elixir `:math`
+- Kept the type story intentionally narrow: these operators require `float` inputs, with no new global numeric supertype or implicit coercion
+- Added clear runtime domain checks for `LOG` (`> 0.0`) and `SQRT` (`>= 0.0`)
+- Made `PROVE` degrade cleanly to `UNKNOWN` when these transcendental operators appear, preserving solver correctness instead of crashing or pretending support
+- Added `examples/math.ax` as the focused showcase for the explicit-float slice
+
 #### 3. Narrow Elixir Interop As Escape Hatch
 **Goal:** Unlock selected practical integrations without turning Axiom into a thin syntax layer over Elixir.
 

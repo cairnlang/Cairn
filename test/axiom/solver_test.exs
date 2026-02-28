@@ -1088,6 +1088,20 @@ defmodule Axiom.SolverTest do
       assert reason =~ "PRINT"
     end
 
+    test "function with transcendental float math returns unknown" do
+      func = %Function{
+        name: "sin_func",
+        param_types: [:int],
+        return_types: [:int],
+        body: [{:op, :sin, 0}],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      assert {:unknown, reason} = Prove.prove(func)
+      assert reason =~ "SIN"
+    end
+
     test "MATCH on result type can be disproven" do
       source = """
       TYPE result = Ok int | Err str

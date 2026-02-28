@@ -1,7 +1,7 @@
 defmodule Axiom.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.ax", "examples/collections.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/guess_binary.ax"]
+  @examples ["examples/hello_world.ax", "examples/collections.ax", "examples/math.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/guess_binary.ax"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -17,6 +17,14 @@ defmodule Axiom.ExamplesSmokeTest do
       "{:variant, \"result\", \"Ok\", [2]}",
       "[1, 10, 2, 20, 3, 30]",
       "[[0, [2, 4]], [1, [1, 3]]]"
+    ])
+
+    assert_output_markers("examples/math.ax", [
+      "sin(0)=0.0",
+      "cos(0)=1.0",
+      "exp(1)=",
+      "log(10)=",
+      "sqrt(100)=10.0"
     ])
 
     assert_output_markers("examples/practical/main.ax", [

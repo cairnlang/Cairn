@@ -1,0 +1,5 @@
+0.0 SIN "sin(0)={}" FMT SAID
+0.0 COS "cos(0)={}" FMT SAID
+1.0 EXP "exp(1)={}" FMT SAID
+10.0 LOG "log(10)={}" FMT SAID
+100.0 SQRT "sqrt(100)={}" FMT SAID

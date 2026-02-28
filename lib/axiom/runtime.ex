@@ -21,6 +21,19 @@ defmodule Axiom.Runtime do
   def execute(:sq, [a | rest]) when is_number(a), do: [a * a | rest]
   def execute(:abs, [a | rest]) when is_number(a), do: [Kernel.abs(a) | rest]
   def execute(:neg, [a | rest]) when is_number(a), do: [-a | rest]
+  def execute(:sin, [a | rest]) when is_float(a), do: [:math.sin(a) | rest]
+  def execute(:cos, [a | rest]) when is_float(a), do: [:math.cos(a) | rest]
+  def execute(:exp, [a | rest]) when is_float(a), do: [:math.exp(a) | rest]
+
+  def execute(:log, [a | rest]) when is_float(a) do
+    if a <= 0.0, do: raise(Axiom.RuntimeError, "LOG expects a positive float, got #{inspect(a)}")
+    [:math.log(a) | rest]
+  end
+
+  def execute(:sqrt, [a | rest]) when is_float(a) do
+    if a < 0.0, do: raise(Axiom.RuntimeError, "SQRT expects a non-negative float, got #{inspect(a)}")
+    [:math.sqrt(a) | rest]
+  end
 
   # Comparison — pop 2, push bool
   def execute(:eq, [a, b | rest]), do: [b == a | rest]

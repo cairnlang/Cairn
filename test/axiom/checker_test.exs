@@ -132,6 +132,14 @@ defmodule Axiom.CheckerTest do
       assert {:ok, %{pops: [:str], pushes: [:float]}} = Effects.lookup(:to_float!)
     end
 
+    test "explicit float math operators have effects" do
+      assert {:ok, %{pops: [:float], pushes: [:float]}} = Effects.lookup(:sin)
+      assert {:ok, %{pops: [:float], pushes: [:float]}} = Effects.lookup(:cos)
+      assert {:ok, %{pops: [:float], pushes: [:float]}} = Effects.lookup(:exp)
+      assert {:ok, %{pops: [:float], pushes: [:float]}} = Effects.lookup(:log)
+      assert {:ok, %{pops: [:float], pushes: [:float]}} = Effects.lookup(:sqrt)
+    end
+
     test "collection helper operators have effects" do
       assert {:ok, %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:list, :any}}]}} =
                Effects.lookup(:zip)
@@ -207,6 +215,16 @@ defmodule Axiom.CheckerTest do
       check_ok("5 SQ")
       check_ok("-3 ABS")
       check_ok("5 NEG")
+      check_ok("1.0 SIN")
+      check_ok("1.0 COS")
+      check_ok("1.0 EXP")
+      check_ok("1.0 LOG")
+      check_ok("1.0 SQRT")
+    end
+
+    test "explicit float math requires floats" do
+      errors = check_errors("1 SIN")
+      assert Enum.any?(errors, fn e -> e.message =~ "SIN" and e.message =~ "expected float" and e.message =~ "got int" end)
     end
   end
 

@@ -25,6 +25,11 @@ defmodule Axiom.Checker.Effects do
     sq: %{pops: [:num], pushes: [:num_result]},
     abs: %{pops: [:num], pushes: [:num_result]},
     neg: %{pops: [:num], pushes: [:num_result]},
+    sin: %{pops: [:float], pushes: [:float]},
+    cos: %{pops: [:float], pushes: [:float]},
+    exp: %{pops: [:float], pushes: [:float]},
+    log: %{pops: [:float], pushes: [:float]},
+    sqrt: %{pops: [:float], pushes: [:float]},
 
     # Comparison — pop 2, push bool
     eq: %{pops: [:any, :any], pushes: [:bool]},

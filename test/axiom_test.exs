@@ -23,6 +23,8 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :filter, 0}]} = Axiom.Lexer.tokenize("FILTER")
       assert {:ok, [{:op, :flat_map, 0}]} = Axiom.Lexer.tokenize("FLAT_MAP")
       assert {:ok, [{:op, :group_by, 0}]} = Axiom.Lexer.tokenize("GROUP_BY")
+      assert {:ok, [{:op, :sin, 0}]} = Axiom.Lexer.tokenize("SIN")
+      assert {:ok, [{:op, :sqrt, 0}]} = Axiom.Lexer.tokenize("SQRT")
       assert {:ok, [{:op, :with_state, 0}]} = Axiom.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :repeat, 0}]} = Axiom.Lexer.tokenize("REPEAT")
       assert {:ok, [{:op, :step, 0}]} = Axiom.Lexer.tokenize("STEP")
@@ -167,6 +169,24 @@ defmodule AxiomTest do
       assert Axiom.eval("5 SQ") == [25]
       assert Axiom.eval("-3 ABS") == [3]
       assert Axiom.eval("5 NEG") == [-5]
+    end
+
+    test "explicit float math ops" do
+      assert_in_delta hd(Axiom.eval("0.0 SIN")), 0.0, 1.0e-12
+      assert_in_delta hd(Axiom.eval("0.0 COS")), 1.0, 1.0e-12
+      assert_in_delta hd(Axiom.eval("1.0 EXP")), :math.exp(1.0), 1.0e-12
+      assert_in_delta hd(Axiom.eval("10.0 LOG")), :math.log(10.0), 1.0e-12
+      assert_in_delta hd(Axiom.eval("9.0 SQRT")), 3.0, 1.0e-12
+    end
+
+    test "explicit float math validates runtime domains" do
+      assert_raise Axiom.RuntimeError, ~r/LOG expects a positive float/, fn ->
+        Axiom.eval("0.0 LOG")
+      end
+
+      assert_raise Axiom.RuntimeError, ~r/SQRT expects a non-negative float/, fn ->
+        Axiom.eval("-1.0 SQRT")
+      end
     end
 
     test "comparison" do

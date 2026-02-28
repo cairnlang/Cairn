@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Axiom.Run do
     {"lib/prelude.ax", ["to_int_or", "to_float_or", "read_file_or", "ask_or"]}
   ]
   @example_groups [
-    {"basics", ["examples/hello_world.ax", "examples/collatz.ax", "examples/recur.ax", "examples/bank.ax", "examples/collections.ax"]},
+    {"basics", ["examples/hello_world.ax", "examples/collatz.ax", "examples/recur.ax", "examples/bank.ax", "examples/collections.ax", "examples/math.ax"]},
     {"practical", ["examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/ledger_cli.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/imports/main.ax", "examples/json/demo.ax"]},
     {"concurrency", ["examples/concurrency/ping_pong_types.ax", "examples/concurrency/protocol_ping_pong.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/traffic_light.ax", "examples/concurrency/ping_once.ax", "examples/concurrency/self_boot.ax", "examples/concurrency/two_pings.ax", "examples/concurrency/counter.ax", "examples/concurrency/notifier.ax", "examples/concurrency/restart_once.ax", "examples/concurrency/supervisor_worker.ax", "examples/concurrency/guess_binary.ax"]},
     {"prelude", ["examples/prelude/result_flow.ax", "examples/prelude/csv_parse.ax", "examples/prelude/io_safe.ax"]},

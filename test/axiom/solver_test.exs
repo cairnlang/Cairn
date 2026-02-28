@@ -1102,6 +1102,31 @@ defmodule Axiom.SolverTest do
       assert reason =~ "SIN"
     end
 
+    test "function with float constants or pow returns unknown" do
+      pi_func = %Function{
+        name: "pi_func",
+        param_types: [:int],
+        return_types: [:int],
+        body: [{:op, :pi, 0}],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      pow_func = %Function{
+        name: "pow_func",
+        param_types: [:int],
+        return_types: [:int],
+        body: [{:op, :pow, 0}],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      assert {:unknown, pi_reason} = Prove.prove(pi_func)
+      assert pi_reason =~ "PI"
+      assert {:unknown, pow_reason} = Prove.prove(pow_func)
+      assert pow_reason =~ "POW"
+    end
+
     test "MATCH on result type can be disproven" do
       source = """
       TYPE result = Ok int | Err str

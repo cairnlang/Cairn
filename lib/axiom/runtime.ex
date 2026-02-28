@@ -24,6 +24,9 @@ defmodule Axiom.Runtime do
   def execute(:sin, [a | rest]) when is_float(a), do: [:math.sin(a) | rest]
   def execute(:cos, [a | rest]) when is_float(a), do: [:math.cos(a) | rest]
   def execute(:exp, [a | rest]) when is_float(a), do: [:math.exp(a) | rest]
+  def execute(:pow, [a, b | rest]) when is_float(a) and is_float(b), do: [:math.pow(b, a) | rest]
+  def execute(:pi, rest), do: [:math.pi() | rest]
+  def execute(:e, rest), do: [:math.exp(1.0) | rest]
 
   def execute(:log, [a | rest]) when is_float(a) do
     if a <= 0.0, do: raise(Axiom.RuntimeError, "LOG expects a positive float, got #{inspect(a)}")

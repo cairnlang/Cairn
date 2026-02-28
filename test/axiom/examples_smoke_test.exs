@@ -22,7 +22,10 @@ defmodule Axiom.ExamplesSmokeTest do
     assert_output_markers("examples/math.ax", [
       "sin(0)=0.0",
       "cos(0)=1.0",
+      "pi=",
+      "e=",
       "exp(1)=",
+      "pow(8,2)=64.0",
       "log(10)=",
       "sqrt(100)=10.0"
     ])

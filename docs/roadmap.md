@@ -534,6 +534,12 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 - Made `PROVE` degrade cleanly to `UNKNOWN` when these transcendental operators appear, preserving solver correctness instead of crashing or pretending support
 - Added `examples/math.ax` as the focused showcase for the explicit-float slice
 
+**Small follow-up now landed (`v0.7.2b`):**
+- Added `PI` and `E` as explicit float constants plus `POW` as a binary `float -> float` operator
+- Kept the same bounded type discipline: no implicit coercion and no numeric-lattice redesign
+- Extended the math showcase and tests so the explicit-float slice now covers constants, unary transcendental ops, and one binary power primitive
+- Kept `PROVE` conservative: `PI`, `E`, and `POW` also degrade cleanly to `UNKNOWN`
+
 #### 3. Narrow Elixir Interop As Escape Hatch
 **Goal:** Unlock selected practical integrations without turning Axiom into a thin syntax layer over Elixir.
 

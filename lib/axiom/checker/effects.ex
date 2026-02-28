@@ -20,6 +20,7 @@ defmodule Axiom.Checker.Effects do
     mod: %{pops: [:int, :int], pushes: [:int]},
     min: %{pops: [:num, :num], pushes: [:num_result]},
     max: %{pops: [:num, :num], pushes: [:num_result]},
+    pow: %{pops: [:float, :float], pushes: [:float]},
 
     # Arithmetic — unary: pop 1 num, push 1 num
     sq: %{pops: [:num], pushes: [:num_result]},
@@ -30,6 +31,8 @@ defmodule Axiom.Checker.Effects do
     exp: %{pops: [:float], pushes: [:float]},
     log: %{pops: [:float], pushes: [:float]},
     sqrt: %{pops: [:float], pushes: [:float]},
+    pi: %{pops: [], pushes: [:float]},
+    e: %{pops: [], pushes: [:float]},
 
     # Comparison — pop 2, push bool
     eq: %{pops: [:any, :any], pushes: [:bool]},

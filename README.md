@@ -112,7 +112,7 @@ See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conv
 See [`docs/prove.md`](docs/prove.md) for PROVE-specific details, solver behavior, and trace modes.
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
 `examples/collections.ax` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`.
-`examples/math.ax` is the focused explicit-float math showcase for `SIN`, `COS`, `EXP`, `LOG`, and `SQRT`.
+`examples/math.ax` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `EXP`, `POW`, `LOG`, and `SQRT`.
 Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, `supervisor_worker.ax`, and `guess_binary.ax` exercise the current runtime actor path (`protocol_ping_pong.ax` is the first bounded protocol-conformance example and now demonstrates helper-function conformance inside protocol-bound actors, `counter.ax`, `traffic_light.ax`, and `guess_binary.ax` now use `WITH_STATE` plus `STEP`-driven bounded `REPEAT` loops to express actor-local state steps without manual unrolled `RECEIVE` chains, `notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` and `protocol_mismatch.ax` intentionally fail and are kept out of the normal runnable examples list.
 
 ### Practical Mini-Apps
@@ -213,8 +213,10 @@ ADD SUB MUL DIV MOD MIN MAX
 # Arithmetic (unary: pop 1, push 1)
 SQ ABS NEG
 
-# Explicit float math (unary: pop 1 float, push 1 float)
-SIN COS EXP LOG SQRT
+# Explicit float math
+PI E                          # push float constants
+SIN COS EXP LOG SQRT          # unary: pop 1 float, push 1 float
+POW                           # binary: pop exponent + base (floats), push float
 
 # Comparison (pop 2, push bool)
 EQ NEQ GT LT GTE LTE

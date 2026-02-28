@@ -16,6 +16,15 @@ missing_status "missing_status={}" FMT SAID
 missing_type "missing_type={}" FMT SAID
 missing_body "missing_body={}" FMT SAID
 
+"method not allowed\n" http_text_method_not_allowed
+LET method_body
+LET method_type
+LET method_status
+
+method_status "method_status={}" FMT SAID
+method_type "method_type={}" FMT SAID
+method_body "method_body={}" FMT SAID
+
 "/about"
 DUP "/" "<p>Home</p>" route_text_ok
 SWAP "/about" "<p>About</p>" route_text_ok

@@ -21,6 +21,13 @@ DEF http_text_not_found : str -> str str int
   ROT
 END
 
+# Convert a plain-text body into a simple 405 response.
+DEF http_text_method_not_allowed : str -> str str int
+  405
+  "text/plain; charset=utf-8"
+  ROT
+END
+
 # Convenience wrapper for serving a known HTML file.
 DEF http_html_file_ok : str -> str str int
   READ_FILE!

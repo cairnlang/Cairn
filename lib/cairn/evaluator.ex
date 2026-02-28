@@ -499,8 +499,8 @@ defmodule Cairn.Evaluator do
   defp run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, stack, env) do
     handler_env = Map.merge(block_env, env)
 
-    Cairn.HTTP.serve(bind_host, port, fn path ->
-      case eval_tokens(block_tokens, [path], handler_env) do
+    Cairn.HTTP.serve(bind_host, port, fn method, path ->
+      case eval_tokens(block_tokens, [path, method], handler_env) do
         [body, content_type, status] when is_binary(body) and is_binary(content_type) and is_integer(status) ->
           {status, content_type, body}
 

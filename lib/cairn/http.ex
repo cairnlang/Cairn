@@ -9,14 +9,15 @@ defmodule Cairn.HTTP do
 
   @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true]
 
-  @spec serve(integer(), (String.t() -> {integer(), String.t(), String.t()})) :: no_return()
-  def serve(port, handler) when is_integer(port) and is_function(handler, 1) do
+  @spec serve(integer(), (String.t(), String.t() -> {integer(), String.t(), String.t()})) :: no_return()
+  def serve(port, handler) when is_integer(port) and is_function(handler, 2) do
     serve("127.0.0.1", port, handler)
   end
 
-  @spec serve(String.t(), integer(), (String.t() -> {integer(), String.t(), String.t()})) :: no_return()
+  @spec serve(String.t(), integer(), (String.t(), String.t() -> {integer(), String.t(), String.t()})) ::
+          no_return()
   def serve(bind_host, port, handler)
-      when is_binary(bind_host) and is_integer(port) and is_function(handler, 1) do
+      when is_binary(bind_host) and is_integer(port) and is_function(handler, 2) do
     if port <= 0 or port > 65_535 do
       raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
     end
@@ -39,8 +40,8 @@ defmodule Cairn.HTTP do
       {:invalid, :invalid} ->
         http_response(400, "text/plain; charset=utf-8", "bad request\n")
 
-      {_method, path} ->
-        case handler.(path) do
+      {method, path} ->
+        case handler.(method, path) do
           {status, content_type, body}
               when is_integer(status) and is_binary(content_type) and is_binary(body) ->
             http_response(status, content_type, body)
@@ -84,6 +85,7 @@ defmodule Cairn.HTTP do
 
   defp status_line(200), do: "200 OK"
   defp status_line(400), do: "400 Bad Request"
+  defp status_line(405), do: "405 Method Not Allowed"
   defp status_line(404), do: "404 Not Found"
   defp status_line(status), do: Integer.to_string(status) <> " OK"
 

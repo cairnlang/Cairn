@@ -95,12 +95,12 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/strings.crn`: native string helpers (`LOWER`, `UPPER`, `REPLACE`, ...)
 - `examples/prelude/env_parse.crn`: auto-loaded config helpers (`env_map`, `env_keys`, `env_fetch`)
 - `examples/prelude/ini_parse.crn`: auto-loaded INI helpers (`ini_map`, `ini_sections`, `ini_fetch`)
-- `examples/prelude/web_helpers.crn`: auto-loaded web helpers (`http_html_ok`, `route_html_file`, `route_or`, `route_finish`)
+- `examples/prelude/web_helpers.crn`: auto-loaded web helpers (`http_html_ok`, `http_text_method_not_allowed`, `route_html_file`, `route_or`, `route_finish`)
 - `examples/practical/mini_grep.crn`: bounded grep-like CLI utility
 - `examples/practical/mini_env.crn`: bounded `.env` query utility
 - `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
-- `examples/web/hello_static.crn`: tiny two-page static server with Cairn-owned route-handler functions, route combinators, and explicit bind address support (`HTTP_SERVE`)
+- `examples/web/hello_static.crn`: tiny two-page static server with Cairn-owned route-handler functions, route combinators, explicit bind address support, and `GET`-only request handling (`HTTP_SERVE`)
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake
 - `examples/concurrency/guess_binary.crn`: stateful actor workflow with bounded repeated steps
 

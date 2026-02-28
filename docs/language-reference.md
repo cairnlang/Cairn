@@ -401,15 +401,20 @@ READ_LINE SAID
 # Serve two static pages on localhost until stopped
 "examples/web/lib/hello_static.crn" IMPORT
 "127.0.0.1" 8089 {
-  handle_static_route
+  handle_static_request
 } HTTP_SERVE
 
-# The route helpers can also be used directly:
+# The route helpers can also be used directly (with the path on top):
 "/about"
 DUP "/" "<p>Home</p>" route_text_ok
 SWAP "/about" "<p>About</p>" route_text_ok
 route_or
 route_finish
+
+# HTTP_SERVE handlers now receive method and path (path on top):
+LET path
+LET method
+method "GET" EQ
 ```
 
 ## Examples

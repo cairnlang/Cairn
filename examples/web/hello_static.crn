@@ -18,5 +18,5 @@ LET port
 
 port bind_host port bind_host "web: serving funny pages at http://{}:{}/ and http://{}:{}/about" FMT SAID
 bind_host port {
-  handle_static_route
+  handle_static_request
 } HTTP_SERVE

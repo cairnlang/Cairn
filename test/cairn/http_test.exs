@@ -33,6 +33,22 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "HTTP_SERVE can reject non-GET methods with 405" do
+    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, path, about_path)
+
+    response = http_request(port, "POST", "/")
+
+    assert response =~ "HTTP/1.1 405 Method Not Allowed"
+    assert response =~ "Content-Type: text/plain; charset=utf-8"
+    assert response =~ "method not allowed"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   test "HTTP_SERVE handles multiple requests on the same listener" do
     path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
@@ -86,7 +102,11 @@ defmodule Cairn.HTTPTest do
   end
 
   defp http_get(port, path) do
-    connect_and_request(port, path, 50)
+    http_request(port, "GET", path)
+  end
+
+  defp http_request(port, method, path) do
+    connect_and_request(port, method, path, 50)
   end
 
   defp wait_for_connect(_port, 0), do: flunk("server did not accept an idle client in time")
@@ -102,16 +122,17 @@ defmodule Cairn.HTTPTest do
     end
   end
 
-  defp connect_and_request(_port, _path, 0), do: flunk("server did not start in time")
+  defp connect_and_request(_port, _method, _path, 0), do: flunk("server did not start in time")
 
-  defp connect_and_request(port, path, attempts) do
+  defp connect_and_request(port, method, path, attempts) do
     case :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, packet: :raw, active: false], 100) do
       {:ok, socket} ->
         :ok =
           :gen_tcp.send(
             socket,
             [
-              "GET ",
+              method,
+              " ",
               path,
               " HTTP/1.1\r\n",
               "Host: localhost\r\n",
@@ -125,7 +146,7 @@ defmodule Cairn.HTTPTest do
 
       {:error, _reason} ->
         Process.sleep(20)
-        connect_and_request(port, path, attempts - 1)
+        connect_and_request(port, method, path, attempts - 1)
     end
   end
 
@@ -147,25 +168,35 @@ defmodule Cairn.HTTPTest do
     Task.async(fn ->
       source = """
       "#{bind_host}" #{port} {
-        DUP "/" EQ
+        LET path
+        LET method
+        method "GET" EQ
         IF
-          DROP
-          200
-          "text/html; charset=utf-8"
-          "#{path}" READ_FILE!
-        ELSE
-          DUP "/about" EQ
+          path DUP "/" EQ
           IF
             DROP
             200
             "text/html; charset=utf-8"
-            "#{about_path}" READ_FILE!
+            "#{path}" READ_FILE!
           ELSE
-            DROP
-            404
-            "text/plain; charset=utf-8"
-            "not found\\n"
+            DUP "/about" EQ
+            IF
+              DROP
+              200
+              "text/html; charset=utf-8"
+              "#{about_path}" READ_FILE!
+            ELSE
+              DROP
+              404
+              "text/plain; charset=utf-8"
+              "not found\\n"
+            END
           END
+        ELSE
+          path DROP
+          405
+          "text/plain; charset=utf-8"
+          "method not allowed\\n"
         END
       } HTTP_SERVE
       """

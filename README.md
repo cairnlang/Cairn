@@ -460,7 +460,7 @@ END
 
 ### VERIFY — Property-Based Testing
 
-`VERIFY` auto-generates random inputs, filters by PRE conditions, runs the function, and checks POST holds. Powered by StreamData. Supports all types including user-defined sum types — recursive types use depth-limited generation to avoid infinite expansion.
+`VERIFY` auto-generates random inputs, filters by PRE conditions, runs the function, and checks POST holds. Powered by StreamData. Supports practical scalar and collection shapes (`int`, `float`, `bool`, `str`, `[T]`, `map[K V]`) plus user-defined sum types — recursive types use depth-limited generation to avoid infinite expansion. String/list generation is intentionally bounded so helper-style text functions stay practical to fuzz.
 
 ```
 DEF withdraw : int int -> int
@@ -899,7 +899,7 @@ Errors are reported with position information and the checker continues after er
 
 ### VERIFY Engine
 
-`VERIFY function_name N` generates N random inputs using StreamData, filters by PRE condition, executes the function, and checks POST holds. When a counterexample is found, it reports the exact inputs that broke the contract. User-defined sum types are supported with depth-limited recursive generation (via `StreamData.tree`).
+`VERIFY function_name N` generates N random inputs using StreamData, filters by PRE condition, executes the function, and checks POST holds. When a counterexample is found, it reports the exact inputs that broke the contract. User-defined sum types are supported with depth-limited recursive generation (via `StreamData.tree`). Practical text/list helpers are now a first-class target too: string generation is bounded to small ASCII-ish values, and `[str]` generation is bounded to short lists so utility-style helpers (for example `mini_grep` parsing logic) can be fuzzed without blowing up test cost.
 
 ### PROVE Solver
 

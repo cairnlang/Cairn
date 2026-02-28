@@ -22,6 +22,11 @@ DEF leading_flag_count : [str] -> int
   POST DUP 0 GTE
 END
 
+DEF leading_flag_count_bounded : [str] -> bool
+  DUP leading_flag_count SWAP LEN LTE
+  POST DUP EQ T
+END
+
 DEF drop_n : int [str] -> [str]
   DUP 0 LTE
   IF

@@ -167,6 +167,15 @@ defmodule Axiom.VerifyTest do
       """
       assert {[], _env} = Axiom.eval_with_env(source)
     end
+
+    test "VERIFY works with bounded string-list practical helpers" do
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert {[], _env} = Axiom.eval_file("examples/practical/mini_grep_verify.ax")
+        end)
+
+      assert output =~ "VERIFY leading_flag_count_bounded: OK"
+    end
   end
 
   # ── Bank example as integration test ──

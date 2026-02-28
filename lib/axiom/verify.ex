@@ -114,11 +114,21 @@ defmodule Axiom.Verify do
   end
 
   defp type_generator(:str, _types) do
-    StreamData.string(:alphanumeric, min_length: 0, max_length: 20)
+    alphabet =
+      Enum.to_list(?a..?z) ++ Enum.to_list(?A..?Z) ++ Enum.to_list(?0..?9) ++ [?\s, ?-, ?_]
+
+    StreamData.list_of(StreamData.member_of(alphabet), min_length: 0, max_length: 12)
+    |> StreamData.map(&List.to_string/1)
   end
 
   defp type_generator({:list, elem_type}, types) do
-    StreamData.list_of(type_generator(elem_type, types), min_length: 0, max_length: 10)
+    max_length =
+      case elem_type do
+        :str -> 6
+        _ -> 10
+      end
+
+    StreamData.list_of(type_generator(elem_type, types), min_length: 0, max_length: max_length)
   end
 
   defp type_generator({:map, key_type, value_type}, types) do

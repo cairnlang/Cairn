@@ -1,7 +1,7 @@
 defmodule Axiom.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.ax", "examples/collections.ax", "examples/math.ax", "examples/interop.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/practical/mini_grep.ax", "examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/guess_binary.ax"]
+  @examples ["examples/hello_world.ax", "examples/collections.ax", "examples/math.ax", "examples/interop.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/practical/mini_grep.ax", "examples/practical/mini_grep_verify.ax", "examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/guess_binary.ax"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -105,6 +105,10 @@ defmodule Axiom.ExamplesSmokeTest do
     assert_output_markers("examples/practical/mini_grep.ax", [
       "1:Axiom",
       "5:delta Axiom"
+    ])
+
+    assert_output_markers("examples/practical/mini_grep_verify.ax", [
+      "VERIFY leading_flag_count_bounded: OK"
     ])
   end
 

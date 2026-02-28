@@ -568,6 +568,11 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 - This example deliberately stresses argv parsing, file reads, string/list pipelines, formatting, imports, and one disciplined use of `HOST_CALL str_downcase`
 - As part of landing it, the typed-whitelist interop path now also accepts typed unary dynamic arg lists (`str -> str` helpers through a single-element `[str]`) without broadening the multi-arg rules
 
+**Practical VERIFY generator slice now landed (`v0.7.4a`):**
+- Tightened `VERIFY`'s practical generator story rather than expanding its type surface: string generation is now explicitly bounded to small ASCII-ish values, and `[str]` generation is capped to shorter lists so text-heavy helpers stay cheap to fuzz
+- Added `leading_flag_count_bounded : [str] -> bool` to the `mini_grep` helper module and a dedicated `examples/practical/mini_grep_verify.ax` runner that fuzzes it with `VERIFY`
+- This turns `mini_grep` into a better brochure example: the end-to-end CLI is still integration-tested conventionally, while one of its pure parsing helpers is now stress-tested through `VERIFY`
+
 #### 4. Defer Mutable State
 **Goal:** Avoid semantic and architectural churn until the concurrency direction is more settled.
 

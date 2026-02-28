@@ -300,7 +300,7 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ### v0.8.3b — Cairn-Owned HTTP Routing
 - Generalized `HTTP_SERVE` from `path + port` into `port + handler block`
-- The host runtime still owns sockets and HTTP framing, but Cairn now owns path-level routing and response selection for one localhost request
+- The host runtime still owns sockets, the accept loop, and HTTP framing, but Cairn now owns path-level routing and response selection
 - `HTTP_SERVE` handlers now receive the request path and must leave `[body, content_type, status]` on the stack
 - Updated `examples/web/hello_static.crn` so Cairn explicitly handles `GET /` and `404` instead of delegating that choice to Elixir
 

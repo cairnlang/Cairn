@@ -9,8 +9,8 @@ defmodule Cairn.HTTP do
 
   @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true, ip: {127, 0, 0, 1}]
 
-  @spec serve_once(integer(), (String.t() -> {integer(), String.t(), String.t()})) :: :ok
-  def serve_once(port, handler) when is_integer(port) and is_function(handler, 1) do
+  @spec serve(integer(), (String.t() -> {integer(), String.t(), String.t()})) :: no_return()
+  def serve(port, handler) when is_integer(port) and is_function(handler, 1) do
     if port <= 0 or port > 65_535 do
       raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
     end
@@ -21,29 +21,7 @@ defmodule Cairn.HTTP do
         {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: cannot listen on #{port}: #{inspect(reason)}"
       end
 
-    try do
-      {:ok, client} =
-        case :gen_tcp.accept(listener) do
-          {:ok, socket} -> {:ok, socket}
-          {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: accept failed: #{inspect(reason)}"
-        end
-
-      try do
-        request =
-          case :gen_tcp.recv(client, 0, 5_000) do
-            {:ok, data} -> data
-            {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
-          end
-
-        :ok = :gen_tcp.send(client, response_for_request(request, handler))
-      after
-        :gen_tcp.close(client)
-      end
-    after
-      :gen_tcp.close(listener)
-    end
-
-    :ok
+    serve_loop(listener, handler)
   end
 
   defp response_for_request(request, handler) do
@@ -98,4 +76,26 @@ defmodule Cairn.HTTP do
   defp status_line(400), do: "400 Bad Request"
   defp status_line(404), do: "404 Not Found"
   defp status_line(status), do: Integer.to_string(status) <> " OK"
+
+  defp serve_loop(listener, handler) do
+    {:ok, client} =
+      case :gen_tcp.accept(listener) do
+        {:ok, socket} -> {:ok, socket}
+        {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: accept failed: #{inspect(reason)}"
+      end
+
+    try do
+      request =
+        case :gen_tcp.recv(client, 0, 5_000) do
+          {:ok, data} -> data
+          {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
+        end
+
+      :ok = :gen_tcp.send(client, response_for_request(request, handler))
+    after
+      :gen_tcp.close(client)
+    end
+
+    serve_loop(listener, handler)
+  end
 end

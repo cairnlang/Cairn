@@ -5,27 +5,7 @@ defmodule Cairn.HTTPTest do
     path = Path.expand("examples/web/static/index.html", File.cwd!())
     port = free_port()
 
-    task =
-      Task.async(fn ->
-        source = """
-        #{port} {
-          DUP "/" EQ
-          IF
-            DROP
-            200
-            "text/html; charset=utf-8"
-            "#{path}" READ_FILE!
-          ELSE
-            DROP
-            404
-            "text/plain; charset=utf-8"
-            "not found\\n"
-          END
-        } HTTP_SERVE
-        """
-
-        assert [] = Cairn.eval(source)
-      end)
+    task = start_server(port, path)
 
     response = http_get(port, "/")
 
@@ -33,34 +13,14 @@ defmodule Cairn.HTTPTest do
     assert response =~ "Content-Type: text/html; charset=utf-8"
     assert response =~ "<h1>Hello from Cairn</h1>"
 
-    Task.await(task, 5_000)
+    assert nil == Task.shutdown(task, :brutal_kill)
   end
 
   test "HTTP_SERVE returns 404 for paths other than /" do
     path = Path.expand("examples/web/static/index.html", File.cwd!())
     port = free_port()
 
-    task =
-      Task.async(fn ->
-        source = """
-        #{port} {
-          DUP "/" EQ
-          IF
-            DROP
-            200
-            "text/html; charset=utf-8"
-            "#{path}" READ_FILE!
-          ELSE
-            DROP
-            404
-            "text/plain; charset=utf-8"
-            "not found\\n"
-          END
-        } HTTP_SERVE
-        """
-
-        assert [] = Cairn.eval(source)
-      end)
+    task = start_server(port, path)
 
     response = http_get(port, "/nope")
 
@@ -68,7 +28,23 @@ defmodule Cairn.HTTPTest do
     assert response =~ "Content-Type: text/plain; charset=utf-8"
     assert response =~ "not found"
 
-    Task.await(task, 5_000)
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "HTTP_SERVE handles multiple requests on the same listener" do
+    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    port = free_port()
+
+    task = start_server(port, path)
+
+    ok_response = http_get(port, "/")
+    not_found_response = http_get(port, "/missing")
+
+    assert ok_response =~ "HTTP/1.1 200 OK"
+    assert ok_response =~ "<h1>Hello from Cairn</h1>"
+    assert not_found_response =~ "HTTP/1.1 404 Not Found"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
   end
 
   defp http_get(port, path) do
@@ -114,5 +90,28 @@ defmodule Cairn.HTTPTest do
     {:ok, {_ip, port}} = :inet.sockname(socket)
     :gen_tcp.close(socket)
     port
+  end
+
+  defp start_server(port, path) do
+    Task.async(fn ->
+      source = """
+      #{port} {
+        DUP "/" EQ
+        IF
+          DROP
+          200
+          "text/html; charset=utf-8"
+          "#{path}" READ_FILE!
+        ELSE
+          DROP
+          404
+          "text/plain; charset=utf-8"
+          "not found\\n"
+        END
+      } HTTP_SERVE
+      """
+
+      Cairn.eval(source)
+    end)
   end
 end

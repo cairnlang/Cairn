@@ -120,7 +120,7 @@ ARGV                           # push command-line args as a list of strings
 READ_FILE                      # pop filename, push result (Ok str | Err str)
 WRITE_FILE                     # pop contents + filename, push result (Ok any | Err str)
 READ_FILE! WRITE_FILE!         # unsafe file ops (raise on failure)
-HTTP_SERVE                     # pop port + handler block, serve one localhost HTTP request, then return
+HTTP_SERVE                     # pop port + handler block, serve localhost requests until stopped
 READ_LINE                      # read one line from stdin
 RANDOM                         # pop N, push random integer in [1, N]
 ```

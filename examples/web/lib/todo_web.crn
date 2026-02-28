@@ -46,7 +46,7 @@ DEF render_todo_page : [str] -> str
   DUP LEN LET total_count
   render_todo_items LET items_html
 
-  open_count done_count total_count items_html "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Cairn Todo</title>\n  </head>\n  <body>\n    <h1>Cairn Todo</h1>\n    <p>Open: {} | Done: {} | Total: {}</p>\n    <form action=\"/add\" method=\"get\">\n      <input name=\"title\" placeholder=\"New task\" />\n      <button type=\"submit\">Add</button>\n    </form>\n    <ul>\n{}\n    </ul>\n  </body>\n</html>\n" FMT
+  items_html total_count done_count open_count "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Todo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Cairn Todo</h1>\n      <p>Open: {} | Done: {} | Total: {}</p>\n      <form action=\"/add\" method=\"get\">\n        <input name=\"title\" placeholder=\"New task\" />\n        <button type=\"submit\">Add</button>\n      </form>\n      <ul>\n{}\n      </ul>\n    </main>\n  </body>\n</html>\n" FMT
 END
 
 DEF render_todo_response : [str] -> str str int

@@ -196,6 +196,8 @@ defmodule Cairn.HTTPTest do
     assert response =~ "HTTP/1.1 200 OK"
     assert response =~ "Content-Type: text/html; charset=utf-8"
     assert response =~ "Cairn Todo"
+    assert response =~ "Open: 2 | Done: 1 | Total: 3"
+    assert response =~ "@picocss/pico@2/css/pico.min.css"
     assert response =~ "buy milk"
     assert response =~ "&lt;script&gt;alert(&#39;hola&#39;)&lt;/script&gt;"
     refute response =~ "<script>alert('hola')</script>"

@@ -7,7 +7,7 @@ It is designed around three ideas:
 - explicit contracts and practical verification tools
 - message-passing concurrency that stays compatible with the actor model
 
-Today Cairn is an interpreted language with a standalone `cairn` executable, a static type checker, algebraic data types, contracts (`PRE`/`POST`), property-based checking (`VERIFY`), bounded compile-time proofs (`PROVE`), practical file-backed scripting, and typed actor primitives.
+Today Cairn is an interpreted language with a standalone `cairn` executable, a static type checker, algebraic data types, contracts (`PRE`/`POST`), property-based checking (`VERIFY`), bounded compile-time proofs (`PROVE`), practical scripting plus bounded local persistence, and typed actor primitives.
 
 ## What Cairn Looks Like
 
@@ -108,7 +108,7 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
 - `examples/web/hello_static.crn`: tiny multi-route server with Cairn-owned `GET` route helpers, parsed query visibility, explicit bind address support, bounded transport defaults, and a safe dynamic HTML greeting route that escapes user input (`HTTP_SERVE`)
-- `examples/web/todo_app.crn`: file-backed web todo app with escaped HTML rendering plus bounded `POST /add` and `POST /done` form mutations
+- `examples/web/todo_app.crn`: Mnesia-backed web todo app with escaped HTML rendering plus bounded `POST /add` and `POST /done` form mutations
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake
 - `examples/concurrency/guess_binary.crn`: stateful actor workflow with bounded repeated steps
 

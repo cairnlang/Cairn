@@ -360,6 +360,13 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Unsupported `POST` body content types now return `415 Unsupported Media Type`
 - Upgraded `examples/web/todo_app.crn` so add/complete mutations now use real `POST` forms instead of query-driven `GET` routes
 
+### v0.8.5a — Bounded Mnesia Persistence Foundations
+- Added a tiny built-in Mnesia-backed key/value layer with `DB_PUT`, `DB_GET`, `DB_DEL`, and `DB_PAIRS`
+- Kept the persistence surface intentionally narrow: one fixed internal table, string keys, string values, and a local disk-backed store
+- Defaulted local persistence to `.cairn_mnesia`, with `CAIRN_DB_DIR` as an explicit override
+- Migrated `examples/web/todo_app.crn` off text-file writes and onto the new Mnesia-backed store
+- Added persistence coverage, including survival across app restart in the same configured data directory
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

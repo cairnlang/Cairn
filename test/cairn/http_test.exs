@@ -254,11 +254,28 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
-  test "web todo app renders file-backed items as escaped HTML" do
-    port = free_port()
-    todo_path = write_temp_todo_file(["open|buy milk", "done|book train", "open|<script>alert('hola')</script>"])
+  test "web todo app renders Mnesia-backed items as escaped HTML" do
+    previous = System.get_env("CAIRN_DB_DIR")
+    db_dir = temp_db_dir()
+    System.put_env("CAIRN_DB_DIR", db_dir)
+    Cairn.DB.reset_for_tests!()
 
-    task = start_todo_app(port, todo_path)
+    on_exit(fn ->
+      Cairn.DB.reset_for_tests!()
+
+      if previous do
+        System.put_env("CAIRN_DB_DIR", previous)
+      else
+        System.delete_env("CAIRN_DB_DIR")
+      end
+    end)
+
+    :ok = Cairn.DB.put("todo:1", "open|buy milk")
+    :ok = Cairn.DB.put("todo:2", "done|book train")
+    :ok = Cairn.DB.put("todo:3", "open|<script>alert('hola')</script>")
+
+    port = free_port()
+    task = start_todo_app(port)
 
     response = http_get(port, "/")
 
@@ -274,24 +291,50 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
-  test "web todo app can add and complete file-backed items through POST routes" do
-    port = free_port()
-    todo_path = write_temp_todo_file(["open|buy milk", "open|prepare slides"])
+  test "web todo app can add and complete Mnesia-backed items through POST routes and survive app restart" do
+    previous = System.get_env("CAIRN_DB_DIR")
+    db_dir = temp_db_dir()
+    System.put_env("CAIRN_DB_DIR", db_dir)
+    Cairn.DB.reset_for_tests!()
 
-    task = start_todo_app(port, todo_path)
+    on_exit(fn ->
+      Cairn.DB.reset_for_tests!()
+
+      if previous do
+        System.put_env("CAIRN_DB_DIR", previous)
+      else
+        System.delete_env("CAIRN_DB_DIR")
+      end
+    end)
+
+    :ok = Cairn.DB.put("todo:1", "open|buy milk")
+    :ok = Cairn.DB.put("todo:2", "open|prepare slides")
+
+    port = free_port()
+    task = start_todo_app(port)
 
     add_response = http_post_form(port, "/add", %{"title" => "book flight"})
     done_response = http_post_form(port, "/done", %{"id" => "1"})
-    saved = File.read!(todo_path)
 
     assert add_response =~ "HTTP/1.1 200 OK"
     assert add_response =~ "book flight"
     assert done_response =~ "HTTP/1.1 200 OK"
     assert done_response =~ "<strong>done</strong> buy milk"
-    assert saved =~ "done|buy milk"
-    assert saved =~ "open|book flight"
 
     assert nil == Task.shutdown(task, :brutal_kill)
+
+    Cairn.DB.restart_for_tests!()
+
+    next_port = free_port()
+    restarted_task = start_todo_app(next_port)
+    persisted_response = http_get(next_port, "/")
+
+    assert persisted_response =~ "<strong>done</strong> buy milk"
+    assert persisted_response =~ "prepare slides"
+    assert persisted_response =~ "book flight"
+    assert persisted_response =~ "Open: 2 | Done: 1 | Total: 3"
+
+    assert nil == Task.shutdown(restarted_task, :brutal_kill)
   end
 
   defp http_get(port, path) do
@@ -488,17 +531,15 @@ defmodule Cairn.HTTPTest do
     end)
   end
 
-  defp start_todo_app(port, todo_path) do
+  defp start_todo_app(port) do
     Task.async(fn ->
-      Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port), todo_path])
+      Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
       Cairn.eval_file("examples/web/todo_app.crn")
     end)
   end
 
-  defp write_temp_todo_file(lines) do
+  defp temp_db_dir do
     dir = System.tmp_dir!()
-    path = Path.join(dir, "cairn_web_todo_#{System.unique_integer([:positive])}.txt")
-    File.write!(path, Enum.join(lines, "\n"))
-    path
+    Path.join(dir, "cairn_http_db_#{System.unique_integer([:positive])}")
   end
 end

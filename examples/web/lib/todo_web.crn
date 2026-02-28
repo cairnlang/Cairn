@@ -1,13 +1,33 @@
 IMPORT "../../practical/lib/todo.crn"
 
-DEF load_todo_items : str -> [str]
-  "" SWAP read_file_or
-  lines_nonempty
+DEF todo_pair_key : [str] -> str
+  HEAD
 END
 
-DEF save_todo_items : str [str] -> [str]
-  LET todo_path
-  DUP "\n" JOIN todo_path WRITE_FILE!
+DEF todo_pair_value : [str] -> str
+  TAIL HEAD
+END
+
+DEF todo_pair_is_item : [str] -> bool
+  todo_pair_key "todo:" STARTS_WITH
+END
+
+DEF todo_pair_to_line : [str] -> str
+  todo_pair_value
+END
+
+DEF load_todo_items : -> [str]
+  DB_PAIRS
+  { todo_pair_is_item } FILTER
+  { todo_pair_to_line } MAP
+END
+
+DEF db_key_for_todo_id : int -> str
+  NUM_STR "todo:{}" FMT
+END
+
+DEF next_todo_id : -> int
+  load_todo_items LEN 1 ADD
 END
 
 DEF todo_line_title : str -> str
@@ -54,71 +74,59 @@ DEF render_todo_response : [str] -> str str int
   http_html_ok
 END
 
-DEF add_todo_item : str [str] -> [str]
-  LET title
-  LET items
+DEF add_todo_item : map[str str] -> str str int
+  LET form
 
-  title TRIM LET clean_title
+  "title" form "" map_get_or
+  TRIM LET clean_title
+
   clean_title LEN 0 GT
   IF
     clean_title "open|{}" FMT
-    [] CONS
-    items SWAP CONCAT
+    next_todo_id db_key_for_todo_id
+    DB_PUT
   ELSE
-    items
+    "" DROP
   END
-END
 
-DEF mark_done_at : int [str] -> [str]
-  LET target_id
-  ENUMERATE {
-    DUP HEAD LET todo_id
-    TAIL HEAD LET line
-
-    todo_id target_id EQ
-    line todo_is_open
-    AND
-    IF
-      line todo_line_title
-      "done|{}" FMT
-    ELSE
-      line
-    END
-  } MAP
-END
-
-DEF handle_todo_index : str -> str str int
   load_todo_items
   render_todo_response
 END
 
-DEF handle_todo_add : str map[str str] -> str str int
-  LET todo_path
-  LET form
-
-  "title" form "" map_get_or
-  todo_path load_todo_items
-  SWAP add_todo_item
-  todo_path save_todo_items
-  render_todo_response
-END
-
-DEF handle_todo_done : str map[str str] -> str str int
-  LET todo_path
+DEF handle_todo_done : map[str str] -> str str int
   LET form
 
   "id" form "0" map_get_or
   0 SWAP to_int_or
   LET target_id
 
-  todo_path load_todo_items
-  target_id mark_done_at
-  todo_path save_todo_items
+  target_id db_key_for_todo_id DB_GET
+  MATCH
+    Ok {
+      DUP todo_is_open
+      IF
+        todo_line_title "done|{}" FMT
+        target_id db_key_for_todo_id
+        DB_PUT
+      ELSE
+        DROP
+      END
+    }
+    Err {
+      DROP
+    }
+  END
+
+  load_todo_items
   render_todo_response
 END
 
-DEF handle_todo_request : str str str map[str str] map[str str] -> str str int
-  LET todo_path
+DEF handle_todo_index : -> str str int
+  load_todo_items
+  render_todo_response
+END
+
+DEF handle_todo_request : str str map[str str] map[str str] -> str str int
   LET path
   LET method
   LET query
@@ -128,7 +136,7 @@ DEF handle_todo_request : str str str map[str str] map[str str] -> str str int
   IF
     path "/" EQ
     IF
-      todo_path handle_todo_index
+      handle_todo_index
     ELSE
       "not found\n" http_text_not_found
     END
@@ -137,11 +145,11 @@ DEF handle_todo_request : str str str map[str str] map[str str] -> str str int
     IF
       path "/add" EQ
       IF
-        form todo_path handle_todo_add
+        form add_todo_item
       ELSE
         path "/done" EQ
         IF
-          form todo_path handle_todo_done
+          form handle_todo_done
         ELSE
           "not found\n" http_text_not_found
         END

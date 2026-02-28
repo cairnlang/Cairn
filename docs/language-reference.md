@@ -123,6 +123,12 @@ READ_FILE! WRITE_FILE!         # unsafe file ops (raise on failure)
 HTTP_SERVE                     # pop port + handler block (or bind addr + port + handler), serve requests until stopped
 READ_LINE                      # read one line from stdin
 RANDOM                         # pop N, push random integer in [1, N]
+
+# Bounded local persistence (Mnesia-backed)
+DB_PUT                         # pop key, pop value, persist a string record
+DB_GET                         # pop key, push result (Ok str | Err str)
+DB_DEL                         # pop key, delete record
+DB_PAIRS                       # push list of [key, value] string pairs
 ```
 
 ### LET Bindings
@@ -436,6 +442,12 @@ LET form
 # - request_line_max = 4096   (oversized first line -> 414 URI Too Long)
 # - read_timeout_ms  = 5000   (idle client -> quiet close)
 # - body_max         = 8192   (oversized form body -> 413 Payload Too Large)
+
+# Minimal local persistence (stored under .cairn_mnesia by default)
+"open|buy milk" "todo:1" DB_PUT
+"todo:1" DB_GET
+DB_PAIRS
+# Set CAIRN_DB_DIR to use a different on-disk Mnesia directory
 ```
 
 ## Examples

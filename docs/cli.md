@@ -46,6 +46,7 @@ mix cairn.run [options] <file.crn> [args...]
 
 - `CAIRN_NO_PRELUDE=1`: disable auto-loading `lib/prelude.crn` in file mode
 - `CAIRN_PROVE_TRACE=summary|verbose|json`: enable PROVE trace diagnostics on stderr
+- `CAIRN_DB_DIR=/path/to/data`: override the on-disk Mnesia directory for the bounded `DB_*` storage layer and the web todo app
 
 ### Output conventions
 
@@ -121,6 +122,6 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 
 `examples/web/hello_static.crn` is the first transport milestone: a deliberately tiny static HTTP server that binds to `127.0.0.1:8089` by default, passes the HTTP method, request path, parsed query map, and parsed form map into a Cairn handler block, and routes between two explicit pages (`/` and `/about`) plus a tiny dynamic text `/echo?name=...` endpoint and a safe dynamic HTML `/hello?name=...` endpoint. The route logic now lives in `examples/web/lib/hello_static.crn`, and it uses the GET-specific route helpers (`route_get_html_file`, `route_get_text`, `route_or`, `route_finish_get`) instead of a manual method gate. The HTML greeting route escapes user input with `html_escape` before embedding it into markup. Non-`GET` requests still return `405 Method Not Allowed`. You can override the bind and port as `./cairn examples/web/hello_static.crn 0.0.0.0 9090`. The host runtime owns the accept loop and HTTP framing; Cairn owns the route choice and response content. `HTTP_SERVE` can also take an explicit bind address literal like `"0.0.0.0"` from Cairn when you want to listen beyond loopback, and it now applies bounded transport defaults (`request_line_max=4096`, `read_timeout_ms=5000`, `body_max=8192`) unless you pass an options map.
 
-`examples/web/todo_app.crn` is the first file-backed web app. It renders todo items from a text file as escaped HTML, serves real HTML forms for `POST /add` and `POST /done`, and persists both add and complete actions back to the same file. It stays intentionally bounded: only `application/x-www-form-urlencoded` form parsing, no sessions, and no framework magic—just the current `HTTP_SERVE` boundary plus Cairn-owned request handling.
+`examples/web/todo_app.crn` is the first Mnesia-backed web app. It renders todo items as escaped HTML, serves real HTML forms for `POST /add` and `POST /done`, and persists both add and complete actions in a small local Mnesia store instead of rewriting a text file. It stays intentionally bounded: only `application/x-www-form-urlencoded` form parsing, no sessions, and no framework magic—just the current `HTTP_SERVE` boundary plus Cairn-owned request handling. By default the local Mnesia files live under `.cairn_mnesia`; set `CAIRN_DB_DIR` if you want the app to persist elsewhere.
 
 See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

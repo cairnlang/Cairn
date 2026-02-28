@@ -373,6 +373,28 @@ defmodule Cairn.Runtime do
     end
   end
 
+  # Bounded Mnesia-backed key/value storage
+  def execute(:db_put, [key, value | rest]) when is_binary(key) and is_binary(value) do
+    Cairn.DB.put(key, value)
+    rest
+  end
+
+  def execute(:db_get, [key | rest]) when is_binary(key) do
+    case Cairn.DB.get(key) do
+      {:ok, value} -> [ok(value) | rest]
+      :error -> [err("missing key '#{key}'") | rest]
+    end
+  end
+
+  def execute(:db_del, [key | rest]) when is_binary(key) do
+    Cairn.DB.delete(key)
+    rest
+  end
+
+  def execute(:db_pairs, stack) do
+    [Cairn.DB.pairs() | stack]
+  end
+
   # READ_LINE: read one line from stdin, push trimmed string
   def execute(:read_line, stack) do
     line = IO.gets("") |> String.trim_trailing("\n")

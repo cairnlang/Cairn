@@ -403,6 +403,13 @@ READ_LINE SAID
 "127.0.0.1" 8089 {
   handle_static_route
 } HTTP_SERVE
+
+# The route helpers can also be used directly:
+"/about"
+DUP "/" "<p>Home</p>" route_text_ok
+SWAP "/about" "<p>About</p>" route_text_ok
+route_or
+route_finish
 ```
 
 ## Examples

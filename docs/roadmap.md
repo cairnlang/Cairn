@@ -319,6 +319,11 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Moved the static demo’s route logic into `examples/web/lib/hello_static.crn` so `examples/web/hello_static.crn` reads like a real app entrypoint
 - Added `examples/prelude/web_helpers.crn` so the web helper layer is visible under `--examples`, the prelude banner, and smoke coverage
 
+### v0.8.3h — Route/Response Ergonomics
+- Expanded `lib/prelude/web.crn` with a tiny routing DSL: `route_html_file`, `route_text_ok`, `route_or`, and `route_finish`
+- Added response packing/unpacking helpers so exact-path route candidates can compose as plain Cairn values before a final fallback
+- Rewrote `examples/web/lib/hello_static.crn` around the new route helpers, eliminating the last nested `IF` route ladder from the demo
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

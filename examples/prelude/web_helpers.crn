@@ -15,3 +15,26 @@ LET missing_status
 missing_status "missing_status={}" FMT SAID
 missing_type "missing_type={}" FMT SAID
 missing_body "missing_body={}" FMT SAID
+
+"/about"
+DUP "/" "<p>Home</p>" route_text_ok
+SWAP "/about" "<p>About</p>" route_text_ok
+route_or
+route_finish
+LET route_body
+LET route_type
+LET route_status
+
+route_status "route_status={}" FMT SAID
+route_type "route_type={}" FMT SAID
+route_body "route_body={}" FMT SAID
+
+"/missing" "/" "<p>Home</p>" route_text_ok
+route_finish
+LET miss_route_body
+LET miss_route_type
+LET miss_route_status
+
+miss_route_status "miss_route_status={}" FMT SAID
+miss_route_type "miss_route_type={}" FMT SAID
+miss_route_body "miss_route_body={}" FMT SAID

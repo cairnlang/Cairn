@@ -26,3 +26,78 @@ DEF http_html_file_ok : str -> str str int
   READ_FILE!
   http_html_ok
 END
+
+# Pack an HTTP_SERVE response stack into one value for route chaining.
+DEF http_pack_response : str str int -> [any]
+  LET body
+  LET content_type
+  LET status
+
+  []
+  status SWAP CONS
+  content_type SWAP CONS
+  body SWAP CONS
+END
+
+# Unpack a response produced by http_pack_response.
+DEF http_unpack_response : [any] -> str str int
+  LET response
+  response HEAD LET body
+  response TAIL LET after_body
+  after_body HEAD LET content_type
+  after_body TAIL HEAD LET status
+  status content_type body
+END
+
+# Exact-path route: serve a known HTML file on match.
+# Signature: file route path -> result
+DEF route_html_file : str str str -> result
+  LET file
+  LET route
+  LET path
+
+  path route EQ
+  IF
+    file http_html_file_ok http_pack_response Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+# Exact-path route: serve a plain-text body on match.
+# Signature: body route path -> result
+DEF route_text_ok : str str str -> result
+  LET body
+  LET route
+  LET path
+
+  path route EQ
+  IF
+    body http_text_ok http_pack_response Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+# Prefer the earlier candidate if it matched; otherwise keep the fallback.
+# Signature: fallback preferred -> result
+DEF route_or : result result -> result
+  LET fallback
+  LET preferred
+
+  preferred result_is_ok
+  IF
+    fallback DROP
+    preferred
+  ELSE
+    fallback
+  END
+END
+
+# Finalize a route chain into the stack shape HTTP_SERVE expects.
+DEF route_finish : result -> str str int
+  [ "not found\n" "text/plain; charset=utf-8" 404 ]
+  SWAP
+  result_unwrap_or
+  http_unpack_response
+END

@@ -134,7 +134,13 @@ defmodule Cairn.ExamplesSmokeTest do
       "html_body=<h1>Cairn</h1>",
       "missing_status=404",
       "missing_type=text/plain; charset=utf-8",
-      "missing_body=missing"
+      "missing_body=missing",
+      "route_status=200",
+      "route_type=text/plain; charset=utf-8",
+      "route_body=<p>About</p>",
+      "miss_route_status=404",
+      "miss_route_type=text/plain; charset=utf-8",
+      "miss_route_body=not found"
     ])
 
     assert_output_markers("examples/practical/mini_env.crn", [

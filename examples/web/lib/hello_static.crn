@@ -1,28 +1,6 @@
-DEF handle_index : -> str str int
-  "examples/web/static/index.html" http_html_file_ok
-END
-
-DEF handle_about : -> str str int
-  "examples/web/static/about.html" http_html_file_ok
-END
-
-DEF handle_not_found : -> str str int
-  "not found\n" http_text_not_found
-END
-
 DEF handle_static_route : str -> str str int
-  DUP "/" EQ
-  IF
-    DROP
-    handle_index
-  ELSE
-    DUP "/about" EQ
-    IF
-      DROP
-      handle_about
-    ELSE
-      DROP
-      handle_not_found
-    END
-  END
+  DUP "/" "examples/web/static/index.html" route_html_file
+  SWAP "/about" "examples/web/static/about.html" route_html_file
+  route_or
+  route_finish
 END

@@ -1,11 +1,11 @@
 # CLI Quick Reference
 
-## `mix axiom.run`
+## `mix cairn.run`
 
-Run an Axiom source file:
+Run a Cairn source file:
 
 ```bash
-mix axiom.run [options] <file.ax> [args...]
+mix cairn.run [options] <file.crn> [args...]
 ```
 
 ### Options
@@ -18,8 +18,8 @@ mix axiom.run [options] <file.ax> [args...]
 
 ### Environment
 
-- `AXIOM_NO_PRELUDE=1`: disable auto-loading `lib/prelude.ax` in file mode
-- `AXIOM_PROVE_TRACE=summary|verbose|json`: enable PROVE trace diagnostics on stderr
+- `CAIRN_NO_PRELUDE=1`: disable auto-loading `lib/prelude.crn` in file mode
+- `CAIRN_PROVE_TRACE=summary|verbose|json`: enable PROVE trace diagnostics on stderr
 
 ### Output conventions
 
@@ -48,40 +48,40 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 
 ## Suggested workflow
 
-1. Run: `mix axiom.run examples/hello_world.ax`
-   - Or try the collection-helper showcase: `mix axiom.run examples/collections.ax`
-   - Or try explicit float math: `mix axiom.run examples/math.ax`
-   - Or try native string helpers: `mix axiom.run examples/strings.ax`
-   - Or try narrow host interop: `mix axiom.run examples/interop.ax`
-2. Browse examples: `mix axiom.run --examples`
+1. Run: `mix cairn.run examples/hello_world.crn`
+   - Or try the collection-helper showcase: `mix cairn.run examples/collections.crn`
+   - Or try explicit float math: `mix cairn.run examples/math.crn`
+   - Or try native string helpers: `mix cairn.run examples/strings.crn`
+   - Or try narrow host interop: `mix cairn.run examples/interop.crn`
+2. Browse examples: `mix cairn.run --examples`
 3. Run practical workflows:
-   - `mix axiom.run examples/practical/all_practical.ax`
-   - `mix axiom.run examples/practical/main.ax`
-   - `mix axiom.run examples/practical/ledger.ax`
-   - `mix axiom.run examples/practical/todo.ax`
-   - `mix axiom.run examples/practical/ledger_cli.ax [optional/path.csv]`
-   - `mix axiom.run examples/practical/expenses.ax [optional/path.csv]`
-   - `mix axiom.run examples/practical/cashflow.ax [optional/ledger.csv] [optional/expenses.csv]`
-   - `mix axiom.run examples/practical/cashflow_alerts.ax [optional/ledger.csv] [optional/expenses.csv]`
-   - `mix axiom.run examples/practical/mini_grep.ax [-i] [-n] [-v] [pattern] [file]`
-   - `mix axiom.run examples/practical/mini_grep_verify.ax`
+   - `mix cairn.run examples/practical/all_practical.crn`
+   - `mix cairn.run examples/practical/main.crn`
+   - `mix cairn.run examples/practical/ledger.crn`
+   - `mix cairn.run examples/practical/todo.crn`
+   - `mix cairn.run examples/practical/ledger_cli.crn [optional/path.csv]`
+   - `mix cairn.run examples/practical/expenses.crn [optional/path.csv]`
+   - `mix cairn.run examples/practical/cashflow.crn [optional/ledger.csv] [optional/expenses.csv]`
+   - `mix cairn.run examples/practical/cashflow_alerts.crn [optional/ledger.csv] [optional/expenses.csv]`
+   - `mix cairn.run examples/practical/mini_grep.crn [-i] [-n] [-v] [pattern] [file]`
+   - `mix cairn.run examples/practical/mini_grep_verify.crn`
 4. Load typed-concurrency examples:
-   - `mix axiom.run examples/concurrency/ping_pong_types.ax`
-   - `mix axiom.run examples/concurrency/protocol_ping_pong.ax`
-   - `mix axiom.run examples/concurrency/traffic_light_types.ax`
-   - `mix axiom.run examples/concurrency/ping_once.ax`
-   - `mix axiom.run examples/concurrency/self_boot.ax`
-   - `mix axiom.run examples/concurrency/two_pings.ax`
-   - `mix axiom.run examples/concurrency/counter.ax`
-   - `mix axiom.run examples/concurrency/traffic_light.ax`
-   - `mix axiom.run examples/concurrency/notifier.ax`
-   - `mix axiom.run examples/concurrency/restart_once.ax`
-   - `mix axiom.run examples/concurrency/supervisor_worker.ax`
-   - `mix axiom.run examples/concurrency/guess_binary.ax`
-5. Inspect loaded prelude: `mix axiom.run --show-prelude examples/prelude/result_flow.ax`
-6. Try diagnostics JSON: `mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax`
+   - `mix cairn.run examples/concurrency/ping_pong_types.crn`
+   - `mix cairn.run examples/concurrency/protocol_ping_pong.crn`
+   - `mix cairn.run examples/concurrency/traffic_light_types.crn`
+   - `mix cairn.run examples/concurrency/ping_once.crn`
+   - `mix cairn.run examples/concurrency/self_boot.crn`
+   - `mix cairn.run examples/concurrency/two_pings.crn`
+   - `mix cairn.run examples/concurrency/counter.crn`
+   - `mix cairn.run examples/concurrency/traffic_light.crn`
+   - `mix cairn.run examples/concurrency/notifier.crn`
+   - `mix cairn.run examples/concurrency/restart_once.crn`
+   - `mix cairn.run examples/concurrency/supervisor_worker.crn`
+   - `mix cairn.run examples/concurrency/guess_binary.crn`
+5. Inspect loaded prelude: `mix cairn.run --show-prelude examples/prelude/result_flow.crn`
+6. Try diagnostics JSON: `mix cairn.run --json-errors examples/diagnostics/runtime_div_zero.crn`
 7. Run practical-only tests: `mix test.practical`
 
-`collections.ax` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`. `math.ax` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`. `strings.ax` is the focused native string-helper showcase for `UPPER`, `LOWER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`. `interop.ax` is the focused typed-whitelist host interop showcase for the still-narrow `HOST_CALL` escape hatch. `mini_grep.ax` is the first utility-style CLI stress test, using argv + file I/O + list/string pipelines with native string normalization instead of host case-folding, and `mini_grep_verify.ax` is its paired practical `VERIFY` runner for a pure helper property. `ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` are type-focused. `protocol_ping_pong.ax` is the first bounded protocol-conformance example and now demonstrates protocol-aware helper-function calls inside protocol-bound actors. `ping_once.ax` exercises the current minimal runtime, `self_boot.ax` demonstrates `SELF` through a helper function, `two_pings.ax` demonstrates repeated actor-local `RECEIVE`, `counter.ax`, `traffic_light.ax`, and `guess_binary.ax` now demonstrate the current preferred actor-state pattern: `WITH_STATE` plus `STEP`-driven `REPEAT` loops, `notifier.ax` is a more practical actor-shaped workflow, `restart_once.ax` is the first supervision-oriented restart example, and `supervisor_worker.ax` is the first explicit supervisor/worker split example. Shared actor/state/supervision helpers live under `examples/concurrency/lib/`; the supervision helper layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` plus `MONITOR`/`AWAIT`. Lifecycle-only examples such as `examples/concurrency/linked_failure.ax` and `examples/concurrency/protocol_mismatch.ax` intentionally fail and are not listed under `--examples`.
+`collections.crn` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`. `math.crn` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`. `strings.crn` is the focused native string-helper showcase for `UPPER`, `LOWER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`. `interop.crn` is the focused typed-whitelist host interop showcase for the still-narrow `HOST_CALL` escape hatch. `mini_grep.crn` is the first utility-style CLI stress test, using argv + file I/O + list/string pipelines with native string normalization instead of host case-folding, and `mini_grep_verify.crn` is its paired practical `VERIFY` runner for a pure helper property. `ping_pong_types.crn`, `protocol_ping_pong.crn`, and `traffic_light_types.crn` are type-focused. `protocol_ping_pong.crn` is the first bounded protocol-conformance example and now demonstrates protocol-aware helper-function calls inside protocol-bound actors. `ping_once.crn` exercises the current minimal runtime, `self_boot.crn` demonstrates `SELF` through a helper function, `two_pings.crn` demonstrates repeated actor-local `RECEIVE`, `counter.crn`, `traffic_light.crn`, and `guess_binary.crn` now demonstrate the current preferred actor-state pattern: `WITH_STATE` plus `STEP`-driven `REPEAT` loops, `notifier.crn` is a more practical actor-shaped workflow, `restart_once.crn` is the first supervision-oriented restart example, and `supervisor_worker.crn` is the first explicit supervisor/worker split example. Shared actor/state/supervision helpers live under `examples/concurrency/lib/`; the supervision helper layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` plus `MONITOR`/`AWAIT`. Lifecycle-only examples such as `examples/concurrency/linked_failure.crn` and `examples/concurrency/protocol_mismatch.crn` intentionally fail and are not listed under `--examples`.
 
 See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

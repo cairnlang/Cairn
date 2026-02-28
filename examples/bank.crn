@@ -1,0 +1,37 @@
+# bank.crn — The Safe Bank (Milestone 2)
+#
+# Demonstrates property-based verification of financial operations.
+# Each function has PRE/POST contracts. VERIFY auto-generates random
+# inputs, filters by PRE, runs the function, and checks POST holds.
+
+# DEPOSIT: add amount to balance
+# Stack: [amount, balance] (amount on top)
+# PRE: amount > 0 AND balance >= 0
+# POST: result >= 0
+DEF deposit : int int -> int
+  PRE { OVER 0 GTE SWAP 0 GT AND }
+  ADD
+  POST DUP 0 GTE
+END
+
+# WITHDRAW: subtract amount from balance
+# Stack: [amount, balance] (amount on top)
+# PRE: amount > 0 AND balance >= amount
+# POST: result >= 0
+DEF withdraw : int int -> int
+  PRE { OVER OVER GTE SWAP 0 GT AND }
+  SUB
+  POST DUP 0 GTE
+END
+
+# Verify both functions — 500 random tests each
+VERIFY deposit 500
+VERIFY withdraw 500
+
+# Prove both functions — mathematically, for ALL inputs
+PROVE deposit
+PROVE withdraw
+
+# Demo: manual operations
+1000 200 deposit SAID
+1000 300 withdraw SAID

@@ -1,0 +1,12 @@
+# examples/concurrency/linked_failure.crn
+# Intentionally fails: linked child exits and takes the linked caller down with it.
+
+TYPE msg = Fail
+
+SPAWN_LINK msg {
+  SELF Fail SEND
+  RECEIVE
+    Fail { "child_failed" SWAP DROP EXIT }
+  END
+}
+DROP

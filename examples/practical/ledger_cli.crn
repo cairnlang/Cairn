@@ -1,0 +1,25 @@
+# examples/practical/ledger_cli.crn — argv-driven ledger flow
+# Usage: mix cairn.run examples/practical/ledger_cli.crn [path/to/ledger.csv]
+
+IMPORT "lib/ledger.crn"
+
+ARGV DUP LEN 0 GT
+IF
+  HEAD
+ELSE
+  DROP "examples/practical/data/ledger.csv"
+END
+LET path
+
+"0" path read_file_or TRIM csv_ints LET txs
+
+txs DUP tx_balance LET balance
+DUP tx_volume LET volume
+LEN LET count
+
+path "source={}" FMT SAID
+balance "balance={}" FMT SAID
+volume "volume={}" FMT SAID
+count "count={}" FMT SAID
+
+VERIFY ledger_balance_bounded 40

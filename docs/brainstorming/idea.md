@@ -1,10 +1,10 @@
-# Axiom: An AI-Native Programming Language
+# Cairn: An AI-Native Programming Language
 
 ## Premise
 
 Human programming languages encode human cognitive constraints: limited working memory (descriptive names, modularity), sequential visual parsing (indentation, syntax highlighting), and step-by-step imperative reasoning. An AI-native language should instead optimize for the actual bottlenecks of large language models: **semantic reasoning cost**, **compositional correctness**, and **context window utilization** — not just raw token density.
 
-The original vision of Axiom focused heavily on compression. This revised design shifts the center of gravity toward **declarative constraint solving**, **content-addressable structure**, and **semantic density** — making programs that are not just short, but fundamentally easier for an AI to reason about, compose, and verify.
+The original vision of Cairn focused heavily on compression. This revised design shifts the center of gravity toward **declarative constraint solving**, **content-addressable structure**, and **semantic density** — making programs that are not just short, but fundamentally easier for an AI to reason about, compose, and verify.
 
 ---
 
@@ -14,7 +14,7 @@ The original vision of Axiom focused heavily on compression. This revised design
 
 **Problem with the original:** Relative stack pointers (`^3`, `^12`) are fragile. Inserting or removing a single operation invalidates every downstream reference. The workaround of "just regenerate the whole function" defeats the purpose of having a structured language — you'd be treating code as disposable text, not a composable artifact.
 
-**Revised design:** Every expression in Axiom is a node in a **content-addressed Directed Acyclic Graph (DAG)**. Each node is identified by a short hash derived from its operation and inputs.
+**Revised design:** Every expression in Cairn is a node in a **content-addressed Directed Acyclic Graph (DAG)**. Each node is identified by a short hash derived from its operation and inputs.
 
 ```
 a0 = INPUT [int]
@@ -33,30 +33,30 @@ a3 = a2 SUM
 
 ### 2. Constraint-Declarative Core (The Big Idea)
 
-This is where Axiom should diverge most radically from human languages. Instead of specifying *how* to compute something, Axiom programs primarily declare *what properties the output must satisfy*, and a solver determines the execution strategy.
+This is where Cairn should diverge most radically from human languages. Instead of specifying *how* to compute something, Cairn programs primarily declare *what properties the output must satisfy*, and a solver determines the execution strategy.
 
-**Axiom's declarative mode:**
+**Cairn's declarative mode:**
 ```
 SORT : [a] -> [a]
   WHERE output CONTAINS_ALL input
     AND FORALL i : output[i] <= output[i+1]
 ```
 
-The programmer (AI or human) declares the contract. The Axiom runtime selects an algorithm — quicksort, mergesort, radix sort — based on input characteristics, available hardware, and profiling data. The AI's job becomes **specifying correct constraints**, not choosing algorithms.
+The programmer (AI or human) declares the contract. The Cairn runtime selects an algorithm — quicksort, mergesort, radix sort — based on input characteristics, available hardware, and profiling data. The AI's job becomes **specifying correct constraints**, not choosing algorithms.
 
 **Why this is the right direction:**
 - LLMs are *better* at formal specification than at writing bug-free imperative code. Stating "the output is sorted" is easier to get right than implementing quicksort with correct pivot selection and partitioning.
 - Constraints are **verifiable** — a constraint solver or property-based testing engine can mechanically check that outputs satisfy the spec, creating a tight feedback loop.
 - It naturally supports **progressive refinement**: start with a loose spec, then add constraints to narrow behavior, rather than rewriting implementation details.
 
-**Escape hatch:** Not everything can be declarative. Axiom should support an imperative postfix mode for performance-critical inner loops where the AI knows the exact algorithm it wants:
+**Escape hatch:** Not everything can be declarative. Cairn should support an imperative postfix mode for performance-critical inner loops where the AI knows the exact algorithm it wants:
 
 ```
 IMPERATIVE sort_impl : [int] -> [int]
   ... stack-based postfix instructions ...
 ```
 
-The imperative mode is the "assembly language" of Axiom — available when needed, but not the default.
+The imperative mode is the "assembly language" of Cairn — available when needed, but not the default.
 
 ---
 
@@ -64,7 +64,7 @@ The imperative mode is the "assembly language" of Axiom — available when neede
 
 **Problem with the original:** Stripping all names in favor of positional references doesn't actually help AI reasoning. Names like `user_id` or `price_total` carry *type-level* and *domain-level* semantics that reduce ambiguity. An LLM benefits from these signals just as much as a human does — they reduce the search space for what a value *could* be.
 
-**Revised design:** Axiom uses **short semantic tags** — not verbose human names, but compressed domain-meaningful identifiers:
+**Revised design:** Cairn uses **short semantic tags** — not verbose human names, but compressed domain-meaningful identifiers:
 
 ```
 uid:u32  ptot:f64  items:[Item]
@@ -94,7 +94,7 @@ This applies only to imperative blocks. Declarative constraint blocks use a stru
 
 ### 5. First-Class Tensors, Distributions, and Similarity
 
-This is retained from the original with some refinement. Axiom's type system includes:
+This is retained from the original with some refinement. Cairn's type system includes:
 
 | Primitive        | Notation    | Example                          |
 |------------------|-------------|----------------------------------|
@@ -116,7 +116,7 @@ This eliminates the need for importing numerical frameworks for the most common 
 
 ### 6. Built-In Verification and Contracts
 
-Every function in Axiom carries a **contract** — preconditions, postconditions, and invariants that the runtime can check.
+Every function in Cairn carries a **contract** — preconditions, postconditions, and invariants that the runtime can check.
 
 ```
 sum_sq_odds : [int] -> int
@@ -145,14 +145,14 @@ def sum_squared_odds(numbers):
     return total
 ```
 
-**Axiom (declarative style):**
+**Cairn (declarative style):**
 ```
 sum_sq_odds : [int] -> int
   POST output == input.filter(i : i 2 MOD 1 EQ).map(SQ).sum
 ```
 Just the contract. The runtime synthesizes the implementation.
 
-**Axiom (imperative style, when you need explicit control):**
+**Cairn (imperative style, when you need explicit control):**
 ```
 sum_sq_odds : [int] -> int
   IMPERATIVE
@@ -160,7 +160,7 @@ sum_sq_odds : [int] -> int
 ```
 Stack-based, dense, no brackets — but stable references if embedded in a larger DAG.
 
-**Axiom (hybrid — contract + hint):**
+**Cairn (hybrid — contract + hint):**
 ```
 sum_sq_odds : [int] -> int
   POST output >= 0
@@ -175,7 +175,7 @@ The contract acts as a runtime assertion; the implementation is explicit.
 
 ```
 ┌─────────────────────────────────────────────┐
-│              Axiom Program                  │
+│              Cairn Program                  │
 │                                             │
 │  ┌─────────────┐     ┌──────────────────┐   │
 │  │ Declarative  │     │   Imperative     │   │
@@ -210,7 +210,7 @@ The contract acts as a runtime assertion; the implementation is explicit.
 
 ## What Makes This Different From the Original Plan
 
-| Aspect | Original Axiom | Revised Axiom |
+| Aspect | Original Cairn | Revised Cairn |
 |---|---|---|
 | **Primary goal** | Token density | Reasoning correctness |
 | **References** | Relative stack pointers | Content-addressed DAG nodes |
@@ -226,10 +226,10 @@ The contract acts as a runtime assertion; the implementation is explicit.
 
 1. **Solver feasibility:** How expressive can the constraint language be before synthesis becomes intractable? Need to define a decidable subset (likely linear arithmetic + common collection operations) and clearly delineate what requires manual implementation.
 
-2. **Tokenizer co-design:** Should Axiom have its own tokenizer, or should it be designed to align with an existing LLM tokenizer (e.g., cl100k)? The latter would allow any off-the-shelf model to work with it; the former allows deeper optimization.
+2. **Tokenizer co-design:** Should Cairn have its own tokenizer, or should it be designed to align with an existing LLM tokenizer (e.g., cl100k)? The latter would allow any off-the-shelf model to work with it; the former allows deeper optimization.
 
-3. **Bootstrapping:** The first implementation of the Axiom runtime/solver will need to be written in an existing language (Rust? OCaml?). What's the minimal viable subset of Axiom that's useful before the solver is fully built?
+3. **Bootstrapping:** The first implementation of the Cairn runtime/solver will need to be written in an existing language (Rust? OCaml?). What's the minimal viable subset of Cairn that's useful before the solver is fully built?
 
-4. **Human-in-the-loop:** Even if Axiom is AI-native, humans still need to audit AI-generated programs. Should there be a "decompile to pseudocode" mode that translates Axiom back to human-readable form for review?
+4. **Human-in-the-loop:** Even if Cairn is AI-native, humans still need to audit AI-generated programs. Should there be a "decompile to pseudocode" mode that translates Cairn back to human-readable form for review?
 
 5. **Multi-model collaboration:** If multiple AI agents collaborate on a codebase, the DAG structure and content-addressing naturally support merging and conflict resolution. This is worth exploring as a first-class workflow.

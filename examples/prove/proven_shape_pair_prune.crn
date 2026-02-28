@@ -1,0 +1,34 @@
+# proven_shape_pair_prune.crn — contradictory comparison pair pruning in PRE (v0.6.0s)
+
+TYPE shape = Circle int | Square int
+
+DEF is_square : shape -> bool
+  MATCH
+    Circle { DROP F }
+    Square { DROP T }
+  END
+END
+
+# PRE computes:
+# ((amount > 5) AND (amount <= 3)) OR is_square(shape)
+# The first branch is contradictory and normalizes to false.
+DEF square_only_abs_pair_pruned : int shape -> int
+  PRE {
+    DUP 5 GT
+    OVER 3 LTE
+    AND
+    ROT
+    is_square
+    OR
+    SWAP DROP
+  }
+  SWAP
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  SWAP DROP
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs_pair_pruned

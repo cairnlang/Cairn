@@ -1,0 +1,13 @@
+# examples/practical/all_practical.crn — run the full practical pipeline chain
+# Usage: mix cairn.run examples/practical/all_practical.crn
+
+IMPORT "main.crn"
+IMPORT "ledger.crn"
+IMPORT "todo.crn"
+IMPORT "expenses.crn"
+IMPORT "cashflow.crn"
+IMPORT "cashflow_alerts.crn"
+
+# The imported practical chain currently leaves one intermediate value.
+# Drop it so the consolidated runner remains stack-clean for tests.
+DROP

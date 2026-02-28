@@ -1,14 +1,14 @@
-defmodule Axiom.PracticalPipelineTest do
+defmodule Cairn.PracticalPipelineTest do
   use ExUnit.Case, async: false
 
   test "all_practical pipeline runs end-to-end" do
-    assert {[], _env} = Axiom.eval_file("examples/practical/all_practical.ax")
+    assert {[], _env} = Cairn.eval_file("examples/practical/all_practical.crn")
   end
 
   test "cashflow alerts stage emits deterministic markers" do
     output =
       ExUnit.CaptureIO.capture_io(fn ->
-        assert {[], _env} = Axiom.eval_file("examples/practical/cashflow_alerts.ax")
+        assert {[], _env} = Cairn.eval_file("examples/practical/cashflow_alerts.crn")
       end)
 
     markers = [

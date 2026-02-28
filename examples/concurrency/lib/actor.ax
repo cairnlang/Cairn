@@ -1,6 +1,0 @@
-# examples/concurrency/lib/actor.ax
-# Small shared helpers for actor examples.
-
-DEF send_self : any -> void
-  SELF SWAP SEND
-END

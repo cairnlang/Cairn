@@ -1,0 +1,62 @@
+# examples/practical/cashflow_alerts.crn — composed cashflow + alerts workflow
+# Usage: mix cairn.run examples/practical/cashflow_alerts.crn [ledger.csv] [expenses.csv]
+
+IMPORT "lib/ledger.crn"
+IMPORT "lib/expenses_parser.crn"
+IMPORT "lib/expenses_agg.crn"
+IMPORT "lib/cashflow.crn"
+IMPORT "lib/cashflow_alerts.crn"
+IMPORT "lib/report_common.crn"
+
+ARGV DUP LEN 0 GT
+IF
+  HEAD
+ELSE
+  DROP "examples/practical/data/ledger.csv"
+END
+LET ledger_path
+
+ARGV DUP LEN 1 GT
+IF
+  TAIL HEAD
+ELSE
+  DROP "examples/practical/data/expenses.csv"
+END
+LET expenses_path
+
+"0" ledger_path read_file_or TRIM csv_ints LET txs
+"" expenses_path read_file_or parse_amounts LET costs
+
+txs DUP tx_balance LET balance
+DUP tx_volume LET volume
+DROP
+costs expenses_total LET expenses_total
+balance expenses_total net_cashflow LET net
+volume expenses_total ADD LET capacity
+net capacity cashflow_score LET score
+score risk_level LET level
+level risk_label LET label
+level recommended_action LET action
+
+ledger_path "ledger_source={}" FMT SAID
+expenses_path "expenses_source={}" FMT SAID
+score "cashflow_score={}" FMT SAID
+level "risk_level={}" FMT SAID
+label "risk_label={}" FMT SAID
+action "action={}" FMT SAID
+
+score "cashflow_score={}" FMT LET line1
+level "risk_level={}" FMT LET line2
+label "risk_label={}" FMT LET line3
+action "action={}" FMT LET line4
+line1 "\n" CONCAT line2 CONCAT "\n" CONCAT line3 CONCAT "\n" CONCAT line4 CONCAT LET report
+
+report "/tmp/cairn_cashflow_alerts_report.txt" WRITE_FILE!
+"/tmp/cairn_cashflow_alerts_report.txt" READ_FILE! LET saved
+saved alerts_report_has_metrics assert_true
+"report_ok=T" SAID
+
+VERIFY abs_total_nonneg 60
+VERIFY ledger_balance_bounded 60
+VERIFY cashflow_score 60
+VERIFY risk_level 60

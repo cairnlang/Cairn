@@ -1,6 +1,0 @@
-# examples/practical/mini_grep_verify.ax — bounded VERIFY checks for mini_grep helpers
-# Usage: mix axiom.run examples/practical/mini_grep_verify.ax
-
-IMPORT "lib/mini_grep.ax"
-
-VERIFY leading_flag_count_bounded 60

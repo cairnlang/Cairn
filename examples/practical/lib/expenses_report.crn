@@ -1,0 +1,10 @@
+# examples/practical/lib/expenses_report.crn — report checks for expenses workflow
+IMPORT "report_common.crn"
+
+DEF report_has_expense_metrics : str -> bool
+  DUP "total=" report_contains
+  SWAP DUP "max=" report_contains
+  SWAP DUP "avg=" report_contains
+  SWAP "over_100=" report_contains
+  AND AND AND
+END

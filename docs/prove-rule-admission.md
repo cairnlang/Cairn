@@ -4,7 +4,7 @@ This document defines the admission checklist for any new PROVE inference or PRE
 
 ## Scope
 
-- Applies to `Axiom.Solver.PreNormalize` rewrite rules and helper-pattern extraction logic used by PROVE narrowing.
+- Applies to `Cairn.Solver.PreNormalize` rewrite rules and helper-pattern extraction logic used by PROVE narrowing.
 - During `v0.6.0ad+`, PRE normalization is **bugfix/refactor-only by default**.
 
 ## Admission Checklist
@@ -19,11 +19,11 @@ A new rule may be added only when all items below are satisfied:
    - positive case
    - non-applicable/negative case
    - no behavioral regression in existing proof bundles
-6. Performance impact: Report before/after runtime for `examples/prove/all_proven.ax`; reject changes that cause significant slowdown without clear value.
+6. Performance impact: Report before/after runtime for `examples/prove/all_proven.crn`; reject changes that cause significant slowdown without clear value.
 7. Trace compatibility: If metadata/events change, update trace schema tests and docs.
 
 ## Change Discipline
 
 - Prefer improving diagnostics or assumption extraction over adding broad new canonicalization tactics.
 - Keep rewrites bounded and local; avoid global expression growth.
-- Update the frozen rewrite-rule catalog in `Axiom.Solver.PreNormalize.rewrite_rule_catalog/0` only with explicit roadmap/docs justification.
+- Update the frozen rewrite-rule catalog in `Cairn.Solver.PreNormalize.rewrite_rule_catalog/0` only with explicit roadmap/docs justification.

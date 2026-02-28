@@ -1,0 +1,14 @@
+# examples/imports/lib.crn — shared functions for import demo
+
+DEF double : int -> int
+  DUP ADD
+END
+
+DEF describe_score : int -> str
+  DUP 70 GTE
+  IF
+    "pass ({})" FMT
+  ELSE
+    "fail ({})" FMT
+  END
+END

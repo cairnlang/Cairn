@@ -1,0 +1,9 @@
+# wc.crn — word count utility
+# Usage: mix cairn.run examples/wc.crn <filename>
+#
+# Prints: lines  words  chars
+
+ARGV HEAD READ_FILE!
+DUP LINES LEN SAID
+DUP WORDS LEN SAID
+LEN SAID

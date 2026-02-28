@@ -1,0 +1,7 @@
+# prelude/result_flow.crn — ergonomic safe parsing with result helpers
+
+"42" TO_INT DUP result_is_ok "ok? {}" FMT SAID
+0 SWAP result_unwrap_or "value={}" FMT SAID
+
+"oops" TO_INT DUP result_is_err "err? {}" FMT SAID
+99 SWAP result_unwrap_or "fallback={}" FMT SAID

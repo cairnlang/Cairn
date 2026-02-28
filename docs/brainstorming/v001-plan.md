@@ -1,8 +1,8 @@
-# Axiom v0.0.1 — Minimal BEAM Implementation Plan
+# Cairn v0.0.1 — Minimal BEAM Implementation Plan
 
 ## Goal
 
-A working end-to-end pipeline: **parse Axiom source -> build DAG -> compile to BEAM bytecode -> execute**. Plus a REPL to interact with it. Nothing more.
+A working end-to-end pipeline: **parse Cairn source -> build DAG -> compile to BEAM bytecode -> execute**. Plus a REPL to interact with it. Nothing more.
 
 ---
 
@@ -13,7 +13,7 @@ A working end-to-end pipeline: **parse Axiom source -> build DAG -> compile to B
 3. **Content-addressed DAG as the IR** — every AST node gets a hash. Stored in ETS.
 4. **Compilation to BEAM** — transpile the DAG into Erlang Abstract Format, then use `:compile.forms/1` to produce `.beam` modules.
 5. **Simple contracts** — `POST` conditions only, checked at runtime (no synthesis, just assertion).
-6. **A REPL** — IEx-based, evaluate Axiom expressions interactively.
+6. **A REPL** — IEx-based, evaluate Cairn expressions interactively.
 
 ## What's NOT in v0.0.1
 
@@ -29,7 +29,7 @@ A working end-to-end pipeline: **parse Axiom source -> build DAG -> compile to B
 ## Architecture
 
 ```
- axiom source text
+ cairn source text
        │
        ▼
  ┌─────────────┐
@@ -70,11 +70,11 @@ A working end-to-end pipeline: **parse Axiom source -> build DAG -> compile to B
 ## Project Structure
 
 ```
-axiom/
+cairn/
 ├── mix.exs
 ├── lib/
-│   ├── axiom.ex                  # Public API: Axiom.compile/1, Axiom.eval/1
-│   ├── axiom/
+│   ├── cairn.ex                  # Public API: Cairn.compile/1, Cairn.eval/1
+│   ├── cairn/
 │   │   ├── lexer.ex              # Source text -> token list
 │   │   ├── parser.ex             # Token list -> DAG nodes
 │   │   ├── dag.ex                # DAG storage, hashing, ETS interface
@@ -95,9 +95,9 @@ axiom/
 
 ## Module Details
 
-### Lexer (`lib/axiom/lexer.ex`)
+### Lexer (`lib/cairn/lexer.ex`)
 
-Turns source text into a flat list of tokens. Axiom's postfix syntax makes this straightforward — no nesting to track.
+Turns source text into a flat list of tokens. Cairn's postfix syntax makes this straightforward — no nesting to track.
 
 **Token types:**
 ```elixir
@@ -134,9 +134,9 @@ No whitespace sensitivity. Tokens are space-delimited. That's it.
 
 ---
 
-### Parser (`lib/axiom/parser.ex`)
+### Parser (`lib/cairn/parser.ex`)
 
-Consumes the token list and builds DAG nodes. Axiom has two constructs at the top level:
+Consumes the token list and builds DAG nodes. Cairn has two constructs at the top level:
 
 1. **Expressions** — a sequence of literals, identifiers, and operators (postfix).
 2. **Function definitions** — `DEF name : type -> type [POST condition] body END`.
@@ -145,7 +145,7 @@ The parser doesn't need to handle operator precedence (postfix has none) or nest
 
 **DAG node structure:**
 ```elixir
-%Axiom.DAG.Node{
+%Cairn.DAG.Node{
   hash: "a1b",          # content-derived, 3-char base62
   op: :add,             # or :lit, :ident, :filter, :map, etc.
   inputs: ["f2c", "d8a"], # hashes of input nodes
@@ -156,16 +156,16 @@ The parser doesn't need to handle operator precedence (postfix has none) or nest
 
 ---
 
-### DAG (`lib/axiom/dag.ex`)
+### DAG (`lib/cairn/dag.ex`)
 
 An ETS-backed store of DAG nodes.
 
 ```elixir
-Axiom.DAG.init()                    # creates the ETS table
-Axiom.DAG.put(node)                 # stores a node, returns its hash
-Axiom.DAG.get(hash)                 # retrieves a node
-Axiom.DAG.roots()                   # returns all root nodes (entry points)
-Axiom.DAG.subgraph(hash)            # returns all nodes reachable from hash
+Cairn.DAG.init()                    # creates the ETS table
+Cairn.DAG.put(node)                 # stores a node, returns its hash
+Cairn.DAG.get(hash)                 # retrieves a node
+Cairn.DAG.roots()                   # returns all root nodes (entry points)
+Cairn.DAG.subgraph(hash)            # returns all nodes reachable from hash
 ```
 
 **Hashing:** `hash = :crypto.hash(:sha256, :erlang.term_to_binary({op, inputs})) |> Base.encode64() |> binary_part(0, 6)`
@@ -174,14 +174,14 @@ Six characters is plenty for a v0.0.1 — collision-free for any reasonable prog
 
 ---
 
-### Codegen (`lib/axiom/codegen.ex`)
+### Codegen (`lib/cairn/codegen.ex`)
 
 The core compilation step. Walks the DAG from a root node and emits **Erlang Abstract Format** — the AST representation that `:compile.forms/1` accepts.
 
-**Strategy:** Each Axiom function compiles to an Erlang function that operates on an explicit stack (a list).
+**Strategy:** Each Cairn function compiles to an Erlang function that operates on an explicit stack (a list).
 
 ```elixir
-# Axiom: DEF double : int -> int DUP ADD END
+# Cairn: DEF double : int -> int DUP ADD END
 # Compiles conceptually to:
 def double(stack) do
   stack
@@ -192,10 +192,10 @@ end
 
 In practice, this means generating the Erlang Abstract Format for the above. The stack is a list, each operator is a function that pattern-matches the top elements, operates, and returns the new stack.
 
-**Built-in operator implementations** live in a runtime module (`Axiom.Runtime`) that the generated code calls into:
+**Built-in operator implementations** live in a runtime module (`Cairn.Runtime`) that the generated code calls into:
 
 ```elixir
-defmodule Axiom.Runtime do
+defmodule Cairn.Runtime do
   def add([a, b | rest]), do: [a + b | rest]
   def dup([a | rest]), do: [a, a | rest]
   def swap([a, b | rest]), do: [b, a | rest]
@@ -208,9 +208,9 @@ For v0.0.1, this is fine. Later versions can inline operations and do proper sta
 
 ---
 
-### Contracts (`lib/axiom/contract.ex`)
+### Contracts (`lib/cairn/contract.ex`)
 
-Minimal implementation: a `POST` condition is parsed as an Axiom expression that must evaluate to `T` (true) given the function's output on the stack.
+Minimal implementation: a `POST` condition is parsed as a Cairn expression that must evaluate to `T` (true) given the function's output on the stack.
 
 ```
 DEF abs_val : int -> int
@@ -219,13 +219,13 @@ DEF abs_val : int -> int
 END
 ```
 
-At compile time, the codegen wraps the function body to check the postcondition on the output stack before returning. If it fails, it raises `Axiom.ContractError`.
+At compile time, the codegen wraps the function body to check the postcondition on the output stack before returning. If it fails, it raises `Cairn.ContractError`.
 
 No synthesis, no solver — just runtime assertion. This gets the contract *syntax* into the language early so the habit forms, and lays the groundwork for the solver in v0.1.0.
 
 ---
 
-### REPL (`lib/axiom/repl.ex`)
+### REPL (`lib/cairn/repl.ex`)
 
 An IEx helper that provides an `ax>` prompt:
 
@@ -250,7 +250,7 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 ## Milestone Breakdown
 
 ### M1: Lexer + Parser + DAG (foundation) — DONE
-- [x] `mix new axiom` project setup
+- [x] `mix new cairn` project setup
 - [x] Lexer handles all token types (including `{ }` blocks, `#` comments)
 - [x] Parser builds expressions and function definitions
 - [x] Parser handles nested IF/ELSE/END inside function bodies
@@ -258,9 +258,9 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 - [x] Tests for all of the above
 
 ### M2: Runtime + Evaluator (it runs) — DONE
-- [x] `Axiom.Runtime` module with all operators
+- [x] `Cairn.Runtime` module with all operators
 - [x] Stack-based interpreter (deferred EAF codegen to future version)
-- [x] `Axiom.eval("3 4 ADD")` returns `[7]`
+- [x] `Cairn.eval("3 4 ADD")` returns `[7]`
 - [x] Blocks `{ }` as closures that capture environment
 - [x] FILTER/MAP/REDUCE with blocks, functions calling other functions through blocks
 - [x] TIMES and WHILE loop operators
@@ -273,11 +273,11 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 - [x] `PRE` condition parsing (block-based, before body)
 - [x] `POST` condition parsing (comes after body, before END)
 - [x] Contract checking at runtime in evaluator
-- [x] `Axiom.ContractError` on violation
+- [x] `Cairn.ContractError` on violation
 - [x] Tests: passing contracts, failing contracts, PRE+POST combined
 
 ### M4: REPL (you can touch it) — DONE
-- [x] `Axiom.REPL.start/0` with `ax>` prompt
+- [x] `Cairn.REPL.start/0` with `ax>` prompt
 - [x] Expression evaluation loop with stack display
 - [x] Function definition persistence within session
 - [x] Error display (stack underflow, undefined function, contract violation)
@@ -286,9 +286,9 @@ Implemented as a simple loop: read line -> lex -> parse -> compile to anonymous 
 ### M5: Integration + polish — DONE
 - [x] End-to-end tests: multi-function programs, Collatz, nested control flow
 - [x] Error messages with source locations (word positions)
-- [x] `mix axiom.run` task for running `.ax` files
+- [x] `mix cairn.run` task for running `.crn` files
 - [x] `#` line comments
-- [x] Examples: collatz.ax, sum_sq_odds.ax, fibonacci.ax, gcd.ax, factorial.ax, statistics.ax, hello_world.ax
+- [x] Examples: collatz.crn, sum_sq_odds.crn, fibonacci.crn, gcd.crn, factorial.crn, statistics.crn, hello_world.crn
 - [x] README with language reference and examples
 - [x] String literals (`"hello world"`) and SAY operator
 
@@ -363,7 +363,7 @@ int float bool [int] [float]
 ## Design Decisions and Rationale
 
 **Why an interpreter instead of Erlang Abstract Format codegen?**
-Pragmatic choice — getting `Axiom.eval("3 4 ADD")` working fast mattered more than the compilation target. The interpreter maps 1:1 to Axiom's postfix semantics. EAF codegen is planned for a future version when performance becomes relevant.
+Pragmatic choice — getting `Cairn.eval("3 4 ADD")` working fast mattered more than the compilation target. The interpreter maps 1:1 to Cairn's postfix semantics. EAF codegen is planned for a future version when performance becomes relevant.
 
 **Why ETS for the DAG?**
 It's concurrent-read by default, available in any BEAM process, and fast. When we add multi-agent support later, multiple processes can read the DAG simultaneously without coordination. Writes go through a single process (the DAG server) to maintain consistency.

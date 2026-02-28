@@ -1,0 +1,37 @@
+# examples/practical/ledger.crn — ledger report workflow
+# Usage: mix cairn.run examples/practical/ledger.crn [path/to/ledger.csv]
+
+IMPORT "lib/ledger.crn"
+
+ARGV DUP LEN 0 GT
+IF
+  HEAD
+ELSE
+  DROP "examples/practical/data/ledger.csv"
+END
+LET path
+
+"" path read_file_or LET raw
+raw TRIM csv_ints LET txs
+
+txs DUP tx_balance LET balance
+DUP tx_volume LET volume
+LEN LET count
+
+path "source={}" FMT SAID
+balance "balance={}" FMT SAID
+volume "volume={}" FMT SAID
+count "count={}" FMT SAID
+
+balance "balance={}" FMT LET line1
+volume "volume={}" FMT LET line2
+count "count={}" FMT LET line3
+line1 "\n" CONCAT line2 CONCAT "\n" CONCAT line3 CONCAT LET report
+
+report "/tmp/cairn_ledger_report.txt" WRITE_FILE!
+"/tmp/cairn_ledger_report.txt" READ_FILE! LET saved
+saved report_has_metrics assert_true
+"report_ok=T" SAID
+
+VERIFY credit_nonneg 60
+VERIFY ledger_balance_bounded 60

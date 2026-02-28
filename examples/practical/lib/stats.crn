@@ -1,0 +1,10 @@
+# examples/practical/lib/stats.crn — small reusable stats helpers
+
+DEF score_total : [int] -> int
+  { ABS } MAP SUM
+  POST DUP 0 GTE
+END
+
+DEF mean_int : [int] -> int
+  DUP SUM SWAP LEN DIV
+END

@@ -1,8 +1,8 @@
-# Axiom Solver: A Phased Implementation Plan
+# Cairn Solver: A Phased Implementation Plan
 
 ## Preamble
 
-The constraint solver is the core of Axiom's long-term vision, enabling a shift from imperative programming to declarative specification. Its success hinges on a pragmatic, phased implementation. A "big bang" approach is infeasible; instead, we will build the solver in layers, with each layer providing tangible value to the language and its users.
+The constraint solver is the core of Cairn's long-term vision, enabling a shift from imperative programming to declarative specification. Its success hinges on a pragmatic, phased implementation. A "big bang" approach is infeasible; instead, we will build the solver in layers, with each layer providing tangible value to the language and its users.
 
 This document outlines a 5-stage plan to incrementally build the solver, moving from simple verification to advanced program synthesis and optimization.
 
@@ -21,7 +21,7 @@ This document outlines a 5-stage plan to incrementally build the solver, moving 
 - **Description:** Use contracts to inform a static analysis pass. This is a classic constraint satisfaction problem where the solver operates over types, not values.
 - **Goal:** The solver acts as a powerful type checker that understands constraints, catching errors before runtime.
 - **Example:**
-  ```axiom
+  ```cairn
   DEF safe_sqrt : int -> int
     PRE { DUP 0 GTE }
     POST DUP 0 GTE
@@ -43,7 +43,7 @@ This document outlines a 5-stage plan to incrementally build the solver, moving 
 - **Description:** Leverage contracts to automatically generate test cases. The solver's role shifts from verifying programs to synthesizing *test data*.
 - **Goal:** When a function is defined, the system automatically runs hundreds of tests against its contracts, providing a powerful verification feedback loop.
 - **Example:**
-  ```axiom
+  ```cairn
   DEF my_func : [int] -> int
     PRE { DUP LEN 5 EQ } # Input must be a list of 5 ints
     POST DUP 100 GT      # Output must be > 100
@@ -64,7 +64,7 @@ This document outlines a 5-stage plan to incrementally build the solver, moving 
 - **Description:** The first true instance of program synthesis. The solver generates a function's body from its contracts alone, but only for a small, well-defined set of problems.
 - **Goal:** Automatically generate correct implementations for simple, common patterns, allowing the programmer to focus on specification.
 - **Example Domain:** Linear integer arithmetic and basic list properties.
-  ```axiom
+  ```cairn
   # The user writes only the specification:
   DEF get_len : [a] -> int
     POST output EQ SWAP LEN
@@ -75,9 +75,9 @@ This document outlines a 5-stage plan to incrementally build the solver, moving 
   ```
 - **Implementation Plan:**
   - **Primary Option:** Integrate an external SMT (Satisfiability Modulo Theories) solver like **Z3** via an existing Erlang/Elixir library (e.g., `erlz3`).
-    1.  Define a small, translatable subset of Axiom (e.g., integer ops, list ops `LEN`).
-    2.  Implement a transpiler that converts Axiom contracts in this subset into the SMT solver's input format (SMT-LIB).
-    3.  The SMT solution ("model") is then translated back into a sequence of Axiom operators.
+    1.  Define a small, translatable subset of Cairn (e.g., integer ops, list ops `LEN`).
+    2.  Implement a transpiler that converts Cairn contracts in this subset into the SMT solver's input format (SMT-LIB).
+    3.  The SMT solution ("model") is then translated back into a sequence of Cairn operators.
   - **Secondary Option:** For trivial domains, an enumerative synthesizer (which tries all operator combinations) can be built in Elixir, but this approach does not scale.
 
 ---
@@ -87,7 +87,7 @@ This document outlines a 5-stage plan to incrementally build the solver, moving 
 - **Description:** A practical, high-value form of "solving." Instead of synthesizing an algorithm from scratch, the solver *selects* the best implementation from a library of human-written candidates based on runtime conditions.
 - **Goal:** Enable a declarative style for complex operations (like sorting) while retaining high performance by dispatching to optimized imperative code.
 - **Example:**
-  ```axiom
+  ```cairn
   # 1. Declarative goal
   DEF sort : [a] -> [a]
     WHERE output CONTAINS_ALL input

@@ -1,0 +1,10 @@
+# examples/practical/lib/report_common.crn — shared practical report helpers
+
+DEF assert_true : bool -> void
+  PRE { DUP }
+  DROP
+END
+
+DEF report_contains : str str -> bool
+  CONTAINS
+END

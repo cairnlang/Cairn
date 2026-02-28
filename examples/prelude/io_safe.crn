@@ -1,0 +1,3 @@
+# prelude/io_safe.crn — safe file reads with fallback via read_file_or
+
+"<missing>" "/tmp/cairn_demo_missing_file.txt" read_file_or "content={}" FMT SAID

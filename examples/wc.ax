@@ -1,9 +1,0 @@
-# wc.ax — word count utility
-# Usage: mix axiom.run examples/wc.ax <filename>
-#
-# Prints: lines  words  chars
-
-ARGV HEAD READ_FILE!
-DUP LINES LEN SAID
-DUP WORDS LEN SAID
-LEN SAID

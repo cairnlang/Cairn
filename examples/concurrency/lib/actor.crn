@@ -1,0 +1,6 @@
+# examples/concurrency/lib/actor.crn
+# Small shared helpers for actor examples.
+
+DEF send_self : any -> void
+  SELF SWAP SEND
+END

@@ -1,0 +1,4 @@
+# json.crn — compatibility entrypoint for the modular JSON example
+# Uses IMPORT to run the full demo program.
+
+IMPORT "json/demo.crn"

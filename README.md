@@ -1,4 +1,4 @@
-# Axiom
+# Cairn
 
 An AI-native programming language targeting the BEAM.
 
@@ -10,77 +10,77 @@ Stack-based, postfix, contract-checked. Designed around the idea that an AI-firs
 
 ```bash
 # Run a file
-mix axiom.run examples/collatz.ax
+mix cairn.run examples/collatz.crn
 
 # CLI options + environment reference
-mix axiom.run --help
-mix axiom.run --examples
+mix cairn.run --help
+mix cairn.run --examples
 
 # Recursion (factorial + fibonacci)
-mix axiom.run examples/recur.ax
+mix cairn.run examples/recur.crn
 
 # Algebraic data types + pattern matching
-mix axiom.run examples/option.ax
+mix cairn.run examples/option.crn
 
 # Verify contracts (randomized + solver-backed)
-mix axiom.run examples/bank.ax
+mix cairn.run examples/bank.crn
 
 # Run the curated proof examples
-mix axiom.run examples/prove/all_proven.ax
+mix cairn.run examples/prove/all_proven.crn
 
 # Proof details, solver notes, and trace modes:
 # see docs/prove.md
 
 # JSON parser + encoder demo (modular IMPORT example)
-mix axiom.run examples/json/demo.ax
+mix cairn.run examples/json/demo.crn
 
 # Minimal 2-file IMPORT demo
-mix axiom.run examples/imports/main.ax
+mix cairn.run examples/imports/main.crn
 
 # Practical mini-app (imports + prelude + file I/O + VERIFY)
-mix axiom.run examples/practical/all_practical.ax
-mix axiom.run examples/practical/main.ax
-mix axiom.run examples/practical/ledger.ax
-mix axiom.run examples/practical/todo.ax
-mix axiom.run examples/practical/ledger_cli.ax
-mix axiom.run examples/practical/ledger_cli.ax examples/practical/data/ledger.csv
-mix axiom.run examples/practical/expenses.ax
-mix axiom.run examples/practical/expenses.ax examples/practical/data/expenses.csv
-mix axiom.run examples/practical/cashflow.ax
-mix axiom.run examples/practical/cashflow.ax examples/practical/data/ledger.csv examples/practical/data/expenses.csv
-mix axiom.run examples/practical/cashflow_alerts.ax
-mix axiom.run examples/practical/cashflow_alerts.ax examples/practical/data/ledger.csv examples/practical/data/expenses.csv
+mix cairn.run examples/practical/all_practical.crn
+mix cairn.run examples/practical/main.crn
+mix cairn.run examples/practical/ledger.crn
+mix cairn.run examples/practical/todo.crn
+mix cairn.run examples/practical/ledger_cli.crn
+mix cairn.run examples/practical/ledger_cli.crn examples/practical/data/ledger.csv
+mix cairn.run examples/practical/expenses.crn
+mix cairn.run examples/practical/expenses.crn examples/practical/data/expenses.csv
+mix cairn.run examples/practical/cashflow.crn
+mix cairn.run examples/practical/cashflow.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
+mix cairn.run examples/practical/cashflow_alerts.crn
+mix cairn.run examples/practical/cashflow_alerts.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
 
 # Typed-concurrency examples (type-focused + minimal runtime)
-mix axiom.run examples/concurrency/ping_pong_types.ax
-mix axiom.run examples/concurrency/protocol_ping_pong.ax
-mix axiom.run examples/concurrency/traffic_light_types.ax
-mix axiom.run examples/concurrency/ping_once.ax
-mix axiom.run examples/concurrency/self_boot.ax
-mix axiom.run examples/concurrency/two_pings.ax
-mix axiom.run examples/concurrency/counter.ax
-mix axiom.run examples/concurrency/traffic_light.ax
-mix axiom.run examples/concurrency/notifier.ax
-mix axiom.run examples/concurrency/restart_once.ax
-mix axiom.run examples/concurrency/supervisor_worker.ax
+mix cairn.run examples/concurrency/ping_pong_types.crn
+mix cairn.run examples/concurrency/protocol_ping_pong.crn
+mix cairn.run examples/concurrency/traffic_light_types.crn
+mix cairn.run examples/concurrency/ping_once.crn
+mix cairn.run examples/concurrency/self_boot.crn
+mix cairn.run examples/concurrency/two_pings.crn
+mix cairn.run examples/concurrency/counter.crn
+mix cairn.run examples/concurrency/traffic_light.crn
+mix cairn.run examples/concurrency/notifier.crn
+mix cairn.run examples/concurrency/restart_once.crn
+mix cairn.run examples/concurrency/supervisor_worker.crn
 
 # Prelude helpers demo (safe result flow + string helpers)
-mix axiom.run examples/prelude_demo.ax
-mix axiom.run --show-prelude examples/prelude/result_flow.ax
-mix axiom.run examples/prelude/csv_parse.ax
-mix axiom.run examples/prelude/io_safe.ax
+mix cairn.run examples/prelude_demo.crn
+mix cairn.run --show-prelude examples/prelude/result_flow.crn
+mix cairn.run examples/prelude/csv_parse.crn
+mix cairn.run examples/prelude/io_safe.crn
 
 # Diagnostics examples (text + JSON)
-mix axiom.run examples/diagnostics/static_type.ax
-mix axiom.run examples/diagnostics/runtime_div_zero.ax
-mix axiom.run examples/diagnostics/contract_fail.ax
-mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax
+mix cairn.run examples/diagnostics/static_type.crn
+mix cairn.run examples/diagnostics/runtime_div_zero.crn
+mix cairn.run examples/diagnostics/contract_fail.crn
+mix cairn.run --json-errors examples/diagnostics/runtime_div_zero.crn
 
 # Start the REPL
-mix run -e "Axiom.REPL.start()"
+mix run -e "Cairn.REPL.start()"
 
 # Interactive number guessing game
-mix axiom.run examples/guess.ax
+mix cairn.run examples/guess.crn
 
 # Run tests (768 tests)
 mix test
@@ -93,65 +93,65 @@ mix test.practical
 
 ```bash
 # 1) Run a tiny program
-mix axiom.run examples/hello_world.ax
+mix cairn.run examples/hello_world.crn
 
 # 2) See what to run next
-mix axiom.run --examples
+mix cairn.run --examples
 
 # 3) Trigger and read a static failure
-mix axiom.run examples/diagnostics/static_type.ax
+mix cairn.run examples/diagnostics/static_type.crn
 
 # 4) Inspect the same failure in JSON for tools/CI
-mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax
+mix cairn.run --json-errors examples/diagnostics/runtime_div_zero.crn
 
 # 5) Run property-based and solver-backed checks
-mix axiom.run examples/bank.ax
+mix cairn.run examples/bank.crn
 ```
 
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
 See [`docs/prove.md`](docs/prove.md) for PROVE-specific details, solver behavior, and trace modes.
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
-`examples/collections.ax` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`.
-`examples/math.ax` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`.
-`examples/strings.ax` is the focused native string-helper showcase for `UPPER`, `LOWER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`.
-`examples/interop.ax` is the focused typed-whitelist host interop showcase for the still-narrow `HOST_CALL` escape hatch (`int_to_string`, `float_to_string`).
-`examples/practical/mini_grep.ax` is the first utility-style CLI stress test: a bounded `grep`-like tool with `-i`, `-n`, and `-v`.
-Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, `supervisor_worker.ax`, and `guess_binary.ax` exercise the current runtime actor path (`protocol_ping_pong.ax` is the first bounded protocol-conformance example and now demonstrates helper-function conformance inside protocol-bound actors, `counter.ax`, `traffic_light.ax`, and `guess_binary.ax` now use `WITH_STATE` plus `STEP`-driven bounded `REPEAT` loops to express actor-local state steps without manual unrolled `RECEIVE` chains, `notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` and `protocol_mismatch.ax` intentionally fail and are kept out of the normal runnable examples list.
+`examples/collections.crn` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`.
+`examples/math.crn` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`.
+`examples/strings.crn` is the focused native string-helper showcase for `UPPER`, `LOWER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`.
+`examples/interop.crn` is the focused typed-whitelist host interop showcase for the still-narrow `HOST_CALL` escape hatch (`int_to_string`, `float_to_string`).
+`examples/practical/mini_grep.crn` is the first utility-style CLI stress test: a bounded `grep`-like tool with `-i`, `-n`, and `-v`.
+Concurrency examples live under `examples/concurrency/`; `ping_pong_types.crn`, `protocol_ping_pong.crn`, and `traffic_light_types.crn` stay type-focused, while `ping_once.crn`, `self_boot.crn`, `two_pings.crn`, `counter.crn`, `traffic_light.crn`, `notifier.crn`, `restart_once.crn`, `supervisor_worker.crn`, and `guess_binary.crn` exercise the current runtime actor path (`protocol_ping_pong.crn` is the first bounded protocol-conformance example and now demonstrates helper-function conformance inside protocol-bound actors, `counter.crn`, `traffic_light.crn`, and `guess_binary.crn` now use `WITH_STATE` plus `STEP`-driven bounded `REPEAT` loops to express actor-local state steps without manual unrolled `RECEIVE` chains, `notifier.crn` is the first more practical actor-shaped workflow, `restart_once.crn` is the first minimal supervision/restart workflow, and `supervisor_worker.crn` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.crn`, `lib/state.crn`, `lib/supervision.crn`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.crn` and `protocol_mismatch.crn` intentionally fail and are kept out of the normal runnable examples list.
 
 ### Practical Mini-Apps
 
-`examples/practical/main.ax`, `examples/practical/ledger.ax`, `examples/practical/todo.ax`, `examples/practical/ledger_cli.ax`, `examples/practical/expenses.ax`, `examples/practical/cashflow.ax`, and `examples/practical/cashflow_alerts.ax` demonstrate practical, non-PROVE-centric workflows:
-- imports reusable functions from `examples/practical/lib/stats.ax`
+`examples/practical/main.crn`, `examples/practical/ledger.crn`, `examples/practical/todo.crn`, `examples/practical/ledger_cli.crn`, `examples/practical/expenses.crn`, `examples/practical/cashflow.crn`, and `examples/practical/cashflow_alerts.crn` demonstrate practical, non-PROVE-centric workflows:
+- imports reusable functions from `examples/practical/lib/stats.crn`
 - reads CSV from disk with safe fallback (`read_file_or`)
 - parses and computes totals/averages via prelude helpers
 - runs `VERIFY score_total 40` as a lightweight regression check
-- uses additional reusable libs (`examples/practical/lib/ledger.ax`, `examples/practical/lib/todo.ax`) for report/stat pipelines
-- writes report outputs to `/tmp/axiom_*.txt` via `WRITE_FILE!` in ledger/todo flows
+- uses additional reusable libs (`examples/practical/lib/ledger.crn`, `examples/practical/lib/todo.crn`) for report/stat pipelines
+- writes report outputs to `/tmp/cairn_*.txt` via `WRITE_FILE!` in ledger/todo flows
 - includes report round-trip checks (write, read back, assert expected metrics)
-- includes argv-driven file input (`ledger_cli.ax`) with default-path fallback
-- includes a larger module-split app (`expenses.ax`) with parser/aggregator/report modules
-- includes a composed cross-file app (`cashflow.ax`) combining ledger + expenses pipelines and shared report helpers
-- includes a multi-step composed stage (`cashflow_alerts.ax`) that classifies risk bands and actions from composed metrics
-- now also includes a utility-style CLI (`mini_grep.ax`) that reads argv, scans a file, and prints filtered matching lines
+- includes argv-driven file input (`ledger_cli.crn`) with default-path fallback
+- includes a larger module-split app (`expenses.crn`) with parser/aggregator/report modules
+- includes a composed cross-file app (`cashflow.crn`) combining ledger + expenses pipelines and shared report helpers
+- includes a multi-step composed stage (`cashflow_alerts.crn`) that classifies risk bands and actions from composed metrics
+- now also includes a utility-style CLI (`mini_grep.crn`) that reads argv, scans a file, and prints filtered matching lines
 
 ### Imports
 
-Use `IMPORT "path.ax"` at top level to load another file before evaluation:
+Use `IMPORT "path.crn"` at top level to load another file before evaluation:
 
 ```
-# main.ax
-IMPORT "lib/math.ax"
+# main.crn
+IMPORT "lib/math.crn"
 5 double
 ```
 
 Imports are resolved relative to the importing file, loaded recursively, deduplicated, and cycles are reported as runtime errors.
 
-See [`examples/imports/main.ax`](examples/imports/main.ax) and [`examples/imports/lib.ax`](examples/imports/lib.ax) for a minimal two-file example.
+See [`examples/imports/main.crn`](examples/imports/main.crn) and [`examples/imports/lib.crn`](examples/imports/lib.crn) for a minimal two-file example.
 
 ### Prelude
 
-`mix axiom.run` / `Axiom.eval_file/3` auto-load `lib/prelude.ax` (disable with `AXIOM_NO_PRELUDE=1`).
-Use `mix axiom.run --show-prelude your_file.ax` (or `--verbose`) to print loaded prelude modules/functions.
+`mix cairn.run` / `Cairn.eval_file/3` auto-load `lib/prelude.crn` (disable with `CAIRN_NO_PRELUDE=1`).
+Use `mix cairn.run --show-prelude your_file.crn` (or `--verbose`) to print loaded prelude modules/functions.
 Prelude modules currently loaded by the facade:
 
 - `result_is_ok`, `result_is_err`
@@ -161,7 +161,7 @@ Prelude modules currently loaded by the facade:
 
 ### Diagnostics
 
-`mix axiom.run` now emits consistent failure diagnostics on stderr:
+`mix cairn.run` now emits consistent failure diagnostics on stderr:
 - `ERROR kind=<static|runtime|contract>`
 - `message`, optional `location` + source `snippet`, and `hint`
 - Run summary remains on stderr (`RUN SUMMARY: ...`)
@@ -169,7 +169,7 @@ Prelude modules currently loaded by the facade:
 Use `--json-errors` for machine-readable diagnostics:
 
 ```bash
-mix axiom.run --json-errors examples/diagnostics/runtime_div_zero.ax
+mix cairn.run --json-errors examples/diagnostics/runtime_div_zero.crn
 ```
 
 ## Language Reference
@@ -458,7 +458,7 @@ DEF factorial : int -> int
   POST DUP 0 GT
 END
 
-# Violating a contract raises Axiom.ContractError
+# Violating a contract raises Cairn.ContractError
 # Type mismatches are caught statically before execution
 "hello" double    # => STATIC ERROR: expected int, got str
 ```
@@ -522,8 +522,8 @@ PROVE withdraw_buggy
 #      counterexample: p0 = 1, p1 = 0
 ```
 
-For ADT params, counterexamples are now decoded in constructor form (see `examples/prove/proven_shape_buggy.ax`), e.g. `p0 = Circle(-1)`.
-To print MATCH pruning diagnostics, run with `AXIOM_PROVE_TRACE=summary`, `AXIOM_PROVE_TRACE=verbose`, or `AXIOM_PROVE_TRACE=json` (trace goes to stderr; see `examples/prove/proven_shape_trace.ax`).
+For ADT params, counterexamples are now decoded in constructor form (see `examples/prove/proven_shape_buggy.crn`), e.g. `p0 = Circle(-1)`.
+To print MATCH pruning diagnostics, run with `CAIRN_PROVE_TRACE=summary`, `CAIRN_PROVE_TRACE=verbose`, or `CAIRN_PROVE_TRACE=json` (trace goes to stderr; see `examples/prove/proven_shape_trace.crn`).
 
 For the full proof surface, trace modes, and solver details, see [`docs/prove.md`](docs/prove.md).
 
@@ -563,7 +563,7 @@ ARGV HEAD SAID             # print the first argument
 
 # cat — print a file's contents
 ARGV HEAD READ_FILE! SAID
-# Usage: mix axiom.run examples/cat.ax somefile.txt
+# Usage: mix cairn.run examples/cat.crn somefile.txt
 
 # Write to a file
 "hello" "out.txt" WRITE_FILE!
@@ -576,7 +576,7 @@ READ_LINE SAID
 
 ### Option and Result Types
 
-Safe value handling without runtime exceptions (`examples/option.ax`):
+Safe value handling without runtime exceptions (`examples/option.crn`):
 
 ```
 TYPE option = None | Some int
@@ -665,7 +665,7 @@ END
 
 ### Recursive Functions
 
-A minimal example of mutual self-recursion (`examples/recur.ax`):
+A minimal example of mutual self-recursion (`examples/recur.crn`):
 
 ```
 DEF fact : int -> int
@@ -756,13 +756,13 @@ SAID
 ```
 
 ```bash
-mix axiom.run examples/freq.ax somefile.txt
+mix cairn.run examples/freq.crn somefile.txt
 # => %{"apple" => 2, "banana" => 1, "grape" => 1, ...}
 ```
 
 ### JSON Parser and Encoder
 
-A complete JSON parser and encoder written entirely in Axiom (`examples/json/core.ax` + `examples/json/demo.ax`), demonstrating recursive sum types, character-level string processing, and the wildcard MATCH pattern:
+A complete JSON parser and encoder written entirely in Cairn (`examples/json/core.crn` + `examples/json/demo.crn`), demonstrating recursive sum types, character-level string processing, and the wildcard MATCH pattern:
 
 ```
 TYPE json = JNull | JBool bool | JNum float | JStr str | JArr [json] | JObj map[str json]
@@ -802,16 +802,16 @@ END
 ```
 
 ```bash
-mix axiom.run examples/json/demo.ax
+mix cairn.run examples/json/demo.crn
 # Parses and prints JSON values, extracts names, round-trips through encode
 
 # Compatibility entrypoint (same output)
-mix axiom.run examples/json.ax
+mix cairn.run examples/json.crn
 ```
 
 ### Number Guessing Game
 
-An interactive game using LET, ASK!, and RANDOM (`examples/guess.ax`):
+An interactive game using LET, ASK!, and RANDOM (`examples/guess.crn`):
 
 ```
 100 RANDOM LET secret
@@ -839,7 +839,7 @@ DROP
 ```
 
 ```bash
-mix axiom.run examples/guess.ax
+mix cairn.run examples/guess.crn
 # I'm thinking of a number between 1 and 100.
 # Your guess? 50
 # Too high!
@@ -852,16 +852,16 @@ mix axiom.run examples/guess.ax
 ### Cat / Word Count / Grep
 
 ```bash
-mix axiom.run examples/cat.ax somefile.txt
-mix axiom.run examples/wc.ax somefile.txt
-mix axiom.run examples/grep.ax somefile.txt
-mix axiom.run examples/freq.ax somefile.txt
+mix cairn.run examples/cat.crn somefile.txt
+mix cairn.run examples/wc.crn somefile.txt
+mix cairn.run examples/grep.crn somefile.txt
+mix cairn.run examples/freq.crn somefile.txt
 ```
 
 ## Architecture
 
 ```
- source.ax
+ source.crn
     │
     ▼
  Lexer ──→ tokens ──→ Parser ──→ functions + expressions + verify/prove items
@@ -875,10 +875,10 @@ mix axiom.run examples/freq.ax somefile.txt
                                         │
                                   ┌─────┼──────────┐
                                   │     │          │
-                            Axiom.Runtime  │    Axiom.Solver
+                            Cairn.Runtime  │    Cairn.Solver
                             (operators)    │    (symbolic exec → SMT-LIB → Z3
                                   │        │     compile-time PROVE)
-                            Contract    Axiom.Verify
+                            Contract    Cairn.Verify
                             checker     (property-based testing
                             (PRE/POST)   via StreamData)
                                   │
@@ -922,19 +922,19 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.4.1**: PROVE for IF/ELSE branches (via SMT-LIB `ite`), ABS/MIN/MAX, function call inlining
 - **v0.5.0**: LET bindings, ASK (prompted input), RANDOM, number guessing game example
 - **v0.5.1**: FMT string formatting and SAID destructive print
-- **v0.5.2**: IMPORT "file.ax" multi-file loading with recursive resolution, dedup, and cycle errors
+- **v0.5.2**: IMPORT "file.crn" multi-file loading with recursive resolution, dedup, and cycle errors
 - **v0.5.3**: Safe-by-default fallible ops (`READ_FILE`, `WRITE_FILE`, `TO_INT`, `TO_FLOAT`, `ASK`) returning built-in `result`; explicit `!` unsafe variants
-- **v0.5.4**: Auto-loaded file prelude (`lib/prelude.ax`) with initial `result` utility helpers
-- **v0.5.5**: Modular prelude split (`lib/prelude/result.ax`, `lib/prelude/str.ax`) with reusable result/string helpers
-- **v0.6.0a**: PROVE supports `MATCH` for `option` values (narrow slice) with `examples/prove/proven_option.ax`
-- **v0.6.0b** (complete): PROVE supports `MATCH` for `result` values (narrow slice) with `examples/prove/proven_result.ax`
-- **v0.6.0c** (complete): PROVE supports `MATCH` for generic non-recursive int-field user ADTs with `examples/prove/proven_shape.ax`
-- **v0.6.0d** (complete): PROVE decodes ADT counterexamples to constructor-shaped values (see `examples/prove/proven_shape_buggy.ax`)
-- **v0.6.0e** (complete): PROVE prunes unreachable ADT MATCH branches when PRE constrains constructor tags (see `examples/prove/proven_shape_pruned.ax`)
+- **v0.5.4**: Auto-loaded file prelude (`lib/prelude.crn`) with initial `result` utility helpers
+- **v0.5.5**: Modular prelude split (`lib/prelude/result.crn`, `lib/prelude/str.crn`) with reusable result/string helpers
+- **v0.6.0a**: PROVE supports `MATCH` for `option` values (narrow slice) with `examples/prove/proven_option.crn`
+- **v0.6.0b** (complete): PROVE supports `MATCH` for `result` values (narrow slice) with `examples/prove/proven_result.crn`
+- **v0.6.0c** (complete): PROVE supports `MATCH` for generic non-recursive int-field user ADTs with `examples/prove/proven_shape.crn`
+- **v0.6.0d** (complete): PROVE decodes ADT counterexamples to constructor-shaped values (see `examples/prove/proven_shape_buggy.crn`)
+- **v0.6.0e** (complete): PROVE prunes unreachable ADT MATCH branches when PRE constrains constructor tags (see `examples/prove/proven_shape_pruned.crn`)
 - **v0.6.0f** (complete): PROVE broadens PRE inference across `AND`/`OR`/`NOT` forms and organizes proof examples under `examples/prove/`
 - **v0.6.0g** (complete): PROVE adds optional MATCH pruning trace diagnostics
 - **v0.6.0h** (complete): PROVE adds leveled trace controls (`summary`/`verbose`) and routes trace to stderr
-- **v0.6.0i** (complete): PROVE adds structured JSON trace output (`AXIOM_PROVE_TRACE=json`)
+- **v0.6.0i** (complete): PROVE adds structured JSON trace output (`CAIRN_PROVE_TRACE=json`)
 - **v0.6.0j** (complete): JSON trace adds run start/end metadata, event indices, match site ids, and assumption snapshots
 - **v0.6.0k** (complete): JSON trace adds proof lifecycle events and UNKNOWN/ERROR reason fields in run-end metadata
 - **v0.6.0l** (complete): PROVE broadens refinement inference to helper-boolean equality forms (`... T EQ`) for MATCH pruning
@@ -942,7 +942,7 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.0n** (complete): PROVE reduces split-guard aliases like `(a AND b) OR (a AND NOT b)` to preserve constructor narrowing
 - **v0.6.0o** (complete): PROVE reduces implication+antecedent PRE forms like `(NOT c OR tag_guard) AND c` to preserve constructor narrowing
 - **v0.6.0p** (complete): PROVE canonicalizes n-ary boolean PRE constraints (flatten/dedup/order/absorption) to reduce inference brittleness on noisy generated guards
-- **v0.6.0q** (complete): PRE normalization is extracted to `Axiom.Solver.PreNormalize` with focused unit tests, keeping PROVE behavior stable while reducing solver-module complexity
+- **v0.6.0q** (complete): PRE normalization is extracted to `Cairn.Solver.PreNormalize` with focused unit tests, keeping PROVE behavior stable while reducing solver-module complexity
 - **v0.6.0r** (complete): PRE normalization adds bounded DeMorgan and comparison-negation pushdown to recover narrowing from `NOT`-wrapped generated guards
 - **v0.6.0s** (complete): PRE normalization prunes local contradiction/tautology comparison pairs (same expression, integer constants) to reduce noisy guard branches
 - **v0.6.0t** (complete): PRE normalization merges conjunction bounds into tighter intervals/equalities to unlock implication collapses and stronger narrowing
@@ -955,9 +955,9 @@ The content-addressed DAG (ETS-backed) is in place for future use in multi-agent
 - **v0.6.0aa** (complete): PROVE broadens helper-pattern extraction to `eq/neq` and simple affine wrappers around tag-boolean `ite` encodings
 - **v0.6.0ab** (complete): PROVE extends helper-pattern extraction with bounded multiplicative wrappers (`* const`) around tag-boolean encodings
 - **v0.6.0ac** (complete): PROVE adds stabilization guardrails (PRE idempotence tests, trace ordering/schema checks, and relaxed `all_proven` performance budget)
-- **v0.6.0ad** (complete): Tactical PRE freeze (feature expansion gated for `Axiom.Solver.PreNormalize`) with rule-admission governance (`docs/prove-rule-admission.md`)
+- **v0.6.0ad** (complete): Tactical PRE freeze (feature expansion gated for `Cairn.Solver.PreNormalize`) with rule-admission governance (`docs/prove-rule-admission.md`)
 - **v0.6.1a** (complete): Practical language usability pass 1 (clearer PROVE UNKNOWN/ERROR hints and CLI run-summary diagnostics)
-- **v0.6.1b** (complete): Practical language usability pass 2 (`mix axiom.run --help`, `--show-prelude`, and refreshed prelude examples)
+- **v0.6.1b** (complete): Practical language usability pass 2 (`mix cairn.run --help`, `--show-prelude`, and refreshed prelude examples)
 - **v0.6.1c** (complete): Practical language usability pass 3 (diagnostics consistency, `--json-errors`, and diagnostics examples)
 - **v0.6.1d** (complete): Practical language usability pass 4 (`--examples`, first-15-min docs, and CLI reference)
 - **v0.6.1e** (complete): Practical language usability pass 5 (practical mini-app example + curated examples smoke test)

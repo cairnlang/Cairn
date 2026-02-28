@@ -1,5 +1,0 @@
-# prelude/csv_parse.ax — string helpers for non-empty lines and CSV ints
-
-" 1,2,3 \n\n 4,5 \n " lines_nonempty SAID
-"1,2,3,4,5" csv_ints DUP LEN "count={}" FMT SAID
-SUM "sum={}" FMT SAID

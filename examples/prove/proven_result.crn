@@ -1,0 +1,21 @@
+# proven_result.crn — result MATCH proofs (v0.6.0b slice)
+
+DEF unwrap_ok_or_default : result int -> int
+  PRE { OVER 0 GTE }
+  MATCH
+    Ok  { ABS SWAP DROP }
+    Err { DROP }
+  END
+  POST DUP 0 GTE
+END
+
+DEF is_ok_bool : result -> bool
+  MATCH
+    Ok  { DROP T }
+    Err { DROP F }
+  END
+  POST DUP NOT OR
+END
+
+PROVE unwrap_ok_or_default
+PROVE is_ok_bool

@@ -1,6 +1,6 @@
 # PROVE
 
-`PROVE` is Axiom's compile-time contract proof feature. It symbolically executes a function's `PRE`, body, and `POST`, generates SMT constraints, and asks Z3 whether the contract can be violated.
+`PROVE` is Cairn's compile-time contract proof feature. It symbolically executes a function's `PRE`, body, and `POST`, generates SMT constraints, and asks Z3 whether the contract can be violated.
 
 This document intentionally carries the solver-specific detail so the main README can stay focused on the language as a whole.
 
@@ -9,8 +9,8 @@ This document intentionally carries the solver-specific detail so the main READM
 `PROVE function_name` checks whether `POST` holds for all inputs satisfying `PRE`.
 
 - If Z3 returns `unsat`, the contract is proven.
-- If Z3 returns `sat`, Axiom reports a counterexample.
-- If the proof surface uses unsupported features (for example reachable lists, maps, or loops), Axiom returns `UNKNOWN` with a targeted hint.
+- If Z3 returns `sat`, Cairn reports a counterexample.
+- If the proof surface uses unsupported features (for example reachable lists, maps, or loops), Cairn returns `UNKNOWN` with a targeted hint.
 
 Unlike `VERIFY`, which is probabilistic, `PROVE` is exhaustive over the supported proof surface.
 
@@ -27,7 +27,7 @@ PROVE deposit
 # => PROVE deposit: PROVEN — POST holds for all inputs satisfying PRE
 ```
 
-When a contract is false, Axiom reports a counterexample:
+When a contract is false, Cairn reports a counterexample:
 
 ```ax
 DEF withdraw_buggy : int int -> int
@@ -58,7 +58,7 @@ The `MATCH` support includes PRE-driven branch pruning, constructor-shaped count
 
 ## Trace Diagnostics
 
-Set `AXIOM_PROVE_TRACE` to inspect proof behavior:
+Set `CAIRN_PROVE_TRACE` to inspect proof behavior:
 
 - `summary`
 - `verbose`
@@ -67,10 +67,10 @@ Set `AXIOM_PROVE_TRACE` to inspect proof behavior:
 Examples:
 
 ```bash
-AXIOM_PROVE_TRACE=summary mix axiom.run examples/prove/proven_shape_trace.ax
-AXIOM_PROVE_TRACE=verbose mix axiom.run examples/prove/proven_shape_trace.ax
-AXIOM_PROVE_TRACE=json mix axiom.run examples/prove/proven_shape_trace.ax
-AXIOM_PROVE_TRACE=json mix axiom.run examples/prove/proven_shape_trace_rewrites.ax
+CAIRN_PROVE_TRACE=summary mix cairn.run examples/prove/proven_shape_trace.crn
+CAIRN_PROVE_TRACE=verbose mix cairn.run examples/prove/proven_shape_trace.crn
+CAIRN_PROVE_TRACE=json mix cairn.run examples/prove/proven_shape_trace.crn
+CAIRN_PROVE_TRACE=json mix cairn.run examples/prove/proven_shape_trace_rewrites.crn
 ```
 
 `json` mode emits structured stderr events including:
@@ -98,8 +98,8 @@ Curated proof examples live under `examples/prove/`.
 
 Start with:
 
-- `examples/prove/all_proven.ax`
-- `examples/prove/proven_option.ax`
-- `examples/prove/proven_shape_trace.ax`
+- `examples/prove/all_proven.crn`
+- `examples/prove/proven_option.crn`
+- `examples/prove/proven_shape_trace.crn`
 
 The more specialized PRE-normalization and trace examples are also kept there, but they are intentionally secondary to the main language docs.

@@ -1,0 +1,40 @@
+# examples/practical/expenses.crn — larger file-backed practical workflow
+# Usage: mix cairn.run examples/practical/expenses.crn [path/to/expenses.csv]
+
+IMPORT "lib/expenses_parser.crn"
+IMPORT "lib/expenses_agg.crn"
+IMPORT "lib/expenses_report.crn"
+
+ARGV DUP LEN 0 GT
+IF
+  HEAD
+ELSE
+  DROP "examples/practical/data/expenses.csv"
+END
+LET path
+
+"" path read_file_or LET raw
+raw parse_amounts LET amounts
+
+amounts DUP expenses_total LET total
+DUP expenses_max LET max
+DUP expenses_avg LET avg
+expenses_over_100 LET over100
+
+path "source={}" FMT SAID
+total "total={}" FMT SAID
+max "max={}" FMT SAID
+avg "avg={}" FMT SAID
+over100 "over_100={}" FMT SAID
+
+total "total={}" FMT LET line1
+max "max={}" FMT LET line2
+avg "avg={}" FMT LET line3
+over100 "over_100={}" FMT LET line4
+line1 "\n" CONCAT line2 CONCAT "\n" CONCAT line3 CONCAT "\n" CONCAT line4 CONCAT LET report
+
+report "/tmp/cairn_expenses_report.txt" WRITE_FILE!
+"/tmp/cairn_expenses_report.txt" READ_FILE! report_has_expense_metrics assert_true
+"report_ok=T" SAID
+
+VERIFY abs_total_nonneg 60

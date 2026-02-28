@@ -1,0 +1,6 @@
+# examples/practical/mini_grep_verify.crn — bounded VERIFY checks for mini_grep helpers
+# Usage: mix cairn.run examples/practical/mini_grep_verify.crn
+
+IMPORT "lib/mini_grep.crn"
+
+VERIFY leading_flag_count_bounded 60

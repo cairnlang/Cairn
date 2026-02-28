@@ -1,0 +1,29 @@
+# examples/practical/lib/ledger.crn — helpers for transaction ledgers
+IMPORT "report_common.crn"
+
+DEF tx_balance : [int] -> int
+  SUM
+END
+
+DEF tx_volume : [int] -> int
+  { ABS } MAP SUM
+  POST DUP 0 GTE
+END
+
+DEF ledger_balance_bounded : [int] -> bool
+  DUP tx_balance ABS SWAP tx_volume LTE
+  POST DUP EQ T
+END
+
+DEF report_has_metrics : str -> bool
+  DUP "balance=" report_contains
+  SWAP DUP "volume=" report_contains
+  SWAP "count=" report_contains
+  AND AND
+END
+
+DEF credit_nonneg : int int -> int
+  PRE { OVER 0 GTE SWAP 0 GTE AND }
+  ADD
+  POST DUP 0 GTE
+END

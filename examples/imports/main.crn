@@ -1,0 +1,7 @@
+# examples/imports/main.crn — minimal IMPORT demo
+
+IMPORT "lib.crn"
+
+42 double "double(42) = {}" FMT SAID
+65 describe_score SAID
+92 describe_score SAID

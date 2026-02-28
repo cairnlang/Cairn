@@ -1,0 +1,52 @@
+# option.crn — Algebraic Data Types + Pattern Matching (Milestone 3)
+#
+# Demonstrates TYPE declarations (sum types), MATCH (pattern dispatch),
+# and built-in prelude result helpers.
+#
+# Stack convention: param_types[0] is the TOP of stack (first popped).
+# To call `f : option int -> int`, push int first, then option last.
+
+# --- Option type ---
+TYPE option = None | Some int
+
+# unwrap_or: return the value inside Some, or a default if None
+# Signature: option int -> int  (option on top, default below)
+DEF unwrap_or : option int -> int
+  MATCH
+    None { }           # None: leave the default (int) on stack
+    Some { SWAP DROP } # Some(x): stack=[x, default], swap+drop → [x]
+  END
+END
+
+# is_some: check if option holds a value
+DEF is_some : option -> bool
+  MATCH
+    None { F }
+    Some { DROP T }
+  END
+END
+
+# safe_div: divide two ints, returning Ok(result) or Err("division by zero")
+# Signature: int int -> result  (divisor on top, dividend below)
+DEF safe_div : int int -> result
+  DUP 0 EQ
+  IF
+    DROP DROP "division by zero" Err
+  ELSE
+    DIV Ok
+  END
+END
+
+# --- Demo expressions ---
+
+# Option usage
+0 42 Some unwrap_or SAID   # → 42 (Some value)
+0 None    unwrap_or SAID   # → 0  (default)
+
+42 Some is_some SAID       # → true
+None    is_some SAID       # → false
+
+# Result usage
+-1 10 2 safe_div result_unwrap_or SAID   # → 5
+-1 10 0 safe_div result_unwrap_or SAID   # → -1 (division by zero)
+10 0 safe_div result_is_err SAID         # → true

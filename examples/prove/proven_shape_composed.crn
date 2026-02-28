@@ -1,0 +1,35 @@
+# proven_shape_composed.crn — composed helper PRE narrowing in PROVE (v0.6.0m)
+
+TYPE shape = Circle int | Square int
+
+DEF is_square : shape -> bool
+  MATCH
+    Circle { DROP F }
+    Square { DROP T }
+  END
+END
+
+# Logically always false, but written as a composed helper branch.
+DEF impossible_square : shape -> bool
+  is_square
+  DUP NOT
+  AND
+END
+
+# Equivalent to is_square OR false, so PRE still narrows to Square.
+DEF square_by_composed_guard : shape -> bool
+  DUP is_square
+  SWAP impossible_square
+  OR
+END
+
+DEF square_only_abs_composed : shape -> int
+  PRE { square_by_composed_guard }
+  MATCH
+    Circle { LEN }
+    Square { ABS }
+  END
+  POST DUP 0 GTE
+END
+
+PROVE square_only_abs_composed

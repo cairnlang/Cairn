@@ -1,0 +1,4 @@
+# cat.crn — print contents of a file
+# Usage: mix cairn.run examples/cat.crn <filename>
+
+ARGV HEAD READ_FILE! SAID

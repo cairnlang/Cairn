@@ -1,0 +1,19 @@
+# examples/concurrency/self_boot.crn
+# Demonstrates SELF by sending the actor a bootstrap message to itself.
+
+IMPORT "lib/actor.crn"
+
+TYPE msg = Boot
+
+DEF send_boot : void
+  Boot send_self
+END
+
+SPAWN msg {
+  send_boot
+  RECEIVE
+    Boot { "booted" SAID }
+  END
+  DROP
+}
+DROP

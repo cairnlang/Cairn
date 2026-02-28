@@ -1,0 +1,13 @@
+# grep.crn — search for a pattern in a file (hardcoded: "grape")
+# Usage: mix cairn.run examples/grep.crn <filename>
+
+ARGV HEAD READ_FILE! LINES # stack: [[line1, line2, ...]]
+
+{
+  "grape" SWAP CONTAINS # stack: [boolean]
+} FILTER # stack: [[matching_line1, matching_line2, ...]]
+
+[] # initial accumulator for REDUCE (empty list)
+{
+  SAID # print and drop the current line
+} REDUCE # stack: [[]] (the final accumulator)

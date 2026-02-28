@@ -1,0 +1,38 @@
+# examples/concurrency/counter.crn
+# Stateful actor example: state lives in a local WITH_STATE thread across repeated actor-local RECEIVE steps via STEP.
+
+IMPORT "lib/actor.crn"
+
+TYPE msg = Inc | Dec | Emit
+
+DEF emit_count : int -> int
+  DUP "count={}" FMT SAID
+END
+
+DEF step_count : int -> int
+  RECEIVE
+    Inc { 1 ADD }
+    Dec { 1 SUB }
+    Emit { emit_count }
+  END
+END
+
+DEF queue_script : void
+  Inc send_self
+  Inc send_self
+  Dec send_self
+  Emit send_self
+END
+
+SPAWN msg {
+  queue_script
+  0 {
+    4 {
+      STEP step_count
+    } REPEAT
+  } WITH_STATE
+
+  DROP
+  DROP
+}
+DROP

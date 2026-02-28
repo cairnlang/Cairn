@@ -1,0 +1,19 @@
+# examples/concurrency/ping_pong_types.crn
+# Static typing example: definitions only, runtime process ops are not implemented yet.
+
+TYPE msg = Ping | Pong
+
+DEF send_ping : pid[msg] -> void
+  Ping SEND
+END
+
+DEF handle_message : pid[msg] -> str
+  RECEIVE
+    Ping { "got_ping" }
+    Pong { "got_pong" }
+  END
+END
+
+DEF spawn_peer : pid[msg]
+  SPAWN msg { DROP "peer_ready" SAID }
+END

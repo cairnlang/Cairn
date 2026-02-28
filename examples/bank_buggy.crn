@@ -1,0 +1,14 @@
+# bank_buggy.crn — A buggy withdraw that VERIFY catches
+#
+# This version has a subtle bug: the PRE condition checks amount > 0
+# but forgets to check balance >= amount. VERIFY finds a counterexample
+# where a valid-looking withdrawal produces a negative balance.
+
+DEF withdraw_buggy : int int -> int
+  PRE { DUP 0 GT }
+  SUB
+  POST DUP 0 GTE
+END
+
+# This will FAIL: PROVE finds that POST can be violated
+PROVE withdraw_buggy

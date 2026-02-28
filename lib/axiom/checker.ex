@@ -857,7 +857,11 @@ defmodule Axiom.Checker do
           {arg_types, base} ->
             state =
               arg_types
-              |> Enum.zip(param_types)
+              # Runtime constructors pop top-first, so the last declared field is on top
+              # at the call site. Reverse the declared field list here to match that stack
+              # order while preserving the user-facing "push fields in declaration order"
+              # convention already used by the evaluator.
+              |> Enum.zip(Enum.reverse(param_types))
               |> Enum.reduce(%{state | stack: base}, fn {actual, expected}, st ->
                 case Unify.unify(actual, expected) do
                   {:ok, _} -> st

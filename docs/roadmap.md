@@ -433,6 +433,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Enforced same-type state updates plus stack-clean `WITH_STATE` bodies in both the checker and runtime
 - Rewrote `examples/concurrency/counter.ax` around `WITH_STATE`, making the first actor-state example use explicit local state threading instead of raw stack-carried state
 
+### v0.7.1b — Composite Actor State Follow-Through
+- Added direct runtime/checker coverage for `WITH_STATE` carrying ADT-wrapped composite state, proving the feature works beyond a single scalar value
+- Rewrote `examples/concurrency/guess_binary.ax` so both actors now keep their working state inside typed `WITH_STATE` values rather than split stack/`LET` juggling
+- Used user-defined sum types (`ref_state`, `search_state`) to carry pids plus bounds/flags, establishing the intended near-term pattern for richer actor workflows without introducing mutation
+
 ---
 
 ## Next Up
@@ -488,7 +493,7 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 
 **Bounded slices now landed:** the first collection-helper pass added `ZIP`, `ENUMERATE`, and `FLAT_MAP`; the follow-up pass added `TAKE`, `FIND`, and `GROUP_BY`. The shape-heavy cases still use a pragmatic type story, and `examples/collections.ax` now serves as the focused showcase for the whole mini-stack.
 
-**Current concurrency examples also now include a bounded binary-search game slice:** `examples/concurrency/guess_binary.ax` proves the current actor runtime is usable for a small stateful search workflow without adding any new concurrency primitives.
+**Current concurrency examples also now include a bounded binary-search game slice:** `examples/concurrency/guess_binary.ax` now doubles as the first composite-`WITH_STATE` actor workflow, proving the current actor runtime plus explicit state threading can carry a small stateful search workflow without adding new concurrency primitives.
 
 #### 2. Float Math As Explicit Float Ops
 **Goal:** Add practical numeric capability without forcing a broader numeric-type redesign yet.

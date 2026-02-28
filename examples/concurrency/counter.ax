@@ -1,5 +1,5 @@
 # examples/concurrency/counter.ax
-# Stateful actor example: state lives on the stack across repeated actor-local RECEIVE steps.
+# Stateful actor example: state lives in a local WITH_STATE thread across repeated actor-local RECEIVE steps.
 
 IMPORT "lib/actor.ax"
 

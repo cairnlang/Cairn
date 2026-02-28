@@ -2,6 +2,8 @@
 # Bounded actor demo: a single guesser uses binary search against a referee's random target.
 
 TYPE msg = Start pid[msg] | Peer pid[msg] | Guess int | TooLow | TooHigh | Correct
+TYPE ref_state = RefState pid[msg] int bool
+TYPE search_state = SearchState pid[msg] int int bool
 
 DEF midpoint : int int -> int
   ADD 2 DIV
@@ -13,148 +15,279 @@ SPAWN msg {
     _ { SELF }
   END
 
-  100 RANDOM LET target
-  F LET done
+  LET peer
 
-  done NOT IF
-    RECEIVE
-      Guess {
-        DUP target EQ
-        IF
-          DROP DUP Correct SEND
-          T LET done
-        ELSE
-          DUP target LT
-          IF
-            DROP DUP TooLow SEND
-          ELSE
-            DROP DUP TooHigh SEND
-          END
-        END
-      }
-      _ { }
-    END
-  END
+  peer
+  100 RANDOM
+  F
+  RefState
+  {
+    STATE
+    MATCH
+      RefState {
+        LET peer
+        LET target
+        LET done
 
-  done NOT IF
-    RECEIVE
-      Guess {
-        DUP target EQ
-        IF
-          DROP DUP Correct SEND
-          T LET done
-        ELSE
-          DUP target LT
-          IF
-            DROP DUP TooLow SEND
-          ELSE
-            DROP DUP TooHigh SEND
+        done NOT IF
+          RECEIVE
+            Guess {
+              DUP target EQ
+              IF
+                DROP
+                peer Correct SEND
+                peer target T RefState
+              ELSE
+                DUP target LT
+                IF
+                  DROP
+                  peer TooLow SEND
+                  peer target done RefState
+                ELSE
+                  DROP
+                  peer TooHigh SEND
+                  peer target done RefState
+                END
+              END
+            }
+            _ { peer target done RefState }
           END
+        ELSE
+          peer target done RefState
         END
-      }
-      _ { }
-    END
-  END
 
-  done NOT IF
-    RECEIVE
-      Guess {
-        DUP target EQ
-        IF
-          DROP DUP Correct SEND
-          T LET done
-        ELSE
-          DUP target LT
-          IF
-            DROP DUP TooLow SEND
-          ELSE
-            DROP DUP TooHigh SEND
-          END
-        END
+        SET_STATE
       }
-      _ { }
     END
-  END
 
-  done NOT IF
-    RECEIVE
-      Guess {
-        DUP target EQ
-        IF
-          DROP DUP Correct SEND
-          T LET done
-        ELSE
-          DUP target LT
-          IF
-            DROP DUP TooLow SEND
-          ELSE
-            DROP DUP TooHigh SEND
-          END
-        END
-      }
-      _ { }
-    END
-  END
+    STATE
+    MATCH
+      RefState {
+        LET peer
+        LET target
+        LET done
 
-  done NOT IF
-    RECEIVE
-      Guess {
-        DUP target EQ
-        IF
-          DROP DUP Correct SEND
-          T LET done
-        ELSE
-          DUP target LT
-          IF
-            DROP DUP TooLow SEND
-          ELSE
-            DROP DUP TooHigh SEND
+        done NOT IF
+          RECEIVE
+            Guess {
+              DUP target EQ
+              IF
+                DROP
+                peer Correct SEND
+                peer target T RefState
+              ELSE
+                DUP target LT
+                IF
+                  DROP
+                  peer TooLow SEND
+                  peer target done RefState
+                ELSE
+                  DROP
+                  peer TooHigh SEND
+                  peer target done RefState
+                END
+              END
+            }
+            _ { peer target done RefState }
           END
+        ELSE
+          peer target done RefState
         END
-      }
-      _ { }
-    END
-  END
 
-  done NOT IF
-    RECEIVE
-      Guess {
-        DUP target EQ
-        IF
-          DROP DUP Correct SEND
-          T LET done
-        ELSE
-          DUP target LT
-          IF
-            DROP DUP TooLow SEND
-          ELSE
-            DROP DUP TooHigh SEND
-          END
-        END
+        SET_STATE
       }
-      _ { }
     END
-  END
 
-  done NOT IF
-    RECEIVE
-      Guess {
-        DUP target EQ
-        IF
-          DROP DUP Correct SEND
-          T LET done
-        ELSE
-          DUP target LT
-          IF
-            DROP DUP TooLow SEND
-          ELSE
-            DROP DUP TooHigh SEND
+    STATE
+    MATCH
+      RefState {
+        LET peer
+        LET target
+        LET done
+
+        done NOT IF
+          RECEIVE
+            Guess {
+              DUP target EQ
+              IF
+                DROP
+                peer Correct SEND
+                peer target T RefState
+              ELSE
+                DUP target LT
+                IF
+                  DROP
+                  peer TooLow SEND
+                  peer target done RefState
+                ELSE
+                  DROP
+                  peer TooHigh SEND
+                  peer target done RefState
+                END
+              END
+            }
+            _ { peer target done RefState }
           END
+        ELSE
+          peer target done RefState
         END
+
+        SET_STATE
       }
-      _ { }
     END
-  END
+
+    STATE
+    MATCH
+      RefState {
+        LET peer
+        LET target
+        LET done
+
+        done NOT IF
+          RECEIVE
+            Guess {
+              DUP target EQ
+              IF
+                DROP
+                peer Correct SEND
+                peer target T RefState
+              ELSE
+                DUP target LT
+                IF
+                  DROP
+                  peer TooLow SEND
+                  peer target done RefState
+                ELSE
+                  DROP
+                  peer TooHigh SEND
+                  peer target done RefState
+                END
+              END
+            }
+            _ { peer target done RefState }
+          END
+        ELSE
+          peer target done RefState
+        END
+
+        SET_STATE
+      }
+    END
+
+    STATE
+    MATCH
+      RefState {
+        LET peer
+        LET target
+        LET done
+
+        done NOT IF
+          RECEIVE
+            Guess {
+              DUP target EQ
+              IF
+                DROP
+                peer Correct SEND
+                peer target T RefState
+              ELSE
+                DUP target LT
+                IF
+                  DROP
+                  peer TooLow SEND
+                  peer target done RefState
+                ELSE
+                  DROP
+                  peer TooHigh SEND
+                  peer target done RefState
+                END
+              END
+            }
+            _ { peer target done RefState }
+          END
+        ELSE
+          peer target done RefState
+        END
+
+        SET_STATE
+      }
+    END
+
+    STATE
+    MATCH
+      RefState {
+        LET peer
+        LET target
+        LET done
+
+        done NOT IF
+          RECEIVE
+            Guess {
+              DUP target EQ
+              IF
+                DROP
+                peer Correct SEND
+                peer target T RefState
+              ELSE
+                DUP target LT
+                IF
+                  DROP
+                  peer TooLow SEND
+                  peer target done RefState
+                ELSE
+                  DROP
+                  peer TooHigh SEND
+                  peer target done RefState
+                END
+              END
+            }
+            _ { peer target done RefState }
+          END
+        ELSE
+          peer target done RefState
+        END
+
+        SET_STATE
+      }
+    END
+
+    STATE
+    MATCH
+      RefState {
+        LET peer
+        LET target
+        LET done
+
+        done NOT IF
+          RECEIVE
+            Guess {
+              DUP target EQ
+              IF
+                DROP
+                peer Correct SEND
+                peer target T RefState
+              ELSE
+                DUP target LT
+                IF
+                  DROP
+                  peer TooLow SEND
+                  peer target done RefState
+                ELSE
+                  DROP
+                  peer TooHigh SEND
+                  peer target done RefState
+                END
+              END
+            }
+            _ { peer target done RefState }
+          END
+        ELSE
+          peer target done RefState
+        END
+
+        SET_STATE
+      }
+    END
+  } WITH_STATE
 
   DROP
   DROP
@@ -167,121 +300,224 @@ SPAWN msg {
     _ { SELF }
   END
 
-  1 LET low
-  100 LET high
-  F LET done
+  LET peer
 
-  done NOT IF
-    high low midpoint
-    DUP LET guess
-    DUP "guess={}" FMT SAID
-    OVER SWAP Guess SEND
-    RECEIVE
-      TooLow { guess 1 ADD LET low }
-      TooHigh { guess 1 SUB LET high }
-      Correct {
-        guess "solved={}" FMT SAID
-        T LET done
-      }
-      _ { }
-    END
-  END
+  peer
+  1
+  100
+  F
+  SearchState
+  {
+    STATE
+    MATCH
+      SearchState {
+        LET peer
+        LET low
+        LET high
+        LET done
 
-  done NOT IF
-    high low midpoint
-    DUP LET guess
-    DUP "guess={}" FMT SAID
-    OVER SWAP Guess SEND
-    RECEIVE
-      TooLow { guess 1 ADD LET low }
-      TooHigh { guess 1 SUB LET high }
-      Correct {
-        guess "solved={}" FMT SAID
-        T LET done
-      }
-      _ { }
-    END
-  END
+        done NOT IF
+          high low midpoint
+          LET guess
+          guess "guess={}" FMT SAID
+          peer guess Guess SEND
+          RECEIVE
+            TooLow { peer guess 1 ADD high done SearchState }
+            TooHigh { peer low guess 1 SUB done SearchState }
+            Correct {
+              guess "solved={}" FMT SAID
+              peer low high T SearchState
+            }
+            _ { peer low high done SearchState }
+          END
+        ELSE
+          peer low high done SearchState
+        END
 
-  done NOT IF
-    high low midpoint
-    DUP LET guess
-    DUP "guess={}" FMT SAID
-    OVER SWAP Guess SEND
-    RECEIVE
-      TooLow { guess 1 ADD LET low }
-      TooHigh { guess 1 SUB LET high }
-      Correct {
-        guess "solved={}" FMT SAID
-        T LET done
+        SET_STATE
       }
-      _ { }
     END
-  END
 
-  done NOT IF
-    high low midpoint
-    DUP LET guess
-    DUP "guess={}" FMT SAID
-    OVER SWAP Guess SEND
-    RECEIVE
-      TooLow { guess 1 ADD LET low }
-      TooHigh { guess 1 SUB LET high }
-      Correct {
-        guess "solved={}" FMT SAID
-        T LET done
-      }
-      _ { }
-    END
-  END
+    STATE
+    MATCH
+      SearchState {
+        LET peer
+        LET low
+        LET high
+        LET done
 
-  done NOT IF
-    high low midpoint
-    DUP LET guess
-    DUP "guess={}" FMT SAID
-    OVER SWAP Guess SEND
-    RECEIVE
-      TooLow { guess 1 ADD LET low }
-      TooHigh { guess 1 SUB LET high }
-      Correct {
-        guess "solved={}" FMT SAID
-        T LET done
-      }
-      _ { }
-    END
-  END
+        done NOT IF
+          high low midpoint
+          LET guess
+          guess "guess={}" FMT SAID
+          peer guess Guess SEND
+          RECEIVE
+            TooLow { peer guess 1 ADD high done SearchState }
+            TooHigh { peer low guess 1 SUB done SearchState }
+            Correct {
+              guess "solved={}" FMT SAID
+              peer low high T SearchState
+            }
+            _ { peer low high done SearchState }
+          END
+        ELSE
+          peer low high done SearchState
+        END
 
-  done NOT IF
-    high low midpoint
-    DUP LET guess
-    DUP "guess={}" FMT SAID
-    OVER SWAP Guess SEND
-    RECEIVE
-      TooLow { guess 1 ADD LET low }
-      TooHigh { guess 1 SUB LET high }
-      Correct {
-        guess "solved={}" FMT SAID
-        T LET done
+        SET_STATE
       }
-      _ { }
     END
-  END
 
-  done NOT IF
-    high low midpoint
-    DUP LET guess
-    DUP "guess={}" FMT SAID
-    OVER SWAP Guess SEND
-    RECEIVE
-      TooLow { guess 1 ADD LET low }
-      TooHigh { guess 1 SUB LET high }
-      Correct {
-        guess "solved={}" FMT SAID
-        T LET done
+    STATE
+    MATCH
+      SearchState {
+        LET peer
+        LET low
+        LET high
+        LET done
+
+        done NOT IF
+          high low midpoint
+          LET guess
+          guess "guess={}" FMT SAID
+          peer guess Guess SEND
+          RECEIVE
+            TooLow { peer guess 1 ADD high done SearchState }
+            TooHigh { peer low guess 1 SUB done SearchState }
+            Correct {
+              guess "solved={}" FMT SAID
+              peer low high T SearchState
+            }
+            _ { peer low high done SearchState }
+          END
+        ELSE
+          peer low high done SearchState
+        END
+
+        SET_STATE
       }
-      _ { }
     END
-  END
+
+    STATE
+    MATCH
+      SearchState {
+        LET peer
+        LET low
+        LET high
+        LET done
+
+        done NOT IF
+          high low midpoint
+          LET guess
+          guess "guess={}" FMT SAID
+          peer guess Guess SEND
+          RECEIVE
+            TooLow { peer guess 1 ADD high done SearchState }
+            TooHigh { peer low guess 1 SUB done SearchState }
+            Correct {
+              guess "solved={}" FMT SAID
+              peer low high T SearchState
+            }
+            _ { peer low high done SearchState }
+          END
+        ELSE
+          peer low high done SearchState
+        END
+
+        SET_STATE
+      }
+    END
+
+    STATE
+    MATCH
+      SearchState {
+        LET peer
+        LET low
+        LET high
+        LET done
+
+        done NOT IF
+          high low midpoint
+          LET guess
+          guess "guess={}" FMT SAID
+          peer guess Guess SEND
+          RECEIVE
+            TooLow { peer guess 1 ADD high done SearchState }
+            TooHigh { peer low guess 1 SUB done SearchState }
+            Correct {
+              guess "solved={}" FMT SAID
+              peer low high T SearchState
+            }
+            _ { peer low high done SearchState }
+          END
+        ELSE
+          peer low high done SearchState
+        END
+
+        SET_STATE
+      }
+    END
+
+    STATE
+    MATCH
+      SearchState {
+        LET peer
+        LET low
+        LET high
+        LET done
+
+        done NOT IF
+          high low midpoint
+          LET guess
+          guess "guess={}" FMT SAID
+          peer guess Guess SEND
+          RECEIVE
+            TooLow { peer guess 1 ADD high done SearchState }
+            TooHigh { peer low guess 1 SUB done SearchState }
+            Correct {
+              guess "solved={}" FMT SAID
+              peer low high T SearchState
+            }
+            _ { peer low high done SearchState }
+          END
+        ELSE
+          peer low high done SearchState
+        END
+
+        SET_STATE
+      }
+    END
+
+    STATE
+    MATCH
+      SearchState {
+        LET peer
+        LET low
+        LET high
+        LET done
+
+        done NOT IF
+          high low midpoint
+          LET guess
+          guess "guess={}" FMT SAID
+          peer guess Guess SEND
+          RECEIVE
+            TooLow { peer guess 1 ADD high done SearchState }
+            TooHigh { peer low guess 1 SUB done SearchState }
+            Correct {
+              guess "solved={}" FMT SAID
+              peer low high T SearchState
+            }
+            _ { peer low high done SearchState }
+          END
+        ELSE
+          peer low high done SearchState
+        END
+
+        SET_STATE
+      }
+    END
+  } WITH_STATE
 
   DROP
   DROP

@@ -447,6 +447,29 @@ defmodule Axiom.CheckerTest do
       check_ok("1 { STATE 1 ADD SET_STATE } WITH_STATE")
     end
 
+    test "WITH_STATE accepts ADT-wrapped composite state" do
+      check_ok("""
+      TYPE pair = Pair int int
+      1 2 Pair
+      {
+        STATE
+        MATCH
+          Pair { 1 ADD SWAP 10 ADD SWAP Pair SET_STATE }
+        END
+      } WITH_STATE
+      """)
+    end
+
+    test "constructors accept mixed fields in declaration order" do
+      check_ok("""
+      TYPE mixed = Mixed str int bool
+      "peer" 1 T Mixed
+      MATCH
+        Mixed { DROP DROP DROP }
+      END
+      """)
+    end
+
     test "FILTER with block" do
       check_ok("[ 1 2 3 4 5 ] { 2 MOD 1 EQ } FILTER")
     end

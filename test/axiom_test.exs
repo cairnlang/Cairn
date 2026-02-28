@@ -239,6 +239,32 @@ defmodule AxiomTest do
       assert Axiom.eval("1 { STATE 1 ADD SET_STATE STATE 2 MUL SET_STATE } WITH_STATE") == [4]
     end
 
+    test "with_state can thread an ADT-wrapped composite state" do
+      assert Axiom.eval("""
+             TYPE pair = Pair int int
+             1 2 Pair
+             {
+               STATE
+               MATCH
+                 Pair { 1 ADD SWAP 10 ADD SWAP Pair SET_STATE }
+               END
+             } WITH_STATE
+             MATCH
+               Pair { }
+             END
+             """) == [12, 2]
+    end
+
+    test "constructors accept mixed fields in declaration order" do
+      assert Axiom.eval("""
+             TYPE mixed = Mixed str int bool
+             "peer" 1 T Mixed
+             MATCH
+               Mixed { }
+             END
+             """) == ["peer", 1, true]
+    end
+
     test "with_state block must leave no visible values" do
       assert_raise Axiom.StaticError, ~r/WITH_STATE block must leave no visible values/, fn ->
         Axiom.eval("1 { STATE } WITH_STATE")

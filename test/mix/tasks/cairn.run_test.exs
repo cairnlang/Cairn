@@ -65,6 +65,7 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert output =~ "examples/ambitious/orchestrator.crn"
     assert output =~ "web:"
     assert output =~ "examples/web/hello_static.crn"
+    assert output =~ "examples/web/todo_app.crn"
     assert output =~ "prelude:"
     assert output =~ "examples/prelude/result_flow.crn"
     assert output =~ "examples/prelude/env_parse.crn"

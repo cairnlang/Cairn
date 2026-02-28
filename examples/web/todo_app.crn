@@ -1,0 +1,30 @@
+IMPORT "lib/todo_web.crn"
+
+ARGV LEN 0 GT
+IF
+  ARGV HEAD
+ELSE
+  "127.0.0.1"
+END
+LET bind_host
+
+ARGV LEN 1 GT
+IF
+  8090 ARGV TAIL HEAD to_int_or
+ELSE
+  8090
+END
+LET port
+
+ARGV LEN 2 GT
+IF
+  ARGV TAIL TAIL HEAD
+ELSE
+  "examples/web/data/todo.txt"
+END
+LET todo_path
+
+port bind_host port bind_host todo_path "web: serving todo app from {} at http://{}:{}/ and http://{}:{}/add?title=..." FMT SAID
+bind_host port {
+  todo_path handle_todo_request
+} HTTP_SERVE

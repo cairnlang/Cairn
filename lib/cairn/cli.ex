@@ -62,7 +62,8 @@ defmodule Cairn.CLI do
      ]},
     {"web",
      [
-       "examples/web/hello_static.crn"
+       "examples/web/hello_static.crn",
+       "examples/web/todo_app.crn"
      ]},
     {"prelude",
      [

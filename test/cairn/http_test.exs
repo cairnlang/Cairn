@@ -185,6 +185,44 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "web todo app renders file-backed items as escaped HTML" do
+    port = free_port()
+    todo_path = write_temp_todo_file(["open|buy milk", "done|book train", "open|<script>alert('hola')</script>"])
+
+    task = start_todo_app(port, todo_path)
+
+    response = http_get(port, "/")
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "Content-Type: text/html; charset=utf-8"
+    assert response =~ "Cairn Todo"
+    assert response =~ "buy milk"
+    assert response =~ "&lt;script&gt;alert(&#39;hola&#39;)&lt;/script&gt;"
+    refute response =~ "<script>alert('hola')</script>"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "web todo app can add and complete file-backed items through GET routes" do
+    port = free_port()
+    todo_path = write_temp_todo_file(["open|buy milk", "open|prepare slides"])
+
+    task = start_todo_app(port, todo_path)
+
+    add_response = http_get(port, "/add?title=book%20flight")
+    done_response = http_get(port, "/done?id=1")
+    saved = File.read!(todo_path)
+
+    assert add_response =~ "HTTP/1.1 200 OK"
+    assert add_response =~ "book flight"
+    assert done_response =~ "HTTP/1.1 200 OK"
+    assert done_response =~ "<strong>done</strong> buy milk"
+    assert saved =~ "done|buy milk"
+    assert saved =~ "open|book flight"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   defp http_get(port, path) do
     http_request(port, "GET", path)
   end
@@ -334,5 +372,19 @@ defmodule Cairn.HTTPTest do
 
       Cairn.eval(source)
     end)
+  end
+
+  defp start_todo_app(port, todo_path) do
+    Task.async(fn ->
+      Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port), todo_path])
+      Cairn.eval_file("examples/web/todo_app.crn")
+    end)
+  end
+
+  defp write_temp_todo_file(lines) do
+    dir = System.tmp_dir!()
+    path = Path.join(dir, "cairn_web_todo_#{System.unique_integer([:positive])}.txt")
+    File.write!(path, Enum.join(lines, "\n"))
+    path
   end
 end

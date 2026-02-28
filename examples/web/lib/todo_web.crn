@@ -1,0 +1,147 @@
+IMPORT "../../practical/lib/todo.crn"
+
+DEF load_todo_items : str -> [str]
+  "" SWAP read_file_or
+  lines_nonempty
+END
+
+DEF save_todo_items : str [str] -> [str]
+  LET todo_path
+  DUP "\n" JOIN todo_path WRITE_FILE!
+END
+
+DEF todo_line_title : str -> str
+  "|" SPLIT TAIL "|" JOIN
+END
+
+DEF render_todo_line : [any] -> str
+  DUP HEAD LET todo_id
+  TAIL HEAD LET line
+
+  line todo_line_title html_escape LET safe_title
+
+  line todo_is_done
+  IF
+    safe_title "<li><strong>done</strong> {}</li>" FMT
+  ELSE
+    todo_id safe_title "<li>{} <a href=\"/done?id={}\">mark done</a></li>" FMT
+  END
+END
+
+DEF render_todo_items : [str] -> str
+  DUP LEN 0 EQ
+  IF
+    DROP
+    "<li>No todo items yet.</li>"
+  ELSE
+    ENUMERATE
+    { render_todo_line } MAP
+    "\n" JOIN
+  END
+END
+
+DEF render_todo_page : [str] -> str
+  DUP count_open LET open_count
+  DUP count_done LET done_count
+  DUP LEN LET total_count
+  render_todo_items LET items_html
+
+  open_count done_count total_count items_html "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Cairn Todo</title>\n  </head>\n  <body>\n    <h1>Cairn Todo</h1>\n    <p>Open: {} | Done: {} | Total: {}</p>\n    <form action=\"/add\" method=\"get\">\n      <input name=\"title\" placeholder=\"New task\" />\n      <button type=\"submit\">Add</button>\n    </form>\n    <ul>\n{}\n    </ul>\n  </body>\n</html>\n" FMT
+END
+
+DEF render_todo_response : [str] -> str str int
+  render_todo_page
+  http_html_ok
+END
+
+DEF add_todo_item : str [str] -> [str]
+  LET title
+  LET items
+
+  title TRIM LET clean_title
+  clean_title LEN 0 GT
+  IF
+    clean_title "open|{}" FMT
+    [] CONS
+    items SWAP CONCAT
+  ELSE
+    items
+  END
+END
+
+DEF mark_done_at : int [str] -> [str]
+  LET target_id
+  ENUMERATE {
+    DUP HEAD LET todo_id
+    TAIL HEAD LET line
+
+    todo_id target_id EQ
+    line todo_is_open
+    AND
+    IF
+      line todo_line_title
+      "done|{}" FMT
+    ELSE
+      line
+    END
+  } MAP
+END
+
+DEF handle_todo_index : str -> str str int
+  load_todo_items
+  render_todo_response
+END
+
+DEF handle_todo_add : str map[str str] -> str str int
+  LET todo_path
+  LET query
+
+  "title" query "" map_get_or
+  todo_path load_todo_items
+  SWAP add_todo_item
+  todo_path save_todo_items
+  render_todo_response
+END
+
+DEF handle_todo_done : str map[str str] -> str str int
+  LET todo_path
+  LET query
+
+  "id" query "0" map_get_or
+  0 SWAP to_int_or
+  LET target_id
+
+  todo_path load_todo_items
+  target_id mark_done_at
+  todo_path save_todo_items
+  render_todo_response
+END
+
+DEF handle_todo_request : str str str map[str str] -> str str int
+  LET todo_path
+  LET path
+  LET method
+  LET query
+
+  method "GET" EQ
+  IF
+    path "/" EQ
+    IF
+      todo_path handle_todo_index
+    ELSE
+      path "/add" EQ
+      IF
+        query todo_path handle_todo_add
+      ELSE
+        path "/done" EQ
+        IF
+          query todo_path handle_todo_done
+        ELSE
+          "not found\n" http_text_not_found
+        END
+      END
+    END
+  ELSE
+    "method not allowed\n" http_text_method_not_allowed
+  END
+END

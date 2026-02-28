@@ -67,6 +67,7 @@ Good first programs to run:
 - `./cairn examples/practical/mini_ini.crn`
 - `./cairn examples/ambitious/orchestrator.crn`
 - `./cairn examples/web/hello_static.crn`
+- `./cairn examples/web/todo_app.crn`
 - `./cairn examples/concurrency/guess_binary.crn`
 
 ## What It Does Well Today
@@ -107,6 +108,7 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
 - `examples/web/hello_static.crn`: tiny multi-route server with Cairn-owned `GET` route helpers, parsed query visibility, explicit bind address support, bounded transport defaults, and a safe dynamic HTML greeting route that escapes user input (`HTTP_SERVE`)
+- `examples/web/todo_app.crn`: file-backed web todo app with escaped HTML rendering plus bounded `GET /add` and `GET /done` mutation routes
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake
 - `examples/concurrency/guess_binary.crn`: stateful actor workflow with bounded repeated steps
 

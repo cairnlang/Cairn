@@ -1,0 +1,3 @@
+open|buy milk
+done|book train
+open|prepare slides

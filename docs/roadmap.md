@@ -347,6 +347,11 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded the web-prelude demo to show concrete escaping of hostile-looking markup
 - Upgraded the tiny web server with a `/hello?name=...` HTML route that escapes user input before rendering it
 
+### v0.8.4a — File-Backed Web Todo (Read + Mutate)
+- Added `examples/web/todo_app.crn` as the first file-backed web app
+- Added `examples/web/lib/todo_web.crn` to reuse the existing `open|title` todo format over HTTP
+- The new web todo app renders escaped HTML from the todo file and persists bounded `GET /add` and `GET /done` mutations back to disk
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

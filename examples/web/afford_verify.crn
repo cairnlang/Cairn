@@ -1,0 +1,15 @@
+IMPORT "lib/afford_rules.crn"
+
+VERIFY score_one_time_in_range 60
+VERIFY score_recurring_in_range 60
+VERIFY higher_one_time_cost_not_better 60
+VERIFY higher_recurring_cost_not_better 60
+VERIFY risk_label_known 40
+
+PROVE score_one_time
+PROVE score_recurring
+PROVE score_from_projected_margin
+PROVE reserve_threshold
+PROVE caution_threshold
+PROVE reserve_breach_not_safe
+PROVE negative_margin_not_safe_from_margin

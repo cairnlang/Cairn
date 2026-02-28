@@ -1,7 +1,7 @@
 defmodule Cairn.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/prelude/env_parse.crn", "examples/prelude/ini_parse.crn", "examples/prelude/web_helpers.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/practical/mini_env.crn", "examples/practical/mini_ini.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn", "examples/ambitious/orchestrator.crn"]
+  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/prelude/env_parse.crn", "examples/prelude/ini_parse.crn", "examples/prelude/web_helpers.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/practical/mini_env.crn", "examples/practical/mini_ini.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn", "examples/ambitious/orchestrator.crn", "examples/web/afford_verify.crn"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -170,6 +170,21 @@ defmodule Cairn.ExamplesSmokeTest do
       "reporter: failed=1",
       "reporter: restarted=1",
       "reporter: run finished"
+    ])
+
+    assert_output_markers("examples/web/afford_verify.crn", [
+      "VERIFY score_one_time_in_range: OK",
+      "VERIFY score_recurring_in_range: OK",
+      "VERIFY higher_one_time_cost_not_better: OK",
+      "VERIFY higher_recurring_cost_not_better: OK",
+      "VERIFY risk_label_known: OK",
+      "PROVE score_one_time: UNKNOWN",
+      "PROVE score_recurring: UNKNOWN",
+      "PROVE score_from_projected_margin: PROVEN",
+      "PROVE reserve_threshold: PROVEN",
+      "PROVE caution_threshold: PROVEN",
+      "PROVE reserve_breach_not_safe: UNKNOWN",
+      "PROVE negative_margin_not_safe_from_margin: PROVEN"
     ])
   end
 

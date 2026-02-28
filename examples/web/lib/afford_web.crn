@@ -1,0 +1,185 @@
+IMPORT "afford_rules.crn"
+
+DEF field_value : map[str str] str -> str
+  LET form
+  LET key
+  key form "" map_get_or
+  html_escape
+END
+
+DEF kind_markup : map[str str] -> str
+  LET form
+  "kind" form "one_time" map_get_or LET kind
+
+  kind "one_time" EQ
+  IF
+    "<option value=\"one_time\" selected>One-time purchase</option>"
+  ELSE
+    "<option value=\"one_time\">One-time purchase</option>"
+  END
+  LET one_time_option
+
+  kind "recurring" EQ
+  IF
+    "<option value=\"recurring\" selected>Recurring monthly cost</option>"
+  ELSE
+    "<option value=\"recurring\">Recurring monthly cost</option>"
+  END
+  LET recurring_option
+
+  one_time_option "\n" CONCAT recurring_option CONCAT
+END
+
+DEF render_result_panel_empty : -> str
+  "<article><p>Enter your current numbers and evaluate a proposed cost.</p></article>"
+END
+
+DEF render_result_panel_error : str -> str
+  html_escape
+  "<article class=\"result-panel result-error\"><h2>Input error</h2><p>{}</p></article>" FMT
+END
+
+DEF risk_class_for_label : str -> str
+  DUP "safe" EQ
+  IF
+    DROP "result-safe"
+  ELSE
+    DUP "caution" EQ
+    IF
+      DROP "result-caution"
+    ELSE
+      DROP "result-danger"
+    END
+  END
+END
+
+DEF render_result_panel_success : int int int str str int -> str
+  LET reserve_value
+  LET remaining_cash
+  LET projected_margin
+  LET recommendation
+  LET risk_label
+  LET score
+
+  risk_label risk_class_for_label LET risk_class
+
+  reserve_value remaining_cash projected_margin score recommendation risk_label risk_class "<article class=\"result-panel {}\"><h2>Risk: {}</h2><p>{}</p><p><strong>Score:</strong> {}</p><ul><li><strong>Projected monthly margin:</strong> {}</li><li><strong>Remaining cash after purchase:</strong> {}</li><li><strong>Reserve threshold:</strong> {}</li></ul></article>" FMT
+END
+
+DEF render_afford_page : map[str str] str -> str
+  LET form
+  LET panel_html
+
+  "cash" form field_value LET cash_value
+  "income" form field_value LET income_value
+  "baseline" form field_value LET baseline_value
+  "proposed" form field_value LET proposed_value
+  form kind_markup LET kind_options
+
+  panel_html kind_options proposed_value baseline_value income_value cash_value "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Can I Afford This?</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n    <style>\n      .result-safe { border-left: 0.35rem solid #15803d; }\n      .result-caution { border-left: 0.35rem solid #d97706; }\n      .result-danger { border-left: 0.35rem solid #b91c1c; }\n      .stacked-grid { display: grid; gap: 1rem; }\n    </style>\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Can I Afford This?</h1>\n      <p>Estimate whether a proposed purchase or subscription is financially safe.</p>\n      <section class=\"stacked-grid\">\n        <form action=\"/evaluate\" method=\"post\">\n          <label>Current cash\n            <input name=\"cash\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Monthly income\n            <input name=\"income\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Monthly baseline expenses\n            <input name=\"baseline\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Proposed cost\n            <input name=\"proposed\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Cost type\n            <select name=\"kind\">\n{}\n            </select>\n          </label>\n          <button type=\"submit\">Evaluate</button>\n        </form>\n{}\n      </section>\n    </main>\n  </body>\n</html>\n" FMT
+END
+
+DEF render_afford_response : map[str str] str -> str str int
+  render_afford_page
+  http_html_ok
+END
+
+DEF form_numbers_valid : map[str str] -> bool
+  LET form
+  "cash" form "-1" map_get_or -1 SWAP to_int_or LET cash
+  "income" form "-1" map_get_or -1 SWAP to_int_or LET income
+  "baseline" form "-1" map_get_or -1 SWAP to_int_or LET baseline
+  "proposed" form "-1" map_get_or -1 SWAP to_int_or LET proposed
+
+  cash 0 GTE
+  income 0 GTE AND
+  baseline 0 GTE AND
+  proposed 0 GTE AND
+END
+
+DEF form_kind_valid : map[str str] -> bool
+  LET form
+  "kind" form "" map_get_or LET kind
+  kind "one_time" EQ
+  kind "recurring" EQ OR
+END
+
+DEF handle_afford_index : -> str str int
+  render_result_panel_empty
+  M[]
+  render_afford_response
+END
+
+DEF handle_afford_evaluate : map[str str] -> str str int
+  LET form
+
+  form form_numbers_valid
+  form form_kind_valid AND
+  IF
+    "cash" form "0" map_get_or 0 SWAP to_int_or LET cash
+    "income" form "0" map_get_or 0 SWAP to_int_or LET income
+    "baseline" form "0" map_get_or 0 SWAP to_int_or LET baseline
+    "proposed" form "0" map_get_or 0 SWAP to_int_or LET proposed
+    "kind" form "one_time" map_get_or LET kind
+
+    kind cash income baseline proposed affordability_score LET score
+    score risk_label_for_score LET risk_label
+    score recommendation_for_score LET recommendation
+    baseline reserve_threshold LET reserve_value
+
+    kind "recurring" EQ
+    IF
+      score
+      risk_label
+      recommendation
+      income baseline proposed projected_margin_after_recurring
+      cash
+      reserve_value
+      render_result_panel_success
+    ELSE
+      score
+      risk_label
+      recommendation
+      income baseline net_margin
+      cash proposed remaining_cash_after_purchase
+      reserve_value
+      render_result_panel_success
+    END
+    form
+    render_afford_response
+  ELSE
+    "All numeric fields must be non-negative integers, and the cost type must be valid."
+    render_result_panel_error
+    form
+    render_afford_response
+  END
+END
+
+DEF handle_afford_request : str str map[str str] map[str str] -> str str int
+  LET path
+  LET method
+  LET query
+  LET form
+
+  method "GET" EQ
+  IF
+    path "/" EQ
+    IF
+      handle_afford_index
+    ELSE
+      "not found\n" http_text_not_found
+    END
+  ELSE
+    method "POST" EQ
+    IF
+      path "/evaluate" EQ
+      IF
+        form handle_afford_evaluate
+      ELSE
+        "not found\n" http_text_not_found
+      END
+    ELSE
+      "method not allowed\n" http_text_method_not_allowed
+    END
+  END
+END

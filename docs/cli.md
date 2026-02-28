@@ -103,6 +103,8 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 6. Run the first bounded web-serving example:
    - `./cairn examples/web/hello_static.crn`
    - `./cairn examples/web/todo_app.crn`
+   - `./cairn examples/web/afford_app.crn`
+   - `./cairn examples/web/afford_verify.crn`
 7. Load typed-concurrency examples:
    - `./cairn examples/concurrency/ping_pong_types.crn`
    - `./cairn examples/concurrency/protocol_ping_pong.crn`
@@ -125,5 +127,7 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 `examples/web/hello_static.crn` is the first transport milestone: a deliberately tiny static HTTP server that binds to `127.0.0.1:8089` by default, passes the HTTP method, request path, parsed query map, and parsed form map into a Cairn handler block, and routes between two explicit pages (`/` and `/about`) plus a tiny dynamic text `/echo?name=...` endpoint and a safe dynamic HTML `/hello?name=...` endpoint. The route logic now lives in `examples/web/lib/hello_static.crn`, and it uses the GET-specific route helpers (`route_get_html_file`, `route_get_text`, `route_or`, `route_finish_get`) instead of a manual method gate. The HTML greeting route escapes user input with `html_escape` before embedding it into markup. Non-`GET` requests still return `405 Method Not Allowed`. You can override the bind and port as `./cairn examples/web/hello_static.crn 0.0.0.0 9090`. The host runtime owns the accept loop and HTTP framing; Cairn owns the route choice and response content. `HTTP_SERVE` can also take an explicit bind address literal like `"0.0.0.0"` from Cairn when you want to listen beyond loopback, and it now applies bounded transport defaults (`request_line_max=4096`, `read_timeout_ms=5000`, `body_max=8192`) unless you pass an options map.
 
 `examples/web/todo_app.crn` is the first Mnesia-backed web app. It renders todo items as escaped HTML, serves real HTML forms for `POST /add` and `POST /done`, and persists both add and complete actions in a small local Mnesia store instead of rewriting a text file. It stays intentionally bounded: only `application/x-www-form-urlencoded` form parsing, no sessions, and no framework magic—just the current `HTTP_SERVE` boundary plus Cairn-owned request handling. By default the local Mnesia files live under `.cairn_mnesia`; set `CAIRN_DB_DIR` if you want the app to persist elsewhere.
+
+`examples/web/afford_app.crn` is the first web app where the business rule engine is the point: it accepts a `POST /evaluate` form, computes whether a proposed purchase or subscription is safe, and renders a simple risk + recommendation panel. Its paired `examples/web/afford_verify.crn` runner keeps the `VERIFY`/`PROVE` story separate from the serving path so the live app stays production-shaped while the policy helpers remain explicitly checked.
 
 See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

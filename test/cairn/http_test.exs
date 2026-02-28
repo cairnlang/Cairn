@@ -341,6 +341,79 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(restarted_task, :brutal_kill)
   end
 
+  test "web affordability app renders the input form on GET /" do
+    port = free_port()
+    task = start_afford_app(port)
+
+    response = http_get(port, "/")
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "Content-Type: text/html; charset=utf-8"
+    assert response =~ "Can I Afford This?"
+    assert response =~ "Estimate whether a proposed purchase or subscription is financially safe."
+    assert response =~ "action=\"/evaluate\""
+    assert response =~ "Enter your current numbers and evaluate a proposed cost."
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "web affordability app evaluates safe and unsafe scenarios through POST" do
+    port = free_port()
+    task = start_afford_app(port)
+
+    safe_response =
+      http_post_form(port, "/evaluate", %{
+        "cash" => "1000",
+        "income" => "500",
+        "baseline" => "400",
+        "proposed" => "20",
+        "kind" => "recurring"
+      })
+
+    unsafe_response =
+      http_post_form(port, "/evaluate", %{
+        "cash" => "1000",
+        "income" => "500",
+        "baseline" => "400",
+        "proposed" => "900",
+        "kind" => "one_time"
+      })
+
+    assert safe_response =~ "HTTP/1.1 200 OK"
+    assert safe_response =~ "Risk: safe"
+    assert safe_response =~ "Safe to proceed"
+    assert safe_response =~ "<strong>Score:</strong> 0"
+    assert safe_response =~ "<strong>Projected monthly margin:</strong> 80"
+
+    assert unsafe_response =~ "HTTP/1.1 200 OK"
+    assert unsafe_response =~ "Risk: not safe"
+    assert unsafe_response =~ "Not safe: delay or reduce the cost"
+    assert unsafe_response =~ "<strong>Score:</strong> 2"
+    assert unsafe_response =~ "<strong>Remaining cash after purchase:</strong> 100"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "web affordability app rejects invalid input cleanly" do
+    port = free_port()
+    task = start_afford_app(port)
+
+    response =
+      http_post_form(port, "/evaluate", %{
+        "cash" => "oops",
+        "income" => "500",
+        "baseline" => "400",
+        "proposed" => "20",
+        "kind" => "one_time"
+      })
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "Input error"
+    assert response =~ "All numeric fields must be non-negative integers"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   defp http_get(port, path) do
     http_request(port, "GET", path)
   end
@@ -539,6 +612,13 @@ defmodule Cairn.HTTPTest do
     Task.async(fn ->
       Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
       Cairn.eval_file("examples/web/todo_app.crn")
+    end)
+  end
+
+  defp start_afford_app(port) do
+    Task.async(fn ->
+      Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
+      Cairn.eval_file("examples/web/afford_app.crn")
     end)
   end
 

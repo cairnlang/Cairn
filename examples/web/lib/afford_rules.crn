@@ -1,0 +1,250 @@
+# Pure affordability rules for the web app.
+# Keep this file free of web and transport concerns.
+
+DEF nonneg_triplet : int int int -> bool
+  LET c
+  LET b
+  LET a
+  a 0 GTE
+  b 0 GTE AND
+  c 0 GTE AND
+END
+
+DEF nonneg_quad : int int int int -> bool
+  LET d
+  LET c
+  LET b
+  LET a
+  a 0 GTE
+  b 0 GTE AND
+  c 0 GTE AND
+  d 0 GTE AND
+END
+
+DEF one_time_compare_inputs_valid : int int int int -> bool
+  LET high
+  LET low
+  LET baseline
+  LET cash
+  cash 0 GTE
+  baseline 0 GTE AND
+  low 0 GTE AND
+  high 0 GTE AND
+  high low GTE AND
+END
+
+DEF recurring_compare_inputs_valid : int int int int -> bool
+  LET high
+  LET low
+  LET baseline
+  LET income
+  income 0 GTE
+  baseline 0 GTE AND
+  low 0 GTE AND
+  high 0 GTE AND
+  high low GTE AND
+END
+
+DEF reserve_breach_inputs_valid : int int int -> bool
+  LET proposed
+  LET baseline
+  LET cash
+  cash 0 GTE
+  baseline 0 GTE AND
+  proposed 0 GTE AND
+  cash proposed SUB
+  baseline 3 MUL LT
+  AND
+END
+
+DEF reserve_threshold : int -> int
+  PRE { DUP 0 GTE }
+  3 MUL
+  POST DUP 0 GTE
+END
+
+DEF caution_threshold : int -> int
+  PRE { DUP 0 GTE }
+  4 MUL
+  POST DUP 0 GTE
+END
+
+DEF net_margin : int int -> int
+  LET baseline
+  LET income
+  income baseline SUB
+END
+
+DEF remaining_cash_after_purchase : int int -> int
+  LET proposed
+  LET cash
+  cash proposed SUB
+END
+
+DEF projected_margin_after_recurring : int int int -> int
+  LET proposed
+  LET baseline
+  LET income
+  income baseline proposed ADD SUB
+END
+
+DEF score_from_projected_margin : int -> int
+  DUP 0 GT
+  IF
+    DROP 0
+  ELSE
+    DUP 0 EQ
+    IF
+      DROP 1
+    ELSE
+      DROP 2
+    END
+  END
+  POST DUP 0 GTE SWAP 2 LTE AND
+END
+
+DEF score_one_time : int int int -> int
+  PRE { nonneg_triplet }
+  LET proposed
+  LET baseline
+  LET cash
+
+  cash proposed remaining_cash_after_purchase LET remaining_cash
+  baseline caution_threshold LET caution
+  baseline reserve_threshold LET reserve
+
+  remaining_cash caution GTE
+  IF
+    0
+  ELSE
+    remaining_cash reserve GTE
+    IF
+      1
+    ELSE
+      2
+    END
+  END
+  POST DUP 0 GTE SWAP 2 LTE AND
+END
+
+DEF score_recurring : int int int -> int
+  PRE { nonneg_triplet }
+  LET proposed
+  LET baseline
+  LET income
+
+  income baseline proposed projected_margin_after_recurring LET projected_margin
+
+  projected_margin score_from_projected_margin
+  POST DUP 0 GTE SWAP 2 LTE AND
+END
+
+DEF affordability_score : int int int int str -> int
+  LET proposed
+  LET baseline
+  LET income
+  LET cash
+  LET kind
+
+  kind "recurring" EQ
+  IF
+    income baseline proposed score_recurring
+  ELSE
+    cash baseline proposed score_one_time
+  END
+  POST DUP 0 GTE SWAP 2 LTE AND
+END
+
+DEF risk_label_for_score : int -> str
+  DUP 0 EQ
+  IF
+    DROP "safe"
+  ELSE
+    DUP 1 EQ
+    IF
+      DROP "caution"
+    ELSE
+      DROP "not safe"
+    END
+  END
+END
+
+DEF recommendation_for_score : int -> str
+  DUP 0 EQ
+  IF
+    DROP "Safe to proceed"
+  ELSE
+    DUP 1 EQ
+    IF
+      DROP "Borderline: proceed only if this is important"
+    ELSE
+      DROP "Not safe: delay or reduce the cost"
+    END
+  END
+END
+
+DEF score_one_time_in_range : int int int -> bool
+  PRE { nonneg_triplet }
+  score_one_time
+  DUP 0 GTE
+  SWAP 2 LTE AND
+  POST DUP EQ T
+END
+
+DEF score_recurring_in_range : int int int -> bool
+  PRE { nonneg_triplet }
+  score_recurring
+  DUP 0 GTE
+  SWAP 2 LTE AND
+  POST DUP EQ T
+END
+
+DEF higher_one_time_cost_not_better : int int int int -> bool
+  PRE { one_time_compare_inputs_valid }
+  LET high
+  LET low
+  LET baseline
+  LET cash
+
+  cash baseline low score_one_time LET low_score
+  cash baseline high score_one_time LET high_score
+
+  high_score low_score GTE
+  POST DUP EQ T
+END
+
+DEF higher_recurring_cost_not_better : int int int int -> bool
+  PRE { recurring_compare_inputs_valid }
+  LET high
+  LET low
+  LET baseline
+  LET income
+
+  income baseline low score_recurring LET low_score
+  income baseline high score_recurring LET high_score
+
+  high_score low_score GTE
+  POST DUP EQ T
+END
+
+DEF risk_label_known : int -> bool
+  ABS 3 MOD
+  risk_label_for_score
+  DUP "safe" EQ
+  SWAP DUP "caution" EQ
+  SWAP "not safe" EQ
+  OR OR
+  POST DUP EQ T
+END
+
+DEF reserve_breach_not_safe : int int int -> int
+  PRE { reserve_breach_inputs_valid }
+  score_one_time
+  POST DUP 0 NEQ
+END
+
+DEF negative_margin_not_safe_from_margin : int -> int
+  PRE { DUP 0 LT }
+  score_from_projected_margin
+  POST DUP 2 EQ
+END

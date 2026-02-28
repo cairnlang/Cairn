@@ -372,6 +372,12 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Kept the preferred structure unchanged: production-serving apps should still keep assurance runners separate from app entrypoints
 - Added coverage that skipped assurance directives do not run and evaluation continues normally
 
+### v0.8.6a — Can I Afford This? (Pure Decision + Web Form)
+- Added `examples/web/afford_app.crn` as a one-page web affordability checker with a proper `POST /evaluate` flow
+- Split the app into a pure rules module (`examples/web/lib/afford_rules.crn`), a web adapter (`examples/web/lib/afford_web.crn`), and a separate assurance runner (`examples/web/afford_verify.crn`)
+- Kept the serving path production-shaped while making the decision logic the center of the example
+- Added `VERIFY` coverage for score ranges, monotonicity, and label validity, plus `PROVE` coverage for bounded score/risk invariants
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

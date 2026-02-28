@@ -216,6 +216,12 @@ defmodule Axiom.Runtime do
     execute(:times, [block, n | rest])
   end
 
+  # Bounded iteration — REPEAT is the direct readability-oriented sibling of TIMES.
+  # It keeps the same stack semantics and argument ordering flexibility.
+  def execute(:repeat, stack) do
+    execute(:times, stack)
+  end
+
   # Iteration — WHILE: { cond } { body } WHILE
   # Order: cond block first (bottom), body block second (top).
   # Evaluates cond block; if it pushes true, pops it, runs body, repeats.

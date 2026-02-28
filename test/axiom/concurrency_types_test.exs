@@ -118,6 +118,37 @@ defmodule Axiom.ConcurrencyTypesTest do
     """)
   end
 
+  test "actor-local RECEIVE helper functions type-check inside SPAWN" do
+    check_ok("""
+    TYPE msg = Tick | Emit
+    TYPE light = Green | Yellow
+
+    DEF step_light : light -> light
+      RECEIVE
+        Tick {
+          MATCH
+            Green { Yellow }
+            Yellow { Green }
+          END
+        }
+        Emit { }
+      END
+    END
+
+    DEF actor : pid[msg]
+      SPAWN msg {
+        Green {
+          2 {
+            STATE step_light SET_STATE
+          } REPEAT
+        } WITH_STATE
+        DROP
+        DROP
+      }
+    END
+    """)
+  end
+
   test "SEND rejects mismatched payload types" do
     errors =
       check_errors("""

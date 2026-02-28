@@ -628,7 +628,7 @@ defmodule Axiom.Checker do
     end
   end
 
-  # Higher-order ops: FILTER, MAP, REDUCE, TIMES, WHILE
+  # Higher-order ops: FILTER, MAP, REDUCE, TIMES/REPEAT, WHILE
   defp walk([{:op, :filter, pos} | rest], state) do
     check_filter(pos, rest, state)
   end
@@ -655,6 +655,10 @@ defmodule Axiom.Checker do
 
   defp walk([{:op, :times, pos} | rest], state) do
     check_times(pos, rest, state)
+  end
+
+  defp walk([{:op, :repeat, pos} | rest], state) do
+    check_repeat(pos, rest, state)
   end
 
   defp walk([{:op, :while, pos} | rest], state) do
@@ -1027,6 +1031,10 @@ defmodule Axiom.Checker do
         {result_stack, state} = check_receive_arms(type_name, state.stack, arms, state, pos)
         walk(remaining, %{state | stack: result_stack})
 
+      actor_type when not is_nil(actor_type) ->
+        {result_stack, state} = check_receive_arms_generic(state.stack, arms, state, pos)
+        walk(remaining, %{state | stack: result_stack})
+
       _ ->
         check_receive_with_explicit_pid(arms, remaining, state, pos)
     end
@@ -1344,6 +1352,28 @@ defmodule Axiom.Checker do
 
       :underflow ->
         walk(rest, add_error(state, pos, "TIMES requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp check_repeat(pos, rest, state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, _block_tokens}, :int], base} ->
+        walk(rest, %{state | stack: base})
+
+      {[:int, {:block, _block_tokens}], base} ->
+        walk(rest, %{state | stack: base})
+
+      {[{:block, _}, t], _base} ->
+        walk(rest, add_error(state, pos, "REPEAT requires an int count, got #{format_type(t)}"))
+
+      {[t, {:block, _}], _base} ->
+        walk(rest, add_error(state, pos, "REPEAT requires an int count, got #{format_type(t)}"))
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "REPEAT requires an int and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "REPEAT requires 2 values on the stack (stack underflow)"))
     end
   end
 
@@ -1867,6 +1897,33 @@ defmodule Axiom.Checker do
     unify_arm_stacks(arm_states, state, pos)
   end
 
+  defp check_receive_arms_generic(base_stack, arms, state, pos) do
+    arm_states =
+      Enum.map(arms, fn
+        {:wildcard, arm_tokens} ->
+          walk(arm_tokens, %{state | stack: base_stack})
+
+        {ctor_name, arm_tokens} ->
+          {field_types, state} =
+            case Map.get(state.env, ctor_name) do
+              %{param_types: field_types} ->
+                {field_types, state}
+
+              _ ->
+                {[], add_error(state, pos, "RECEIVE references unknown constructor '#{ctor_name}'")}
+            end
+
+          arm_stack =
+            field_types
+            |> Enum.reverse()
+            |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+
+          walk(arm_tokens, %{state | stack: arm_stack})
+      end)
+
+    unify_arm_stacks(arm_states, state, pos)
+  end
+
   defp check_receive_with_protocol(type_name, arms, remaining, state, pos) do
     case state.current_protocol_steps do
       [{:recv, expected_ctor} | rest_steps] ->
@@ -1934,8 +1991,11 @@ defmodule Axiom.Checker do
     initial =
       functions
       |> Enum.reduce(MapSet.new(), fn {name, func}, acc ->
-        if tokens_require_actor?(func.body) or tokens_require_actor?(func.pre_condition) or
-             tokens_require_actor?(func.post_condition) do
+        has_pid_param = Enum.any?(func.param_types, &match?({:pid, _}, &1))
+
+        if tokens_require_actor?(func.body, has_pid_param) or
+             tokens_require_actor?(func.pre_condition, has_pid_param) or
+             tokens_require_actor?(func.post_condition, has_pid_param) do
           MapSet.put(acc, name)
         else
           acc
@@ -1965,33 +2025,35 @@ defmodule Axiom.Checker do
     |> Enum.any?(fn name -> MapSet.member?(required, name) end)
   end
 
-  defp tokens_require_actor?(nil), do: false
-  defp tokens_require_actor?(tokens), do: tokens_require_actor_tokens?(tokens)
+  defp tokens_require_actor?(nil, _has_pid_param), do: false
+  defp tokens_require_actor?(tokens, has_pid_param), do: tokens_require_actor_tokens?(tokens, has_pid_param)
 
-  defp tokens_require_actor_tokens?([]), do: false
-  defp tokens_require_actor_tokens?([{:op, :self, _} | _rest]), do: true
+  defp tokens_require_actor_tokens?([], _has_pid_param), do: false
+  defp tokens_require_actor_tokens?([{:op, :self, _} | _rest], _has_pid_param), do: true
+  defp tokens_require_actor_tokens?([{:op, :exit, _} | _rest], _has_pid_param), do: true
+  defp tokens_require_actor_tokens?([{:receive_kw, _, _} | _rest], has_pid_param), do: not has_pid_param
 
-  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:block_open, _, _} | rest]) do
+  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:block_open, _, _} | rest], has_pid_param) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
-    tokens_require_actor_tokens?(remaining)
+    tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest]) do
+  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest], has_pid_param) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
-    tokens_require_actor_tokens?(remaining)
+    tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:block_open, _, _} | rest]) do
+  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:block_open, _, _} | rest], has_pid_param) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
-    tokens_require_actor_tokens?(remaining)
+    tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest]) do
+  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest], has_pid_param) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
-    tokens_require_actor_tokens?(remaining)
+    tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([_ | rest]), do: tokens_require_actor_tokens?(rest)
+  defp tokens_require_actor_tokens?([_ | rest], has_pid_param), do: tokens_require_actor_tokens?(rest, has_pid_param)
 
   defp compute_protocol_effect_functions(items) do
     functions =

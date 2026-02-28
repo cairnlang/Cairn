@@ -24,6 +24,7 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :flat_map, 0}]} = Axiom.Lexer.tokenize("FLAT_MAP")
       assert {:ok, [{:op, :group_by, 0}]} = Axiom.Lexer.tokenize("GROUP_BY")
       assert {:ok, [{:op, :with_state, 0}]} = Axiom.Lexer.tokenize("WITH_STATE")
+      assert {:ok, [{:op, :repeat, 0}]} = Axiom.Lexer.tokenize("REPEAT")
       assert {:ok, [{:op, :dup, 0}]} = Axiom.Lexer.tokenize("DUP")
     end
 
@@ -568,6 +569,16 @@ defmodule AxiomTest do
 
     test "block on top of count" do
       assert Axiom.eval("2 3 { DUP MUL } TIMES") == [256]
+    end
+  end
+
+  describe "REPEAT" do
+    test "basic bounded repetition" do
+      assert Axiom.eval("1 4 { DUP ADD } REPEAT") == [16]
+    end
+
+    test "block on top of count" do
+      assert Axiom.eval("2 3 { DUP MUL } REPEAT") == [256]
     end
   end
 

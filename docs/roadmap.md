@@ -11,7 +11,7 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ### v0.0.1 — Interpreter Core
 - Stack-based postfix interpreter on the BEAM
 - PRE/POST runtime contracts, `Axiom.ContractError`
-- Blocks as closures, FILTER/MAP/REDUCE, TIMES/WHILE
+- Blocks as closures, FILTER/MAP/REDUCE, TIMES/REPEAT/WHILE
 - Recursion (functions call themselves by name)
 - REPL, `mix axiom.run`, string literals, I/O (SAY, PRINT, ARGV, READ_FILE, WRITE_FILE)
 - Content-addressed DAG store (ETS-backed, in place for future use)
@@ -442,6 +442,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Rewrote `examples/concurrency/traffic_light.ax` around `WITH_STATE` plus a dedicated `light_state` sum type, removing the older stack-carried string state
 - Added direct runtime/checker coverage for `WITH_STATE` driving a small variant-based state machine, not just scalar or multi-field wrapper updates
 - This confirms an immediate concurrency ergonomics gain: actor-local state machines become clearer when state lives in a user ADT and transitions are expressed with ordinary `MATCH`
+
+### v0.7.1d — Bounded Repetition For Actor Steps
+- Added `REPEAT` as a readability-oriented bounded repetition operator with the same stack behavior as `TIMES`
+- Rewrote `examples/concurrency/counter.ax`, `examples/concurrency/traffic_light.ax`, and `examples/concurrency/guess_binary.ax` around helper-driven `REPEAT` loops, removing the manual unrolled `RECEIVE` chains
+- This is the first direct reduction of concurrency-example boilerplate after the `WITH_STATE` work: repeated actor steps now compress into one visible state transition block instead of duplicated receive bodies
 
 ---
 

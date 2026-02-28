@@ -62,6 +62,26 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "WITH_STATE at word #{pos + 1}: stack underflow"
   end
 
+  # REPEAT — bounded iteration that preserves WITH_STATE updates across iterations.
+  defp run([{:op, :repeat, pos} | rest], [{:block, block_tokens, block_env}, count | stack], env)
+       when is_integer(count) do
+    run_repeat(rest, pos, block_tokens, block_env, count, stack, env)
+  end
+
+  defp run([{:op, :repeat, pos} | rest], [count, {:block, block_tokens, block_env} | stack], env)
+       when is_integer(count) do
+    run_repeat(rest, pos, block_tokens, block_env, count, stack, env)
+  end
+
+  defp run([{:op, :repeat, pos} | _], [_, other | _], _env) do
+    raise Axiom.RuntimeError,
+      "REPEAT at word #{pos + 1}: requires a block and integer count, got #{inspect(other)}"
+  end
+
+  defp run([{:op, :repeat, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "REPEAT at word #{pos + 1}: stack underflow"
+  end
+
   defp run([{:op, :state, pos} | rest], stack, env) do
     case Map.fetch(env, :__axiom_state__) do
       {:ok, state_value} ->
@@ -800,5 +820,33 @@ defmodule Axiom.Evaluator do
 
     final_state = Map.fetch!(block_env_after, :__axiom_state__)
     run(rest, [final_state | stack], env)
+  end
+
+  defp run_repeat(_rest, pos, _block_tokens, _block_env, count, _stack, _env) when count < 0 do
+    raise Axiom.RuntimeError, "REPEAT at word #{pos + 1}: count must be >= 0, got #{count}"
+  end
+
+  defp run_repeat(rest, _pos, _block_tokens, _block_env, 0, stack, env) do
+    run(rest, stack, env)
+  end
+
+  defp run_repeat(rest, _pos, block_tokens, block_env, count, stack, env) do
+    merged_env = Map.merge(block_env, env)
+
+    {stack, env} =
+      Enum.reduce(1..count, {stack, env}, fn _, {iter_stack, iter_env} ->
+        iteration_env = Map.merge(merged_env, iter_env)
+        {next_stack, result_env} = run(block_tokens, iter_stack, iteration_env)
+
+        next_env =
+          case Map.fetch(result_env, :__axiom_state__) do
+            {:ok, state_value} -> Map.put(iter_env, :__axiom_state__, state_value)
+            :error -> iter_env
+          end
+
+        {next_stack, next_env}
+      end)
+
+    run(rest, stack, env)
   end
 end

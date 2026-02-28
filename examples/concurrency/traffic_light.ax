@@ -32,44 +32,20 @@ DEF emit_phase : light_state -> light_state
   END
 END
 
+DEF step_light : light_state -> light_state
+  RECEIVE
+    Tick { next_phase }
+    Emit { emit_phase }
+  END
+END
+
 SPAWN msg {
   queue_cycle
 
   Green {
-    RECEIVE
-      Tick { STATE next_phase SET_STATE }
-      Emit { STATE emit_phase DROP }
-    END
-
-    RECEIVE
-      Tick { STATE next_phase SET_STATE }
-      Emit { STATE emit_phase DROP }
-    END
-
-    RECEIVE
-      Tick { STATE next_phase SET_STATE }
-      Emit { STATE emit_phase DROP }
-    END
-
-    RECEIVE
-      Tick { STATE next_phase SET_STATE }
-      Emit { STATE emit_phase DROP }
-    END
-
-    RECEIVE
-      Tick { STATE next_phase SET_STATE }
-      Emit { STATE emit_phase DROP }
-    END
-
-    RECEIVE
-      Tick { STATE next_phase SET_STATE }
-      Emit { STATE emit_phase DROP }
-    END
-
-    RECEIVE
-      Tick { STATE next_phase SET_STATE }
-      Emit { STATE emit_phase DROP }
-    END
+    7 {
+      STATE step_light SET_STATE
+    } REPEAT
   } WITH_STATE
 
   DROP

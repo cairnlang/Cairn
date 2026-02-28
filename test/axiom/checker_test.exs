@@ -515,6 +515,10 @@ defmodule Axiom.CheckerTest do
       check_ok("1 4 { DUP ADD } TIMES")
     end
 
+    test "REPEAT with block" do
+      check_ok("1 4 { DUP ADD } REPEAT")
+    end
+
     test "WHILE with two blocks" do
       check_ok("1 { DUP 100 LT } { DUP ADD } WHILE")
     end

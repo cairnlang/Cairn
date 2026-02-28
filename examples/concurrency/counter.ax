@@ -9,6 +9,14 @@ DEF emit_count : int -> int
   DUP "count={}" FMT SAID
 END
 
+DEF step_count : int -> int
+  RECEIVE
+    Inc { 1 ADD }
+    Dec { 1 SUB }
+    Emit { emit_count }
+  END
+END
+
 DEF queue_script : void
   Inc send_self
   Inc send_self
@@ -19,29 +27,9 @@ END
 SPAWN msg {
   queue_script
   0 {
-    RECEIVE
-      Inc { STATE 1 ADD SET_STATE }
-      Dec { STATE 1 SUB SET_STATE }
-      Emit { STATE emit_count DROP }
-    END
-
-    RECEIVE
-      Inc { STATE 1 ADD SET_STATE }
-      Dec { STATE 1 SUB SET_STATE }
-      Emit { STATE emit_count DROP }
-    END
-
-    RECEIVE
-      Inc { STATE 1 ADD SET_STATE }
-      Dec { STATE 1 SUB SET_STATE }
-      Emit { STATE emit_count DROP }
-    END
-
-    RECEIVE
-      Inc { STATE emit_count DROP }
-      Dec { STATE emit_count DROP }
-      Emit { STATE emit_count DROP }
-    END
+    4 {
+      STATE step_count SET_STATE
+    } REPEAT
   } WITH_STATE
 
   DROP

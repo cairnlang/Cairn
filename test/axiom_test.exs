@@ -28,6 +28,9 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :pow, 0}]} = Axiom.Lexer.tokenize("POW")
       assert {:ok, [{:op, :pi, 0}]} = Axiom.Lexer.tokenize("PI")
       assert {:ok, [{:op, :e, 0}]} = Axiom.Lexer.tokenize("E")
+      assert {:ok, [{:op, :floor, 0}]} = Axiom.Lexer.tokenize("FLOOR")
+      assert {:ok, [{:op, :ceil, 0}]} = Axiom.Lexer.tokenize("CEIL")
+      assert {:ok, [{:op, :round, 0}]} = Axiom.Lexer.tokenize("ROUND")
       assert {:ok, [{:op, :with_state, 0}]} = Axiom.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :repeat, 0}]} = Axiom.Lexer.tokenize("REPEAT")
       assert {:ok, [{:op, :step, 0}]} = Axiom.Lexer.tokenize("STEP")
@@ -179,6 +182,9 @@ defmodule AxiomTest do
       assert_in_delta hd(Axiom.eval("0.0 COS")), 1.0, 1.0e-12
       assert_in_delta hd(Axiom.eval("PI")), :math.pi(), 1.0e-12
       assert_in_delta hd(Axiom.eval("E")), :math.exp(1.0), 1.0e-12
+      assert_in_delta hd(Axiom.eval("3.7 FLOOR")), 3.0, 1.0e-12
+      assert_in_delta hd(Axiom.eval("3.2 CEIL")), 4.0, 1.0e-12
+      assert_in_delta hd(Axiom.eval("3.6 ROUND")), 4.0, 1.0e-12
       assert_in_delta hd(Axiom.eval("1.0 EXP")), :math.exp(1.0), 1.0e-12
       assert_in_delta hd(Axiom.eval("8.0 2.0 POW")), :math.pow(8.0, 2.0), 1.0e-12
       assert_in_delta hd(Axiom.eval("10.0 LOG")), :math.log(10.0), 1.0e-12

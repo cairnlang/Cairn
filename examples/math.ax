@@ -2,6 +2,9 @@
 0.0 COS "cos(0)={}" FMT SAID
 PI "pi={}" FMT SAID
 E "e={}" FMT SAID
+3.7 FLOOR "floor(3.7)={}" FMT SAID
+3.2 CEIL "ceil(3.2)={}" FMT SAID
+3.6 ROUND "round(3.6)={}" FMT SAID
 1.0 EXP "exp(1)={}" FMT SAID
 8.0 2.0 POW "pow(8,2)={}" FMT SAID
 10.0 LOG "log(10)={}" FMT SAID

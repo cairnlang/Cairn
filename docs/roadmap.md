@@ -540,6 +540,11 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 - Extended the math showcase and tests so the explicit-float slice now covers constants, unary transcendental ops, and one binary power primitive
 - Kept `PROVE` conservative: `PI`, `E`, and `POW` also degrade cleanly to `UNKNOWN`
 
+**Easy completeness follow-up now landed (`v0.7.2c`):**
+- Added `FLOOR`, `CEIL`, and `ROUND` as float-shaping helpers, all staying within the same explicit `float -> float` rule
+- Expanded `examples/math.ax` so the bounded math track now covers constants, shaping helpers, transcendental unary ops, and one binary power primitive
+- Kept `PROVE` conservative on these shaping helpers as well: they degrade to `UNKNOWN` rather than introducing partial solver support
+
 #### 3. Narrow Elixir Interop As Escape Hatch
 **Goal:** Unlock selected practical integrations without turning Axiom into a thin syntax layer over Elixir.
 

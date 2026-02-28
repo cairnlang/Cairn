@@ -31,6 +31,9 @@ defmodule Axiom.Checker.Effects do
     exp: %{pops: [:float], pushes: [:float]},
     log: %{pops: [:float], pushes: [:float]},
     sqrt: %{pops: [:float], pushes: [:float]},
+    floor: %{pops: [:float], pushes: [:float]},
+    ceil: %{pops: [:float], pushes: [:float]},
+    round: %{pops: [:float], pushes: [:float]},
     pi: %{pops: [], pushes: [:float]},
     e: %{pops: [], pushes: [:float]},
 

@@ -1127,6 +1127,20 @@ defmodule Axiom.SolverTest do
       assert pow_reason =~ "POW"
     end
 
+    test "function with float shaping ops returns unknown" do
+      func = %Function{
+        name: "floor_func",
+        param_types: [:int],
+        return_types: [:int],
+        body: [{:op, :floor, 0}],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      assert {:unknown, reason} = Prove.prove(func)
+      assert reason =~ "FLOOR"
+    end
+
     test "MATCH on result type can be disproven" do
       source = """
       TYPE result = Ok int | Err str

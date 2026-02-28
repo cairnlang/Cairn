@@ -10,6 +10,8 @@ mix escript.build
 
 This produces `./cairn`.
 
+`./cairn` is a built snapshot of the runtime. If you change Elixir-side runtime code (for example anything under `lib/cairn/*.ex`), run `mix escript.build` again before testing with the executable.
+
 ## First Commands
 
 ```bash

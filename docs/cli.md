@@ -18,6 +18,14 @@ Build it once with:
 mix escript.build
 ```
 
+`./cairn` is a compiled escript snapshot of the current runtime. After changing Elixir-side runtime code (for example under `lib/cairn/*.ex`), rebuild it before using `./cairn` again:
+
+```bash
+mix escript.build
+```
+
+If you skip that step, the executable can lag behind the checked-in source and you can end up debugging a stale runtime.
+
 ## `mix cairn.run`
 
 Development wrapper for the same file-mode behavior:
@@ -67,6 +75,7 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 ## Suggested workflow
 
 1. Build once: `mix escript.build`
+   - Rebuild after Elixir runtime changes; `./cairn` does not update itself automatically.
 2. Run: `./cairn examples/hello_world.crn`
    - Or try the collection-helper showcase: `./cairn examples/collections.crn`
    - Or try explicit float math: `./cairn examples/math.crn`

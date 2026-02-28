@@ -50,6 +50,12 @@ mix escript.build
 ./cairn --help
 ```
 
+`./cairn` is a built escript snapshot. If you change Elixir runtime code under `lib/cairn/*.ex` (for example the evaluator, HTTP runtime, or CLI), rebuild it before testing:
+
+```bash
+mix escript.build
+```
+
 For the guided first pass, see [Getting Started](docs/getting-started.md).
 
 Good first programs to run:

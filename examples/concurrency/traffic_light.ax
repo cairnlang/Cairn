@@ -1,9 +1,10 @@
 # examples/concurrency/traffic_light.ax
-# Stateful actor example with named phase transitions over stack-carried state.
+# Stateful actor example with typed phase transitions in a local WITH_STATE thread.
 
 IMPORT "lib/actor.ax"
 
 TYPE msg = Tick | Emit
+TYPE light_state = Green | Yellow | Red
 
 DEF queue_cycle : void
   Emit send_self
@@ -15,62 +16,61 @@ DEF queue_cycle : void
   Emit send_self
 END
 
-DEF next_phase : str -> str
-  DUP "green" EQ
-  IF
-    DROP "yellow"
-  ELSE
-    DUP "yellow" EQ
-    IF
-      DROP "red"
-    ELSE
-      DROP "green"
-    END
+DEF next_phase : light_state -> light_state
+  MATCH
+    Green { Yellow }
+    Yellow { Red }
+    Red { Green }
   END
 END
 
-DEF emit_phase : str -> str
-  DUP "phase={}" FMT SAID
+DEF emit_phase : light_state -> light_state
+  MATCH
+    Green { "phase=green" SAID Green }
+    Yellow { "phase=yellow" SAID Yellow }
+    Red { "phase=red" SAID Red }
+  END
 END
 
 SPAWN msg {
   queue_cycle
-  "green"
 
-  RECEIVE
-    Tick { next_phase }
-    Emit { emit_phase }
-  END
+  Green {
+    RECEIVE
+      Tick { STATE next_phase SET_STATE }
+      Emit { STATE emit_phase DROP }
+    END
 
-  RECEIVE
-    Tick { next_phase }
-    Emit { emit_phase }
-  END
+    RECEIVE
+      Tick { STATE next_phase SET_STATE }
+      Emit { STATE emit_phase DROP }
+    END
 
-  RECEIVE
-    Tick { next_phase }
-    Emit { emit_phase }
-  END
+    RECEIVE
+      Tick { STATE next_phase SET_STATE }
+      Emit { STATE emit_phase DROP }
+    END
 
-  RECEIVE
-    Tick { next_phase }
-    Emit { emit_phase }
-  END
+    RECEIVE
+      Tick { STATE next_phase SET_STATE }
+      Emit { STATE emit_phase DROP }
+    END
 
-  RECEIVE
-    Tick { next_phase }
-    Emit { emit_phase }
-  END
+    RECEIVE
+      Tick { STATE next_phase SET_STATE }
+      Emit { STATE emit_phase DROP }
+    END
 
-  RECEIVE
-    Tick { next_phase }
-    Emit { emit_phase }
-  END
+    RECEIVE
+      Tick { STATE next_phase SET_STATE }
+      Emit { STATE emit_phase DROP }
+    END
 
-  RECEIVE
-    Tick { next_phase }
-    Emit { emit_phase }
-  END
+    RECEIVE
+      Tick { STATE next_phase SET_STATE }
+      Emit { STATE emit_phase DROP }
+    END
+  } WITH_STATE
 
   DROP
   DROP

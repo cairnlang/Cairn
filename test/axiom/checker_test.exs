@@ -470,6 +470,23 @@ defmodule Axiom.CheckerTest do
       """)
     end
 
+    test "WITH_STATE accepts variant state-machine updates" do
+      check_ok("""
+      TYPE light = Green | Yellow | Red
+      DEF initial_light : light
+        Green
+      END
+      initial_light {
+        STATE
+        MATCH
+          Green { Yellow SET_STATE }
+          Yellow { Red SET_STATE }
+          Red { Green SET_STATE }
+        END
+      } WITH_STATE
+      """)
+    end
+
     test "FILTER with block" do
       check_ok("[ 1 2 3 4 5 ] { 2 MOD 1 EQ } FILTER")
     end

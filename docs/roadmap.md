@@ -438,6 +438,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Rewrote `examples/concurrency/guess_binary.ax` so both actors now keep their working state inside typed `WITH_STATE` values rather than split stack/`LET` juggling
 - Used user-defined sum types (`ref_state`, `search_state`) to carry pids plus bounds/flags, establishing the intended near-term pattern for richer actor workflows without introducing mutation
 
+### v0.7.1c — Typed Variant State Machines In Actor Loops
+- Rewrote `examples/concurrency/traffic_light.ax` around `WITH_STATE` plus a dedicated `light_state` sum type, removing the older stack-carried string state
+- Added direct runtime/checker coverage for `WITH_STATE` driving a small variant-based state machine, not just scalar or multi-field wrapper updates
+- This confirms an immediate concurrency ergonomics gain: actor-local state machines become clearer when state lives in a user ADT and transitions are expressed with ordinary `MATCH`
+
 ---
 
 ## Next Up

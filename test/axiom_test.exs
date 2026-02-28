@@ -265,6 +265,28 @@ defmodule AxiomTest do
              """) == ["peer", 1, true]
     end
 
+    test "with_state can thread a variant state machine" do
+      assert Axiom.eval("""
+             TYPE light = Green | Yellow | Red
+             DEF initial_light : light
+               Green
+             END
+             initial_light {
+               STATE
+               MATCH
+                 Green { Yellow SET_STATE }
+                 Yellow { Red SET_STATE }
+                 Red { Green SET_STATE }
+               END
+             } WITH_STATE
+             MATCH
+               Green { "green" }
+               Yellow { "yellow" }
+               Red { "red" }
+             END
+             """) == ["yellow"]
+    end
+
     test "with_state block must leave no visible values" do
       assert_raise Axiom.StaticError, ~r/WITH_STATE block must leave no visible values/, fn ->
         Axiom.eval("1 { STATE } WITH_STATE")

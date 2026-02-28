@@ -732,6 +732,7 @@ These are high-ambition features from the original vision documents. They requir
 - Inductive proofs for recursive functions
 - Session types for protocol verification
 - Linear types for resource management
+- Bounded refinement / liquid-type style predicates for common local invariants (e.g. non-negative ints, non-empty lists)
 - Contract synthesis (infer PRE/POST from implementation)
 
 ---

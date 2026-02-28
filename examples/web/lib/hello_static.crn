@@ -5,19 +5,34 @@ DEF handle_static_route : str -> str str int
   route_finish
 END
 
-DEF handle_method_not_allowed : -> str str int
-  "method not allowed\n" http_text_method_not_allowed
-END
-
-DEF handle_static_request : str str -> str str int
-  LET path
+DEF route_get_echo : map[str str] str str -> result
+  LET query
   LET method
+  LET path
 
   method "GET" EQ
+  path "/echo" EQ
+  AND
   IF
-    path handle_static_route
+    "name" query "friend" map_get_or
+    "hello, {}\n" FMT
+    http_text_ok
+    http_pack_response
+    Ok
   ELSE
-    path DROP
-    handle_method_not_allowed
+    "no_match" Err
   END
+END
+
+DEF handle_static_request : str str map[str str] -> str str int
+  LET path
+  LET method
+  LET query
+
+  path method "/" "examples/web/static/index.html" route_get_html_file
+  path method "/about" "examples/web/static/about.html" route_get_html_file
+  route_or
+  path method query route_get_echo
+  route_or
+  method route_finish_get
 END

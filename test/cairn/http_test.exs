@@ -2,11 +2,11 @@ defmodule Cairn.HTTPTest do
   use ExUnit.Case, async: false
 
   test "HTTP_SERVE serves the configured html file for GET /" do
-    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
     port = free_port()
 
-    task = start_server("127.0.0.1", port, path, about_path)
+    task = start_server("127.0.0.1", port, index_path, about_path)
 
     response = http_get(port, "/")
 
@@ -18,11 +18,11 @@ defmodule Cairn.HTTPTest do
   end
 
   test "HTTP_SERVE returns 404 for paths other than /" do
-    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
     port = free_port()
 
-    task = start_server("127.0.0.1", port, path, about_path)
+    task = start_server("127.0.0.1", port, index_path, about_path)
 
     response = http_get(port, "/nope")
 
@@ -34,11 +34,11 @@ defmodule Cairn.HTTPTest do
   end
 
   test "HTTP_SERVE can reject non-GET methods with 405" do
-    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
     port = free_port()
 
-    task = start_server("127.0.0.1", port, path, about_path)
+    task = start_server("127.0.0.1", port, index_path, about_path)
 
     response = http_request(port, "POST", "/")
 
@@ -50,11 +50,11 @@ defmodule Cairn.HTTPTest do
   end
 
   test "HTTP_SERVE handles multiple requests on the same listener" do
-    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
     port = free_port()
 
-    task = start_server("127.0.0.1", port, path, about_path)
+    task = start_server("127.0.0.1", port, index_path, about_path)
 
     ok_response = http_get(port, "/")
     about_response = http_get(port, "/about")
@@ -70,11 +70,11 @@ defmodule Cairn.HTTPTest do
   end
 
   test "HTTP_SERVE can bind to an explicit outward-facing address literal" do
-    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
     port = free_port()
 
-    task = start_server("0.0.0.0", port, path, about_path)
+    task = start_server("0.0.0.0", port, index_path, about_path)
 
     response = http_get(port, "/")
 
@@ -85,11 +85,11 @@ defmodule Cairn.HTTPTest do
   end
 
   test "HTTP_SERVE keeps accepting while an earlier client stays idle" do
-    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
     port = free_port()
 
-    task = start_server("127.0.0.1", port, path, about_path)
+    task = start_server("127.0.0.1", port, index_path, about_path)
     idle_socket = wait_for_connect(port, 50)
 
     response = http_get(port, "/")
@@ -98,6 +98,22 @@ defmodule Cairn.HTTPTest do
     assert response =~ "<h1>Hello from Cairn</h1>"
 
     :gen_tcp.close(idle_socket)
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "HTTP_SERVE exposes parsed query parameters to the handler" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, index_path, about_path)
+
+    response = http_request(port, "GET", "/echo?name=Cairn")
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "Content-Type: text/plain; charset=utf-8"
+    assert response =~ "hello, Cairn"
+
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
@@ -164,12 +180,14 @@ defmodule Cairn.HTTPTest do
     port
   end
 
-  defp start_server(bind_host, port, path, about_path) do
+  defp start_server(bind_host, port, index_path, about_path) do
     Task.async(fn ->
       source = """
       "#{bind_host}" #{port} {
         LET path
         LET method
+        LET query
+
         method "GET" EQ
         IF
           path DUP "/" EQ
@@ -177,7 +195,7 @@ defmodule Cairn.HTTPTest do
             DROP
             200
             "text/html; charset=utf-8"
-            "#{path}" READ_FILE!
+            "#{index_path}" READ_FILE!
           ELSE
             DUP "/about" EQ
             IF
@@ -186,10 +204,25 @@ defmodule Cairn.HTTPTest do
               "text/html; charset=utf-8"
               "#{about_path}" READ_FILE!
             ELSE
-              DROP
-              404
-              "text/plain; charset=utf-8"
-              "not found\\n"
+              DUP "/echo" EQ
+              IF
+                DROP
+                200
+                "text/plain; charset=utf-8"
+                query DUP "name" HAS
+                IF
+                  "name" GET
+                ELSE
+                  DROP
+                  "friend"
+                END
+                "hello, {}\\n" FMT
+              ELSE
+                DROP
+                404
+                "text/plain; charset=utf-8"
+                "not found\\n"
+              END
             END
           END
         ELSE

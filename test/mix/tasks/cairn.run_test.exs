@@ -144,7 +144,7 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert stderr =~ "lib/prelude/web.crn"
     assert stderr =~ "http_html_ok"
     assert stderr =~ "http_text_method_not_allowed"
-    assert stderr =~ "route_html_file"
+    assert stderr =~ "route_get_html_file"
     assert stderr =~ "lib/prelude.crn"
     assert stderr =~ "ask_or"
   end

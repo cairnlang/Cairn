@@ -329,6 +329,11 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `http_text_method_not_allowed` to the official web prelude and made `hello_static` explicitly `GET`-only
 - Added localhost integration coverage proving non-`GET` requests now return `405 Method Not Allowed`
 
+### v0.8.3j — GET Route Ergonomics and Query Visibility
+- `HTTP_SERVE` handlers now also receive a parsed query map beneath the existing path/method values
+- Expanded the web prelude with GET-specific route helpers: `route_get_html_file`, `route_get_text`, and `route_finish_get`
+- Rewrote the tiny web demo around those GET route helpers and added a query-driven `/echo?name=...` endpoint
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

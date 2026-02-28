@@ -25,6 +25,32 @@ method_status "method_status={}" FMT SAID
 method_type "method_type={}" FMT SAID
 method_body "method_body={}" FMT SAID
 
+"/"
+"GET"
+"/"
+"<p>Home</p>" route_get_text
+"GET" route_finish_get
+LET get_body
+LET get_type
+LET get_status
+
+get_status "get_status={}" FMT SAID
+get_type "get_type={}" FMT SAID
+get_body "get_body={}" FMT SAID
+
+"/"
+"POST"
+"/"
+"<p>Home</p>" route_get_text
+"POST" route_finish_get
+LET post_body
+LET post_type
+LET post_status
+
+post_status "post_status={}" FMT SAID
+post_type "post_type={}" FMT SAID
+post_body "post_body={}" FMT SAID
+
 "/about"
 DUP "/" "<p>Home</p>" route_text_ok
 SWAP "/about" "<p>About</p>" route_text_ok

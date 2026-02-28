@@ -398,23 +398,25 @@ ARGV HEAD READ_FILE! SAID
 # Read a line from stdin
 READ_LINE SAID
 
-# Serve two static pages on localhost until stopped
+# Serve two static pages plus a tiny query-driven echo on localhost until stopped
 "examples/web/lib/hello_static.crn" IMPORT
 "127.0.0.1" 8089 {
   handle_static_request
 } HTTP_SERVE
 
-# The route helpers can also be used directly (with the path on top):
-"/about"
-DUP "/" "<p>Home</p>" route_text_ok
-SWAP "/about" "<p>About</p>" route_text_ok
+# The route helpers can also be used directly:
+"/about" LET path
+"GET" LET method
+path method "/" "<p>Home</p>" route_get_text
+path method "/about" "<p>About</p>" route_get_text
 route_or
-route_finish
+method route_finish_get
 
-# HTTP_SERVE handlers now receive method and path (path on top):
+# HTTP_SERVE handlers now receive path, method, and query (path on top):
 LET path
 LET method
-method "GET" EQ
+LET query
+"name" query "friend" map_get_or
 ```
 
 ## Examples

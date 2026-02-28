@@ -2,22 +2,28 @@ defmodule Cairn.HTTP do
   @moduledoc """
   Minimal host-backed HTTP helpers for bounded serving primitives.
 
-  The first slice is intentionally narrow: serve one request on localhost,
-  then return. This keeps the runtime honest while making the transport path
-  testable and usable from a browser.
+  The current slice stays intentionally narrow:
+  - one long-lived listener
+  - one lightweight worker per connection
+  - minimal request-line parsing (`method`, `path`, `query`)
+  - simple response framing
+
+  This keeps the transport boundary honest while letting Cairn own routing and
+  response decisions.
   """
 
   @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true]
 
-  @spec serve(integer(), (String.t(), String.t() -> {integer(), String.t(), String.t()})) :: no_return()
-  def serve(port, handler) when is_integer(port) and is_function(handler, 2) do
+  @spec serve(integer(), (String.t(), String.t(), map() -> {integer(), String.t(), String.t()})) ::
+          no_return()
+  def serve(port, handler) when is_integer(port) and is_function(handler, 3) do
     serve("127.0.0.1", port, handler)
   end
 
-  @spec serve(String.t(), integer(), (String.t(), String.t() -> {integer(), String.t(), String.t()})) ::
+  @spec serve(String.t(), integer(), (String.t(), String.t(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(bind_host, port, handler)
-      when is_binary(bind_host) and is_integer(port) and is_function(handler, 2) do
+      when is_binary(bind_host) and is_integer(port) and is_function(handler, 3) do
     if port <= 0 or port > 65_535 do
       raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
     end
@@ -40,8 +46,8 @@ defmodule Cairn.HTTP do
       {:invalid, :invalid} ->
         http_response(400, "text/plain; charset=utf-8", "bad request\n")
 
-      {method, path} ->
-        case handler.(method, path) do
+      {method, path, query} ->
+        case handler.(method, path, query) do
           {status, content_type, body}
               when is_integer(status) and is_binary(content_type) and is_binary(body) ->
             http_response(status, content_type, body)
@@ -57,13 +63,45 @@ defmodule Cairn.HTTP do
     case String.split(request, "\r\n", parts: 2) do
       [line | _] ->
         case String.split(line, " ", parts: 3) do
-          [method, path | _] -> {method, path}
+          [method, target | _] ->
+            {path, query} = parse_request_target(target)
+            {method, path, query}
+
           _ -> {:invalid, :invalid}
         end
 
       _ ->
         {:invalid, :invalid}
     end
+  end
+
+  defp parse_request_target(target) do
+    case String.split(target, "?", parts: 2) do
+      [path] ->
+        {path, %{}}
+
+      [path, raw_query] ->
+        {path, parse_query(raw_query)}
+    end
+  end
+
+  defp parse_query(""), do: %{}
+
+  defp parse_query(raw_query) do
+    raw_query
+    |> String.split("&", trim: true)
+    |> Enum.reduce(%{}, fn pair, acc ->
+      case String.split(pair, "=", parts: 2) do
+        [raw_key, raw_value] ->
+          Map.put(acc, URI.decode_www_form(raw_key), URI.decode_www_form(raw_value))
+
+        [raw_key] ->
+          Map.put(acc, URI.decode_www_form(raw_key), "")
+
+        _ ->
+          acc
+      end
+    end)
   end
 
   defp http_response(status, content_type, body) do

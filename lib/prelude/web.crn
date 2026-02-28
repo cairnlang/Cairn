@@ -71,6 +71,24 @@ DEF route_html_file : str str str -> result
   END
 END
 
+# Exact GET route: serve a known HTML file on match.
+# Signature: file route method path -> result
+DEF route_get_html_file : str str str str -> result
+  LET file
+  LET route
+  LET method
+  LET path
+
+  method "GET" EQ
+  path route EQ
+  AND
+  IF
+    file http_html_file_ok http_pack_response Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
 # Exact-path route: serve a plain-text body on match.
 # Signature: body route path -> result
 DEF route_text_ok : str str str -> result
@@ -79,6 +97,24 @@ DEF route_text_ok : str str str -> result
   LET path
 
   path route EQ
+  IF
+    body http_text_ok http_pack_response Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+# Exact GET route: serve a plain-text body on match.
+# Signature: body route method path -> result
+DEF route_get_text : str str str str -> result
+  LET body
+  LET route
+  LET method
+  LET path
+
+  method "GET" EQ
+  path route EQ
+  AND
   IF
     body http_text_ok http_pack_response Ok
   ELSE
@@ -107,4 +143,26 @@ DEF route_finish : result -> str str int
   SWAP
   result_unwrap_or
   http_unpack_response
+END
+
+# Finalize a GET-only route chain:
+# - matching route => use it
+# - no route + GET => 404
+# - no route + non-GET => 405
+DEF route_finish_get : str result -> str str int
+  LET method
+  LET candidate
+
+  candidate result_is_ok
+  IF
+    candidate route_finish
+  ELSE
+    candidate DROP
+    method "GET" EQ
+    IF
+      "not found\n" http_text_not_found
+    ELSE
+      "method not allowed\n" http_text_method_not_allowed
+    END
+  END
 END

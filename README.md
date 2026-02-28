@@ -56,6 +56,7 @@ Good first programs to run:
 - `./cairn examples/strings.crn`
 - `./cairn examples/practical/mini_grep.crn`
 - `./cairn examples/practical/mini_env.crn`
+- `./cairn examples/practical/mini_ini.crn`
 - `./cairn examples/concurrency/guess_binary.crn`
 
 ## What It Does Well Today
@@ -89,8 +90,10 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/math.crn`: explicit float math (`PI`, `SIN`, `POW`, `LOG`, ...)
 - `examples/strings.crn`: native string helpers (`LOWER`, `UPPER`, `REPLACE`, ...)
 - `examples/prelude/env_parse.crn`: auto-loaded config helpers (`env_map`, `env_keys`, `env_fetch`)
+- `examples/prelude/ini_parse.crn`: auto-loaded INI helpers (`ini_map`, `ini_sections`, `ini_fetch`)
 - `examples/practical/mini_grep.crn`: bounded grep-like CLI utility
 - `examples/practical/mini_env.crn`: bounded `.env` query utility
+- `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake
 - `examples/concurrency/guess_binary.crn`: stateful actor workflow with bounded repeated steps
 

@@ -590,10 +590,11 @@ defmodule CairnTest do
       LEN
       0 "42" TO_INT result_unwrap_or
       "PORT" "APP=one\\n# comment\\nPORT=4000\\n" env_map "missing" map_get_or
+      "missing" "; note\\n[svc]\\nport=7000\\n" "svc" "port" ini_fetch result_unwrap_or
       """
 
       File.write!(Path.join(dir, "main.crn"), source)
-      assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == ["4000", 42, 2]
+      assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == ["7000", "4000", 42, 2]
     end
 
     test "user definitions override prelude helpers in file mode" do
@@ -667,6 +668,35 @@ defmodule CairnTest do
       output =
         ExUnit.CaptureIO.capture_io(fn ->
           assert {[], _env} = Cairn.eval_file("examples/practical/mini_env.crn")
+        end)
+
+      assert output =~ "fallback-value"
+
+      Process.delete(:cairn_argv)
+    end
+  end
+
+  describe "mini_ini example" do
+    test "supports section listing via argv" do
+      Process.put(:cairn_argv, ["--sections", "examples/practical/data/app.ini"])
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert {[], _env} = Cairn.eval_file("examples/practical/mini_ini.crn")
+        end)
+
+      assert output =~ "server"
+      assert output =~ "auth"
+
+      Process.delete(:cairn_argv)
+    end
+
+    test "supports lookup fallback via argv" do
+      Process.put(:cairn_argv, ["examples/practical/data/app.ini", "server", "missing", "fallback-value"])
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert {[], _env} = Cairn.eval_file("examples/practical/mini_ini.crn")
         end)
 
       assert output =~ "fallback-value"

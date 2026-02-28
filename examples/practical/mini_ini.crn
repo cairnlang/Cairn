@@ -1,0 +1,59 @@
+# examples/practical/mini_ini.crn — bounded INI query utility
+# Usage: ./cairn examples/practical/mini_ini.crn [--sections <file> | <file> <section> <key> [fallback]]
+
+IMPORT "lib/mini_ini.crn"
+
+ARGV DUP LEN 0 EQ
+IF
+  DROP [ "examples/practical/data/app.ini" "server" "port" ]
+END
+LET args
+
+args args_is_sections_mode
+IF
+  args TAIL HEAD LET path
+
+  path READ_FILE
+  MATCH
+    Ok {
+      ini_sections emit_lines
+    }
+    Err {
+      "mini_ini: cannot read {}" FMT SAID
+    }
+  END
+ELSE
+  args args_is_lookup_mode
+  IF
+    args HEAD LET path
+    args TAIL HEAD LET section
+    args TAIL TAIL HEAD LET key
+
+    path READ_FILE
+    MATCH
+      Ok {
+        LET raw
+        raw section key ini_fetch
+        MATCH
+          Ok {
+            SAID
+          }
+          Err {
+            args LEN 4 EQ
+            IF
+              DROP
+              args TAIL TAIL TAIL HEAD SAID
+            ELSE
+              "mini_ini: {}" FMT SAID
+            END
+          }
+        END
+      }
+      Err {
+        "mini_ini: cannot read {}" FMT SAID
+      }
+    END
+  ELSE
+    args usage_line SAID
+  END
+END

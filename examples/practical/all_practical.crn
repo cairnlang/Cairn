@@ -8,6 +8,7 @@ IMPORT "expenses.crn"
 IMPORT "cashflow.crn"
 IMPORT "cashflow_alerts.crn"
 IMPORT "mini_env.crn"
+IMPORT "mini_ini.crn"
 
 # The imported practical chain currently leaves one intermediate value.
 # Drop it so the consolidated runner remains stack-clean for tests.

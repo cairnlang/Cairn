@@ -1,0 +1,25 @@
+# examples/practical/lib/mini_ini.crn — helpers for a bounded INI query CLI
+
+DEF args_is_sections_mode : [str] -> bool
+  DUP LEN 2 EQ
+  IF
+    HEAD "--sections" EQ
+  ELSE
+    DROP F
+  END
+END
+
+DEF args_is_lookup_mode : [str] -> bool
+  DUP LEN 3 EQ
+  SWAP LEN 4 EQ
+  OR
+END
+
+DEF emit_lines : [str] -> void
+  { DUP SAID } MAP
+  DROP
+END
+
+DEF usage_line : any -> str
+  DROP "usage: mini_ini [--sections <file> | <file> <section> <key> [fallback]]"
+END

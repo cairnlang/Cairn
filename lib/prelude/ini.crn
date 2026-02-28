@@ -1,0 +1,141 @@
+# Prelude: INI-style config helpers
+
+DEF ini_is_comment_line : str -> bool
+  DUP "#" STARTS_WITH
+  SWAP ";" STARTS_WITH
+  OR
+END
+
+DEF ini_is_data_line : str -> bool
+  DUP LEN 0 GT
+  SWAP ini_is_comment_line NOT
+  AND
+END
+
+DEF ini_data_lines : str -> [str]
+  LINES
+  { TRIM } MAP
+  { ini_is_data_line } FILTER
+END
+
+DEF ini_is_section_line : str -> bool
+  DUP LEN 2 GTE
+  SWAP DUP "[" STARTS_WITH
+  SWAP "]" ENDS_WITH
+  AND AND
+END
+
+DEF ini_is_kv_line : str -> bool
+  "=" CONTAINS
+END
+
+DEF ini_section_name : str -> str
+  DUP LEN 2 SUB
+  1 SWAP
+  SLICE
+END
+
+DEF ini_full_key : str str -> str
+  LET key
+  LET section
+  key section "{}.{}" FMT
+END
+
+DEF str_list_has : str [str] -> bool
+  LET needle
+  LET items
+  items LEN 0 EQ
+  IF
+    F
+  ELSE
+    items HEAD needle EQ
+    IF
+      T
+    ELSE
+      items TAIL needle str_list_has
+    END
+  END
+END
+
+DEF ini_add_section : str [str] -> [str]
+  LET name
+  LET sections
+  sections name str_list_has
+  IF
+    sections
+  ELSE
+    name sections CONS
+  END
+END
+
+DEF ini_put_kv_line : map[str str] str str -> map[str str]
+  LET source
+  LET section
+  LET line
+  line "=" SPLIT LET parts
+  parts HEAD LET key
+  parts TAIL "=" JOIN LET value
+  section key ini_full_key LET full_key
+  source full_key value PUT
+END
+
+DEF ini_parse_lines : [str] map[str str] str [str] -> map[str str] [str]
+  LET sections
+  LET source
+  LET current
+  LET lines
+  lines LEN 0 EQ
+  IF
+    sections source
+  ELSE
+    lines HEAD LET line
+    lines TAIL LET rest
+    line ini_is_section_line
+    IF
+      line ini_section_name LET next_section
+      sections next_section ini_add_section LET next_sections
+      rest next_section source next_sections ini_parse_lines
+    ELSE
+      line ini_is_kv_line
+      IF
+        line current source ini_put_kv_line LET next_source
+        rest current next_source sections ini_parse_lines
+      ELSE
+        rest current source sections ini_parse_lines
+      END
+    END
+  END
+END
+
+DEF ini_map : str -> map[str str]
+  ini_data_lines
+  "global"
+  M[]
+  [ ]
+  ini_parse_lines
+  SWAP DROP
+END
+
+DEF ini_sections : str -> [str]
+  ini_data_lines
+  "global"
+  M[]
+  [ ]
+  ini_parse_lines
+  DROP
+  REVERSE
+END
+
+DEF ini_fetch : str str str -> result
+  LET key
+  LET section
+  LET raw
+  raw ini_map LET source
+  section key ini_full_key LET full_key
+  source full_key HAS
+  IF
+    source full_key GET Ok
+  ELSE
+    full_key "missing key {}" FMT Err
+  END
+END

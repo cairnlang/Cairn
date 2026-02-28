@@ -1,0 +1,11 @@
+# prelude/ini_parse.crn — parse simple INI-style content with prelude helpers
+
+"; demo\nname=Cairn\n\n[server]\nhost=localhost\nport=4000\n\n[auth]\ntoken=abc123\n" ini_map LET cfg
+
+"server.host" cfg "missing" map_get_or "server_host={}" FMT SAID
+"; demo\nname=Cairn\n\n[server]\nhost=localhost\nport=4000\n\n[auth]\ntoken=abc123\n" ini_sections LEN "sections={}" FMT SAID
+"; demo\nname=Cairn\n\n[server]\nhost=localhost\nport=4000\n\n[auth]\ntoken=abc123\n" "auth" "token" ini_fetch
+MATCH
+  Ok { "auth_token={}" FMT SAID }
+  Err { "auth_error={}" FMT SAID }
+END

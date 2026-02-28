@@ -276,6 +276,15 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - `mini_env` is a bounded `.env` query tool: `--keys`, direct key lookup, and optional fallback values
 - Expanded practical/example smoke coverage and direct runtime tests so both the new prelude helpers and the utility stay exercised
 
+### v0.8.1b — Prelude INI Helpers and MiniIni
+- Added `lib/prelude/ini.crn` and folded bounded INI-style parsing into the official auto-loaded prelude
+- Added reusable helpers: `ini_data_lines`, `ini_map`, `ini_sections`, and `ini_fetch`
+- Kept the representation intentionally flat: parsed INI data lands in `map[str str]` using composite `section.key` keys
+- Added `examples/prelude/ini_parse.crn` as the focused INI-prelude demo
+- Added `examples/practical/mini_ini.crn` plus `examples/practical/lib/mini_ini.crn` and `examples/practical/data/app.ini` as the next parser-shaped utility stress test
+- `mini_ini` is a bounded INI query tool: `--sections`, direct section/key lookup, and optional fallback values
+- Expanded example lists, prelude discoverability, smoke coverage, and direct runtime tests so the new parser path stays visible and exercised
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

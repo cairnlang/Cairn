@@ -251,6 +251,7 @@ defmodule Axiom.CheckerTest do
       check_ok("[ \"ha ha\" \"ha\" \"xo\" ] HOST_CALL str_replace")
       check_ok("[ 42 ] HOST_CALL int_to_string")
       check_ok("[ 3.14 ] HOST_CALL float_to_string")
+      check_ok("\"hello\" [] CONS HOST_CALL str_upcase")
     end
 
     test "HOST_CALL rejects unknown helper names" do
@@ -267,8 +268,8 @@ defmodule Axiom.CheckerTest do
     end
 
     test "HOST_CALL rejects non-literal argument lists in v1" do
-      errors = check_errors("[] LET args args HOST_CALL str_upcase")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_upcase' in v1 requires a literal argument list immediately before it" end)
+      errors = check_errors("[] LET args args HOST_CALL str_replace")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_replace' in v1 requires a literal argument list immediately before it" end)
     end
   end
 

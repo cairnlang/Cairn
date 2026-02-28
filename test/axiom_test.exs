@@ -209,6 +209,7 @@ defmodule AxiomTest do
       assert Axiom.eval("[ \"ha ha\" \"ha\" \"xo\" ] HOST_CALL str_replace") == ["xo xo"]
       assert Axiom.eval("[ 42 ] HOST_CALL int_to_string") == ["42"]
       assert Axiom.eval("[ 3.14 ] HOST_CALL float_to_string") == ["3.14"]
+      assert Axiom.eval("\"hello\" [] CONS HOST_CALL str_upcase") == ["HELLO"]
     end
 
     test "comparison" do
@@ -597,6 +598,40 @@ defmodule AxiomTest do
 
       File.write!(Path.join(dir, "main.ax"), source)
       assert Axiom.eval_file(Path.join(dir, "main.ax")) |> elem(0) == [false]
+    end
+  end
+
+  describe "mini_grep example" do
+    test "supports case-insensitive numbered output via argv" do
+      Process.put(:axiom_argv, ["-i", "-n", "axiom", "examples/practical/data/mini_grep.txt"])
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert {[], _env} = Axiom.eval_file("examples/practical/mini_grep.ax")
+        end)
+
+      assert output =~ "1:Axiom"
+      assert output =~ "4:gamma axiom"
+      assert output =~ "5:delta Axiom"
+
+      Process.delete(:axiom_argv)
+    end
+
+    test "supports inverted matches via argv" do
+      Process.put(:axiom_argv, ["-v", "Axiom", "examples/practical/data/mini_grep.txt"])
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert {[], _env} = Axiom.eval_file("examples/practical/mini_grep.ax")
+        end)
+
+      assert output =~ "alpha"
+      assert output =~ "Beta"
+      assert output =~ "gamma axiom"
+      refute output =~ "Axiom\n"
+      refute output =~ "delta Axiom"
+
+      Process.delete(:axiom_argv)
     end
   end
 

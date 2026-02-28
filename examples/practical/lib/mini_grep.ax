@@ -1,0 +1,105 @@
+# examples/practical/lib/mini_grep.ax — helpers for a bounded grep-like CLI
+
+DEF is_supported_flag : str -> bool
+  DUP "-i" EQ LET is_i
+  DUP "-n" EQ LET is_n
+  "-v" EQ LET is_v
+  is_i is_n OR is_v OR
+END
+
+DEF leading_flag_count : [str] -> int
+  DUP LEN 0 EQ
+  IF
+    DROP 0
+  ELSE
+    DUP HEAD is_supported_flag
+    IF
+      TAIL leading_flag_count 1 ADD
+    ELSE
+      DROP 0
+    END
+  END
+  POST DUP 0 GTE
+END
+
+DEF drop_n : int [str] -> [str]
+  DUP 0 LTE
+  IF
+    DROP
+  ELSE
+    SWAP TAIL SWAP 1 SUB drop_n
+  END
+END
+
+DEF flag_enabled : str [str] -> bool
+  SWAP
+  DUP LEN 0 EQ
+  IF
+    DROP DROP F
+  ELSE
+    DUP HEAD LET current
+    TAIL LET rest
+    LET needle
+    current needle EQ
+    IF
+      T
+    ELSE
+      rest needle flag_enabled
+    END
+  END
+END
+
+DEF to_lower : str -> str
+  [] CONS HOST_CALL str_downcase
+END
+
+DEF normalize_for_match : bool str -> str
+  IF
+    to_lower
+  END
+END
+
+DEF line_matches : bool str str -> bool
+  LET case_i
+  LET pattern
+  LET line
+  line case_i normalize_for_match
+  pattern case_i normalize_for_match
+  CONTAINS
+END
+
+DEF apply_invert : bool bool -> bool
+  IF
+    NOT
+  END
+END
+
+DEF pair_line : [any] -> str
+  TAIL HEAD
+END
+
+DEF pair_number : [any] -> int
+  HEAD
+END
+
+DEF pair_matches : bool bool str [any] -> bool
+  LET invert
+  LET case_i
+  LET pattern
+  LET pair
+  pair pair_line pattern case_i line_matches
+  invert apply_invert
+END
+
+DEF format_pair : bool [any] -> str
+  LET show_numbers
+  LET pair
+  show_numbers
+  IF
+    pair pair_line
+    pair pair_number
+    "{}:{}" FMT
+  ELSE
+    pair pair_line
+  END
+END

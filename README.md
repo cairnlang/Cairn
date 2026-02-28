@@ -114,6 +114,7 @@ See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged pr
 `examples/collections.ax` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`.
 `examples/math.ax` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`.
 `examples/interop.ax` is the focused typed-whitelist host interop showcase for narrow `HOST_CALL` helpers such as `str_upcase`, `str_replace`, and `float_to_string`.
+`examples/practical/mini_grep.ax` is the first utility-style CLI stress test: a bounded `grep`-like tool with `-i`, `-n`, and `-v`.
 Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, `supervisor_worker.ax`, and `guess_binary.ax` exercise the current runtime actor path (`protocol_ping_pong.ax` is the first bounded protocol-conformance example and now demonstrates helper-function conformance inside protocol-bound actors, `counter.ax`, `traffic_light.ax`, and `guess_binary.ax` now use `WITH_STATE` plus `STEP`-driven bounded `REPEAT` loops to express actor-local state steps without manual unrolled `RECEIVE` chains, `notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` and `protocol_mismatch.ax` intentionally fail and are kept out of the normal runnable examples list.
 
 ### Practical Mini-Apps
@@ -130,6 +131,7 @@ Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax`, `
 - includes a larger module-split app (`expenses.ax`) with parser/aggregator/report modules
 - includes a composed cross-file app (`cashflow.ax`) combining ledger + expenses pipelines and shared report helpers
 - includes a multi-step composed stage (`cashflow_alerts.ax`) that classifies risk bands and actions from composed metrics
+- now also includes a utility-style CLI (`mini_grep.ax`) that reads argv, scans a file, and prints filtered matching lines
 
 ### Imports
 

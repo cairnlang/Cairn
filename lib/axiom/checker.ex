@@ -704,21 +704,54 @@ defmodule Axiom.Checker do
   end
 
   defp walk([{:op, :host_call, pos}, {:ident, name, _} | rest], state) do
-    state =
-      case Map.get(@host_call_signatures, name) do
-        nil ->
-          add_error(state, pos, "HOST_CALL '#{name}' is not in the v1 whitelist")
+    case Map.get(@host_call_signatures, name) do
+      nil ->
+        state = add_error(state, pos, "HOST_CALL '#{name}' is not in the v1 whitelist")
 
-        _ ->
-          add_error(state, pos, "HOST_CALL '#{name}' in v1 requires a literal argument list immediately before it")
-      end
+        case Stack.pop(state.stack) do
+          {:ok, _arg_type, new_stack} ->
+            walk(rest, %{state | stack: Stack.push(new_stack, :any)})
 
-    case Stack.pop(state.stack) do
-      {:ok, _arg_type, new_stack} ->
-        walk(rest, %{state | stack: Stack.push(new_stack, :any)})
+          :underflow ->
+            walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
+        end
 
-      :underflow ->
-        walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
+      %{args: [expected_type], return: return_type} ->
+        case Stack.pop(state.stack) do
+          {:ok, {:list, actual_type}, new_stack} ->
+            state =
+              case Unify.unify(actual_type, expected_type) do
+                {:ok, _} ->
+                  state
+
+                :error ->
+                  add_error(state, pos,
+                    "HOST_CALL '#{name}' expected [#{format_type(expected_type)}], got [#{format_type(actual_type)}]")
+              end
+
+            walk(rest, %{state | stack: Stack.push(new_stack, return_type)})
+
+          {:ok, other, new_stack} ->
+            state =
+              add_error(state, pos,
+                "HOST_CALL '#{name}' requires a literal argument list or typed unary arg list, got #{format_type(other)}")
+
+            walk(rest, %{state | stack: Stack.push(new_stack, return_type)})
+
+          :underflow ->
+            walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
+        end
+
+      %{args: _multi_args} ->
+        state = add_error(state, pos, "HOST_CALL '#{name}' in v1 requires a literal argument list immediately before it")
+
+        case Stack.pop(state.stack) do
+          {:ok, _arg_type, new_stack} ->
+            walk(rest, %{state | stack: Stack.push(new_stack, :any)})
+
+          :underflow ->
+            walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
+        end
     end
   end
 

@@ -562,6 +562,12 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 - Kept `PROVE` conservative: `HOST_CALL` degrades to `UNKNOWN`
 - Added `examples/interop.ax` as the focused showcase for the typed-whitelist v1 interop path
 
+**Practical stress-test slice now landed (`v0.7.3b`):**
+- Added `examples/practical/mini_grep.ax` plus `examples/practical/lib/mini_grep.ax` as the first utility-style CLI example
+- `mini_grep` is a bounded grep-like tool: substring search only, one file, and `-i` / `-n` / `-v` flags
+- This example deliberately stresses argv parsing, file reads, string/list pipelines, formatting, imports, and one disciplined use of `HOST_CALL str_downcase`
+- As part of landing it, the typed-whitelist interop path now also accepts typed unary dynamic arg lists (`str -> str` helpers through a single-element `[str]`) without broadening the multi-arg rules
+
 #### 4. Defer Mutable State
 **Goal:** Avoid semantic and architectural churn until the concurrency direction is more settled.
 

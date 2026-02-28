@@ -69,6 +69,7 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert output =~ "examples/prelude/result_flow.crn"
     assert output =~ "examples/prelude/env_parse.crn"
     assert output =~ "examples/prelude/ini_parse.crn"
+    assert output =~ "examples/prelude/web_helpers.crn"
     assert output =~ "diagnostics:"
     assert output =~ "examples/diagnostics/runtime_div_zero.crn"
     assert output =~ "prove:"
@@ -140,6 +141,8 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert stderr =~ "env_map"
     assert stderr =~ "lib/prelude/ini.crn"
     assert stderr =~ "ini_map"
+    assert stderr =~ "lib/prelude/web.crn"
+    assert stderr =~ "http_html_ok"
     assert stderr =~ "lib/prelude.crn"
     assert stderr =~ "ask_or"
   end

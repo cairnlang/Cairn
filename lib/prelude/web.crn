@@ -1,0 +1,28 @@
+# Prelude: small web response helpers for HTTP_SERVE handlers.
+
+# Convert an HTML body into the stack shape HTTP_SERVE expects.
+DEF http_html_ok : str -> str str int
+  200
+  "text/html; charset=utf-8"
+  ROT
+END
+
+# Convert a plain-text body into the stack shape HTTP_SERVE expects.
+DEF http_text_ok : str -> str str int
+  200
+  "text/plain; charset=utf-8"
+  ROT
+END
+
+# Convert a plain-text body into a simple 404 response.
+DEF http_text_not_found : str -> str str int
+  404
+  "text/plain; charset=utf-8"
+  ROT
+END
+
+# Convenience wrapper for serving a known HTML file.
+DEF http_html_file_ok : str -> str str int
+  READ_FILE!
+  http_html_ok
+END

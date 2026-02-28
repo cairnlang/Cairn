@@ -309,6 +309,16 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Kept the safer no-address form as shorthand for loopback (`127.0.0.1`)
 - Expanded the static web demo into two linked pages (`/` and `/about`) so routing is visibly Cairn-owned
 
+### v0.8.3f — Per-Connection BEAM Workers
+- Kept the `HTTP_SERVE` handler API stable while moving each accepted client socket into its own BEAM worker
+- This keeps the listener free to accept new connections even if an earlier client connects and stalls before sending a request
+- Added localhost regression coverage proving one idle client no longer blocks the next request
+
+### v0.8.3g — Cairn-Side Route Handler Layer
+- Added `lib/prelude/web.crn` as the first official web helper module (`http_html_ok`, `http_text_ok`, `http_text_not_found`, `http_html_file_ok`)
+- Moved the static demo’s route logic into `examples/web/lib/hello_static.crn` so `examples/web/hello_static.crn` reads like a real app entrypoint
+- Added `examples/prelude/web_helpers.crn` so the web helper layer is visible under `--examples`, the prelude banner, and smoke coverage
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

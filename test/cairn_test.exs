@@ -592,10 +592,13 @@ defmodule CairnTest do
       0 "42" TO_INT result_unwrap_or
       "PORT" "APP=one\\n# comment\\nPORT=4000\\n" env_map "missing" map_get_or
       "missing" "; note\\n[svc]\\nport=7000\\n" "svc" "port" ini_fetch result_unwrap_or
+      "<p>x</p>" http_html_ok
+      DROP
+      DROP
       """
 
       File.write!(Path.join(dir, "main.crn"), source)
-      assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == ["7000", "4000", 42, 2]
+      assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == [200, "7000", "4000", 42, 2]
     end
 
     test "user definitions override prelude helpers in file mode" do

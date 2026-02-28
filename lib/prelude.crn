@@ -5,6 +5,7 @@ IMPORT "prelude/result.crn"
 IMPORT "prelude/str.crn"
 IMPORT "prelude/config.crn"
 IMPORT "prelude/ini.crn"
+IMPORT "prelude/web.crn"
 
 # Convenience wrappers around safe parsing and I/O
 # Signature: str int -> int (text on top, default below)

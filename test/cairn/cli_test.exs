@@ -32,6 +32,7 @@ defmodule Cairn.CLITest do
     assert output =~ "examples/practical/mini_ini.crn"
     assert output =~ "examples/prelude/env_parse.crn"
     assert output =~ "examples/prelude/ini_parse.crn"
+    assert output =~ "examples/prelude/web_helpers.crn"
     assert output =~ "examples/concurrency/guess_binary.crn"
     assert output =~ "ambitious:"
     assert output =~ "examples/ambitious/orchestrator.crn"

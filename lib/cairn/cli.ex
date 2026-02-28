@@ -8,6 +8,7 @@ defmodule Cairn.CLI do
     {"lib/prelude/str.crn", ["lines_nonempty", "csv_ints"]},
     {"lib/prelude/config.crn", ["env_data_lines", "env_map", "env_keys", "env_fetch", "map_get_or"]},
     {"lib/prelude/ini.crn", ["ini_data_lines", "ini_map", "ini_sections", "ini_fetch"]},
+    {"lib/prelude/web.crn", ["http_html_ok", "http_text_ok", "http_text_not_found", "http_html_file_ok"]},
     {"lib/prelude.crn", ["to_int_or", "to_float_or", "read_file_or", "ask_or"]}
   ]
 
@@ -69,7 +70,8 @@ defmodule Cairn.CLI do
        "examples/prelude/csv_parse.crn",
        "examples/prelude/io_safe.crn",
        "examples/prelude/env_parse.crn",
-       "examples/prelude/ini_parse.crn"
+       "examples/prelude/ini_parse.crn",
+       "examples/prelude/web_helpers.crn"
      ]},
     {"diagnostics",
      [

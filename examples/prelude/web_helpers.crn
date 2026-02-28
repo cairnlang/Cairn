@@ -1,0 +1,17 @@
+"<h1>Cairn</h1>" http_html_ok
+LET html_body
+LET html_type
+LET html_status
+
+html_status "html_status={}" FMT SAID
+html_type "html_type={}" FMT SAID
+html_body "html_body={}" FMT SAID
+
+"missing\n" http_text_not_found
+LET missing_body
+LET missing_type
+LET missing_status
+
+missing_status "missing_status={}" FMT SAID
+missing_type "missing_type={}" FMT SAID
+missing_body "missing_body={}" FMT SAID

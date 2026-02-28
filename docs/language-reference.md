@@ -399,27 +399,9 @@ ARGV HEAD READ_FILE! SAID
 READ_LINE SAID
 
 # Serve two static pages on localhost until stopped
+"examples/web/lib/hello_static.crn" IMPORT
 "127.0.0.1" 8089 {
-  DUP "/" EQ
-  IF
-    DROP
-    200
-    "text/html; charset=utf-8"
-    "examples/web/static/index.html" READ_FILE!
-  ELSE
-    DUP "/about" EQ
-    IF
-      DROP
-      200
-      "text/html; charset=utf-8"
-      "examples/web/static/about.html" READ_FILE!
-    ELSE
-      DROP
-      404
-      "text/plain; charset=utf-8"
-      "not found\n"
-    END
-  END
+  handle_static_route
 } HTTP_SERVE
 ```
 

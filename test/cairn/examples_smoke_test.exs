@@ -1,7 +1,7 @@
 defmodule Cairn.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/prelude/env_parse.crn", "examples/prelude/ini_parse.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/practical/mini_env.crn", "examples/practical/mini_ini.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn", "examples/ambitious/orchestrator.crn"]
+  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/prelude/env_parse.crn", "examples/prelude/ini_parse.crn", "examples/prelude/web_helpers.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/practical/mini_env.crn", "examples/practical/mini_ini.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn", "examples/ambitious/orchestrator.crn"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -126,6 +126,15 @@ defmodule Cairn.ExamplesSmokeTest do
       "server_host=localhost",
       "sections=2",
       "auth_token=abc123"
+    ])
+
+    assert_output_markers("examples/prelude/web_helpers.crn", [
+      "html_status=200",
+      "html_type=text/html; charset=utf-8",
+      "html_body=<h1>Cairn</h1>",
+      "missing_status=404",
+      "missing_type=text/plain; charset=utf-8",
+      "missing_body=missing"
     ])
 
     assert_output_markers("examples/practical/mini_env.crn", [

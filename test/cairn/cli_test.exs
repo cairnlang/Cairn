@@ -2,7 +2,10 @@ defmodule Cairn.CLITest do
   use ExUnit.Case, async: false
 
   setup do
-    on_exit(fn -> System.delete_env("CAIRN_NO_PRELUDE") end)
+    on_exit(fn ->
+      System.delete_env("CAIRN_NO_PRELUDE")
+      System.delete_env("CAIRN_SKIP_ASSURANCE")
+    end)
     :ok
   end
 
@@ -16,6 +19,7 @@ defmodule Cairn.CLITest do
     assert output =~ "cairn [options]"
     assert output =~ "No file given     Start the REPL"
     assert output =~ "CAIRN_NO_PRELUDE=1"
+    assert output =~ "CAIRN_SKIP_ASSURANCE=1"
   end
 
   test "prints examples index from standalone CLI" do

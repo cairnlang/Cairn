@@ -2,7 +2,10 @@ defmodule Mix.Tasks.Cairn.RunTest do
   use ExUnit.Case, async: false
 
   setup do
-    on_exit(fn -> System.delete_env("CAIRN_NO_PRELUDE") end)
+    on_exit(fn ->
+      System.delete_env("CAIRN_NO_PRELUDE")
+      System.delete_env("CAIRN_SKIP_ASSURANCE")
+    end)
     :ok
   end
 
@@ -18,6 +21,7 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert output =~ "--examples"
     assert output =~ "--json-errors"
     assert output =~ "CAIRN_NO_PRELUDE=1"
+    assert output =~ "CAIRN_SKIP_ASSURANCE=1"
     assert output =~ "CAIRN_PROVE_TRACE=summary|verbose|json"
   end
 

@@ -357,6 +357,7 @@ PROVE withdraw_buggy
 
 For ADT params, counterexamples are now decoded in constructor form (see `examples/prove/proven_shape_buggy.crn`), e.g. `p0 = Circle(-1)`.
 To print MATCH pruning diagnostics, run with `CAIRN_PROVE_TRACE=summary`, `CAIRN_PROVE_TRACE=verbose`, or `CAIRN_PROVE_TRACE=json` (trace goes to stderr; see `examples/prove/proven_shape_trace.crn`).
+For production-style runs that should ignore inline assurance directives in loaded code, set `CAIRN_SKIP_ASSURANCE=1` to skip both `VERIFY` and `PROVE` during evaluation.
 
 For the full proof surface, trace modes, and solver details, see [`prove.md`](prove.md).
 

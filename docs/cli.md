@@ -45,6 +45,7 @@ mix cairn.run [options] <file.crn> [args...]
 ### Environment
 
 - `CAIRN_NO_PRELUDE=1`: disable auto-loading `lib/prelude.crn` in file mode
+- `CAIRN_SKIP_ASSURANCE=1`: skip inline `VERIFY` and `PROVE` directives during evaluation
 - `CAIRN_PROVE_TRACE=summary|verbose|json`: enable PROVE trace diagnostics on stderr
 - `CAIRN_DB_DIR=/path/to/data`: override the on-disk Mnesia directory for the bounded `DB_*` storage layer and the web todo app
 
@@ -77,6 +78,7 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 
 1. Build once: `mix escript.build`
    - Rebuild after Elixir runtime changes; `./cairn` does not update itself automatically.
+   - For production-style runs, set `CAIRN_SKIP_ASSURANCE=1` if you want to ignore inline `VERIFY`/`PROVE` directives in loaded code.
 2. Run: `./cairn examples/hello_world.crn`
    - Or try the collection-helper showcase: `./cairn examples/collections.crn`
    - Or try explicit float math: `./cairn examples/math.crn`

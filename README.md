@@ -56,6 +56,8 @@ mix escript.build
 mix escript.build
 ```
 
+If you want a production-style run to ignore inline `VERIFY` and `PROVE` directives, set `CAIRN_SKIP_ASSURANCE=1`.
+
 For the guided first pass, see [Getting Started](docs/getting-started.md).
 
 Good first programs to run:

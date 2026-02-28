@@ -152,6 +152,10 @@ defmodule Cairn do
     end
   end
 
+  defp skip_assurance? do
+    System.get_env("CAIRN_SKIP_ASSURANCE") in ["1", "true", "TRUE"]
+  end
+
   defp prove_unknown_hint(reason) do
     cond do
       String.contains?(reason, "not supported") ->
@@ -208,11 +212,17 @@ defmodule Cairn do
           {stack, Map.put(env, "__protocols__", Map.put(protocols, protocol.name, protocol))}
 
         {:verify, name, count}, {stack, env} ->
-          run_verify(name, count, env)
+          unless skip_assurance?() do
+            run_verify(name, count, env)
+          end
+
           {stack, env}
 
         {:prove, name}, {stack, env} ->
-          run_prove(name, env)
+          unless skip_assurance?() do
+            run_prove(name, env)
+          end
+
           {stack, env}
 
         {:import, _path}, {stack, env} ->

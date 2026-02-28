@@ -1,6 +1,11 @@
 defmodule Cairn.VerifyTest do
   use ExUnit.Case
 
+  setup do
+    on_exit(fn -> System.delete_env("CAIRN_SKIP_ASSURANCE") end)
+    :ok
+  end
+
   # ── Lexer + Parser ──
 
   describe "VERIFY parsing" do
@@ -175,6 +180,17 @@ defmodule Cairn.VerifyTest do
         end)
 
       assert output =~ "VERIFY leading_flag_count_bounded: OK"
+    end
+
+    test "CAIRN_SKIP_ASSURANCE skips VERIFY and PROVE directives entirely" do
+      System.put_env("CAIRN_SKIP_ASSURANCE", "1")
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert {[3], _env} = Cairn.eval_with_env("VERIFY nonexistent 10 PROVE nonexistent 1 2 ADD")
+        end)
+
+      assert output == ""
     end
   end
 

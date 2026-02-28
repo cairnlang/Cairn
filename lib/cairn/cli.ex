@@ -232,6 +232,7 @@ defmodule Cairn.CLI do
 
     Environment:
       CAIRN_NO_PRELUDE=1               Disable auto-loading lib/prelude.crn in file mode
+      CAIRN_SKIP_ASSURANCE=1           Skip VERIFY and PROVE directives during evaluation
       CAIRN_PROVE_TRACE=summary|verbose|json
                                       Enable PROVE MATCH trace diagnostics (stderr)
     """)

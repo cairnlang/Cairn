@@ -25,5 +25,8 @@ cairn-*.tar
 # Ignore the locally built standalone executable (built via "mix escript.build").
 /cairn
 
+# Ignore the default local Mnesia store used by the bounded DB layer.
+/.cairn_mnesia/
+
 # Temporary files, for example, from tests.
 /tmp/

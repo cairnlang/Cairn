@@ -367,6 +367,11 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Migrated `examples/web/todo_app.crn` off text-file writes and onto the new Mnesia-backed store
 - Added persistence coverage, including survival across app restart in the same configured data directory
 
+### v0.8.5c — Production Assurance Skip
+- Added `CAIRN_SKIP_ASSURANCE=1` so `VERIFY` and `PROVE` directives can be skipped during evaluation without changing source files
+- Kept the preferred structure unchanged: production-serving apps should still keep assurance runners separate from app entrypoints
+- Added coverage that skipped assurance directives do not run and evaluation continues normally
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

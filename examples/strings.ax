@@ -1,0 +1,7 @@
+# examples/strings.ax — focused native string helper showcase
+
+"hello" UPPER "upper={}" FMT SAID
+"One Two" LOWER "lower={}" FMT SAID
+"abc" REVERSE_STR "reverse={}" FMT SAID
+"ha ha" "ha" "xo" REPLACE "replace={}" FMT SAID
+"hello" "lo" ENDS_WITH "ends={}" FMT SAID

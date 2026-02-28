@@ -55,7 +55,7 @@ DEF flag_enabled : str [str] -> bool
 END
 
 DEF to_lower : str -> str
-  [] CONS HOST_CALL str_downcase
+  LOWER
 END
 
 DEF normalize_for_match : bool str -> str

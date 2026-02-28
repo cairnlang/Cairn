@@ -1,6 +1,2 @@
-[ "hello" ] HOST_CALL str_upcase "up={}" FMT SAID
-[ "One Two" ] HOST_CALL str_downcase "down={}" FMT SAID
-[ "abc" ] HOST_CALL str_reverse "rev={}" FMT SAID
-[ "ha ha" "ha" "xo" ] HOST_CALL str_replace "replace={}" FMT SAID
 [ 42 ] HOST_CALL int_to_string "int={}" FMT SAID
 [ 3.14 ] HOST_CALL float_to_string "float={}" FMT SAID

@@ -1,7 +1,7 @@
 defmodule Axiom.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.ax", "examples/collections.ax", "examples/math.ax", "examples/interop.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/practical/mini_grep.ax", "examples/practical/mini_grep_verify.ax", "examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/guess_binary.ax"]
+  @examples ["examples/hello_world.ax", "examples/collections.ax", "examples/math.ax", "examples/strings.ax", "examples/interop.ax", "examples/imports/main.ax", "examples/prelude/result_flow.ax", "examples/practical/all_practical.ax", "examples/practical/main.ax", "examples/practical/ledger.ax", "examples/practical/todo.ax", "examples/practical/expenses.ax", "examples/practical/cashflow.ax", "examples/practical/cashflow_alerts.ax", "examples/practical/mini_grep.ax", "examples/practical/mini_grep_verify.ax", "examples/concurrency/ping_pong_types.ax", "examples/concurrency/traffic_light_types.ax", "examples/concurrency/guess_binary.ax"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -33,11 +33,15 @@ defmodule Axiom.ExamplesSmokeTest do
       "sqrt(100)=10.0"
     ])
 
-    assert_output_markers("examples/interop.ax", [
-      "up=HELLO",
-      "down=one two",
-      "rev=cba",
+    assert_output_markers("examples/strings.ax", [
+      "upper=HELLO",
+      "lower=one two",
+      "reverse=cba",
       "replace=xo xo",
+      "ends=T"
+    ])
+
+    assert_output_markers("examples/interop.ax", [
       "int=42",
       "float=3.14"
     ])

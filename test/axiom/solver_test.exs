@@ -1146,7 +1146,7 @@ defmodule Axiom.SolverTest do
         name: "host_func",
         param_types: [:int],
         return_types: [:int],
-        body: [{:op, :host_call, 0}, {:ident, "str_upcase", 1}],
+        body: [{:op, :host_call, 0}, {:ident, "int_to_string", 1}],
         pre_condition: nil,
         post_condition: nil
       }

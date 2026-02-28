@@ -113,7 +113,8 @@ See [`docs/prove.md`](docs/prove.md) for PROVE-specific details, solver behavior
 See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged practical flow (`main -> ledger/todo -> expenses -> cashflow -> cashflow_alerts`).
 `examples/collections.ax` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`.
 `examples/math.ax` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`.
-`examples/interop.ax` is the focused typed-whitelist host interop showcase for narrow `HOST_CALL` helpers such as `str_upcase`, `str_replace`, and `float_to_string`.
+`examples/strings.ax` is the focused native string-helper showcase for `UPPER`, `LOWER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`.
+`examples/interop.ax` is the focused typed-whitelist host interop showcase for the still-narrow `HOST_CALL` escape hatch (`int_to_string`, `float_to_string`).
 `examples/practical/mini_grep.ax` is the first utility-style CLI stress test: a bounded `grep`-like tool with `-i`, `-n`, and `-v`.
 Concurrency examples live under `examples/concurrency/`; `ping_pong_types.ax`, `protocol_ping_pong.ax`, and `traffic_light_types.ax` stay type-focused, while `ping_once.ax`, `self_boot.ax`, `two_pings.ax`, `counter.ax`, `traffic_light.ax`, `notifier.ax`, `restart_once.ax`, `supervisor_worker.ax`, and `guess_binary.ax` exercise the current runtime actor path (`protocol_ping_pong.ax` is the first bounded protocol-conformance example and now demonstrates helper-function conformance inside protocol-bound actors, `counter.ax`, `traffic_light.ax`, and `guess_binary.ax` now use `WITH_STATE` plus `STEP`-driven bounded `REPEAT` loops to express actor-local state steps without manual unrolled `RECEIVE` chains, `notifier.ax` is the first more practical actor-shaped workflow, `restart_once.ax` is the first minimal supervision/restart workflow, and `supervisor_worker.ax` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.ax`, `lib/state.ax`, `lib/supervision.ax`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.ax` and `protocol_mismatch.ax` intentionally fail and are kept out of the normal runnable examples list.
 
@@ -223,7 +224,7 @@ EXP LOG SQRT                  # unary: pop 1 float, push 1 float
 POW                           # binary: pop exponent + base (floats), push float
 
 # Narrow host interop (v1)
-HOST_CALL helper              # expects a literal arg list immediately before it, e.g. [ "hi" ] HOST_CALL str_upcase
+HOST_CALL helper              # expects a literal arg list immediately before it, e.g. [ 42 ] HOST_CALL int_to_string
 
 # Comparison (pop 2, push bool)
 EQ NEQ GT LT GTE LTE
@@ -271,7 +272,11 @@ LEN                            # also works on strings (character count)
 CHARS                          # split string into list of single characters
 SPLIT                          # pop delimiter, pop string, push split list
 TRIM                           # remove leading/trailing whitespace
+LOWER UPPER                    # case normalization helpers
 STARTS_WITH                    # pop prefix, pop string, push bool
+ENDS_WITH                      # pop suffix, pop string, push bool
+REPLACE                        # pop replacement, pop pattern, pop string, push replaced string
+REVERSE_STR                    # reverse a string
 SLICE                          # pop len, pop start, pop string, push substring
 TO_INT                         # parse string as integer -> result (Ok int | Err str)
 TO_FLOAT                       # parse string as float -> result (Ok float | Err str)

@@ -247,11 +247,8 @@ defmodule Axiom.CheckerTest do
     end
 
     test "HOST_CALL accepts typed whitelisted helpers with literal arg lists" do
-      check_ok("[ \"hello\" ] HOST_CALL str_upcase")
-      check_ok("[ \"ha ha\" \"ha\" \"xo\" ] HOST_CALL str_replace")
       check_ok("[ 42 ] HOST_CALL int_to_string")
       check_ok("[ 3.14 ] HOST_CALL float_to_string")
-      check_ok("\"hello\" [] CONS HOST_CALL str_upcase")
     end
 
     test "HOST_CALL rejects unknown helper names" do
@@ -260,16 +257,16 @@ defmodule Axiom.CheckerTest do
     end
 
     test "HOST_CALL enforces literal arg arity and types" do
-      errors = check_errors("[ ] HOST_CALL str_upcase")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_upcase' expected 1 arg(s), got 0" end)
+      errors = check_errors("[ ] HOST_CALL int_to_string")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'int_to_string' expected 1 arg(s), got 0" end)
 
-      errors = check_errors("[ 42 ] HOST_CALL str_upcase")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_upcase' arg type mismatch" end)
+      errors = check_errors("[ \"42\" ] HOST_CALL int_to_string")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'int_to_string' arg type mismatch" end)
     end
 
     test "HOST_CALL rejects non-literal argument lists in v1" do
-      errors = check_errors("[] LET args args HOST_CALL str_replace")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_replace' in v1 requires a literal argument list immediately before it" end)
+      errors = check_errors("[] LET args args HOST_CALL int_to_string")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'int_to_string' in v1 requires a literal argument list immediately before it" end)
     end
   end
 
@@ -758,6 +755,23 @@ defmodule Axiom.CheckerTest do
 
     test "TRIM on string" do
       check_ok("\"  hi  \" TRIM")
+    end
+
+    test "LOWER / UPPER on string" do
+      check_ok("\"Hello\" LOWER")
+      check_ok("\"hello\" UPPER")
+    end
+
+    test "ENDS_WITH on two strings" do
+      check_ok("\"hello\" \"lo\" ENDS_WITH")
+    end
+
+    test "REPLACE on three strings" do
+      check_ok("\"ha ha\" \"ha\" \"xo\" REPLACE")
+    end
+
+    test "REVERSE_STR on string" do
+      check_ok("\"hello\" REVERSE_STR")
     end
 
     test "TRIM result is str — CONCAT works" do

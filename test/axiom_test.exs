@@ -32,6 +32,11 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :ceil, 0}]} = Axiom.Lexer.tokenize("CEIL")
       assert {:ok, [{:op, :round, 0}]} = Axiom.Lexer.tokenize("ROUND")
       assert {:ok, [{:op, :host_call, 0}]} = Axiom.Lexer.tokenize("HOST_CALL")
+      assert {:ok, [{:op, :lower, 0}]} = Axiom.Lexer.tokenize("LOWER")
+      assert {:ok, [{:op, :upper, 0}]} = Axiom.Lexer.tokenize("UPPER")
+      assert {:ok, [{:op, :ends_with, 0}]} = Axiom.Lexer.tokenize("ENDS_WITH")
+      assert {:ok, [{:op, :replace, 0}]} = Axiom.Lexer.tokenize("REPLACE")
+      assert {:ok, [{:op, :reverse_str, 0}]} = Axiom.Lexer.tokenize("REVERSE_STR")
       assert {:ok, [{:op, :with_state, 0}]} = Axiom.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :repeat, 0}]} = Axiom.Lexer.tokenize("REPEAT")
       assert {:ok, [{:op, :step, 0}]} = Axiom.Lexer.tokenize("STEP")
@@ -202,14 +207,18 @@ defmodule AxiomTest do
       end
     end
 
-    test "host interop v1 calls whitelisted helpers" do
-      assert Axiom.eval("[ \"hello\" ] HOST_CALL str_upcase") == ["HELLO"]
-      assert Axiom.eval("[ \"One Two\" ] HOST_CALL str_downcase") == ["one two"]
-      assert Axiom.eval("[ \"abc\" ] HOST_CALL str_reverse") == ["cba"]
-      assert Axiom.eval("[ \"ha ha\" \"ha\" \"xo\" ] HOST_CALL str_replace") == ["xo xo"]
+    test "native string helpers cover practical transforms" do
+      assert Axiom.eval("\"hello\" UPPER") == ["HELLO"]
+      assert Axiom.eval("\"One Two\" LOWER") == ["one two"]
+      assert Axiom.eval("\"abc\" REVERSE_STR") == ["cba"]
+      assert Axiom.eval("\"ha ha\" \"ha\" \"xo\" REPLACE") == ["xo xo"]
+      assert Axiom.eval("\"hello\" \"lo\" ENDS_WITH") == [true]
+      assert Axiom.eval("\"hello\" \"he\" ENDS_WITH") == [false]
+    end
+
+    test "host interop v1 stays narrow and calls formatting helpers" do
       assert Axiom.eval("[ 42 ] HOST_CALL int_to_string") == ["42"]
       assert Axiom.eval("[ 3.14 ] HOST_CALL float_to_string") == ["3.14"]
-      assert Axiom.eval("\"hello\" [] CONS HOST_CALL str_upcase") == ["HELLO"]
     end
 
     test "comparison" do

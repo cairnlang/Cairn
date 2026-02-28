@@ -9,10 +9,6 @@ defmodule Axiom.Checker do
   alias Axiom.Checker.{Error, Stack, Effects, Unify}
 
   @host_call_signatures %{
-    "str_upcase" => %{args: [:str], return: :str},
-    "str_downcase" => %{args: [:str], return: :str},
-    "str_reverse" => %{args: [:str], return: :str},
-    "str_replace" => %{args: [:str, :str, :str], return: :str},
     "int_to_string" => %{args: [:int], return: :str},
     "float_to_string" => %{args: [:float], return: :str}
   }
@@ -716,33 +712,7 @@ defmodule Axiom.Checker do
             walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
         end
 
-      %{args: [expected_type], return: return_type} ->
-        case Stack.pop(state.stack) do
-          {:ok, {:list, actual_type}, new_stack} ->
-            state =
-              case Unify.unify(actual_type, expected_type) do
-                {:ok, _} ->
-                  state
-
-                :error ->
-                  add_error(state, pos,
-                    "HOST_CALL '#{name}' expected [#{format_type(expected_type)}], got [#{format_type(actual_type)}]")
-              end
-
-            walk(rest, %{state | stack: Stack.push(new_stack, return_type)})
-
-          {:ok, other, new_stack} ->
-            state =
-              add_error(state, pos,
-                "HOST_CALL '#{name}' requires a literal argument list or typed unary arg list, got #{format_type(other)}")
-
-            walk(rest, %{state | stack: Stack.push(new_stack, return_type)})
-
-          :underflow ->
-            walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
-        end
-
-      %{args: _multi_args} ->
+      %{args: _expected_args} ->
         state = add_error(state, pos, "HOST_CALL '#{name}' in v1 requires a literal argument list immediately before it")
 
         case Stack.pop(state.stack) do

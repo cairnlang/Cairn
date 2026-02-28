@@ -281,8 +281,24 @@ defmodule Axiom.Runtime do
   # TRIM: remove leading and trailing whitespace
   def execute(:trim, [s | rest]) when is_binary(s), do: [String.trim(s) | rest]
 
+  # LOWER / UPPER: case normalization helpers
+  def execute(:lower, [s | rest]) when is_binary(s), do: [String.downcase(s) | rest]
+  def execute(:upper, [s | rest]) when is_binary(s), do: [String.upcase(s) | rest]
+
   # STARTS_WITH: check if string starts with prefix
   def execute(:starts_with, [prefix, s | rest]) when is_binary(s) and is_binary(prefix), do: [String.starts_with?(s, prefix) | rest]
+
+  # ENDS_WITH: check if string ends with suffix
+  def execute(:ends_with, [suffix, s | rest]) when is_binary(s) and is_binary(suffix),
+    do: [String.ends_with?(s, suffix) | rest]
+
+  # REPLACE: replace all matches of a pattern with the replacement string
+  def execute(:replace, [replacement, pattern, s | rest])
+      when is_binary(s) and is_binary(pattern) and is_binary(replacement),
+      do: [String.replace(s, pattern, replacement) | rest]
+
+  # REVERSE_STR: reverse the graphemes in a string
+  def execute(:reverse_str, [s | rest]) when is_binary(s), do: [String.reverse(s) | rest]
 
   # SLICE: extract substring (zero-based start, length)
   def execute(:slice, [len, start, s | rest]) when is_binary(s) and is_integer(start) and is_integer(len), do: [String.slice(s, start, len) | rest]
@@ -402,10 +418,6 @@ defmodule Axiom.Runtime do
   def host_call(name, args) when is_binary(name) and is_list(args) do
     wrapper =
       case name do
-        "str_upcase" -> {:ok, 1, fn [value] when is_binary(value) -> String.upcase(value) end}
-        "str_downcase" -> {:ok, 1, fn [value] when is_binary(value) -> String.downcase(value) end}
-        "str_reverse" -> {:ok, 1, fn [value] when is_binary(value) -> String.reverse(value) end}
-        "str_replace" -> {:ok, 3, fn [value, pattern, replacement] when is_binary(value) and is_binary(pattern) and is_binary(replacement) -> String.replace(value, pattern, replacement) end}
         "int_to_string" -> {:ok, 1, fn [value] when is_integer(value) -> Integer.to_string(value) end}
         "float_to_string" -> {:ok, 1, fn [value] when is_float(value) -> Float.to_string(value) end}
         _ -> :error

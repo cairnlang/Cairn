@@ -558,20 +558,25 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 **Bounded slice now landed (`v0.7.3a`):**
 - Added `HOST_CALL helper` as the first narrow host-interop escape hatch
 - Kept it intentionally strict: the checker only accepts a literal scalar arg list immediately before `HOST_CALL`, and the helper name must be in a small typed whitelist
-- The first whitelist is string/format oriented (`str_upcase`, `str_downcase`, `str_reverse`, `str_replace`, `int_to_string`, `float_to_string`)
+- The first whitelist started string/format oriented, but later tightened back down to numeric formatting helpers only (`int_to_string`, `float_to_string`) once common string transforms moved into native ops
 - Kept `PROVE` conservative: `HOST_CALL` degrades to `UNKNOWN`
 - Added `examples/interop.ax` as the focused showcase for the typed-whitelist v1 interop path
 
 **Practical stress-test slice now landed (`v0.7.3b`):**
 - Added `examples/practical/mini_grep.ax` plus `examples/practical/lib/mini_grep.ax` as the first utility-style CLI example
 - `mini_grep` is a bounded grep-like tool: substring search only, one file, and `-i` / `-n` / `-v` flags
-- This example deliberately stresses argv parsing, file reads, string/list pipelines, formatting, imports, and one disciplined use of `HOST_CALL str_downcase`
-- As part of landing it, the typed-whitelist interop path now also accepts typed unary dynamic arg lists (`str -> str` helpers through a single-element `[str]`) without broadening the multi-arg rules
+- This example deliberately stresses argv parsing, file reads, string/list pipelines, formatting, imports, and practical pure helper logic
 
 **Practical VERIFY generator slice now landed (`v0.7.4a`):**
 - Tightened `VERIFY`'s practical generator story rather than expanding its type surface: string generation is now explicitly bounded to small ASCII-ish values, and `[str]` generation is capped to shorter lists so text-heavy helpers stay cheap to fuzz
 - Added `leading_flag_count_bounded : [str] -> bool` to the `mini_grep` helper module and a dedicated `examples/practical/mini_grep_verify.ax` runner that fuzzes it with `VERIFY`
 - This turns `mini_grep` into a better brochure example: the end-to-end CLI is still integration-tested conventionally, while one of its pure parsing helpers is now stress-tested through `VERIFY`
+
+**Native string helper follow-through now landed (`v0.7.4b`):**
+- Added native `LOWER`, `UPPER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`
+- Switched `mini_grep` over to native `LOWER`, removing its need for host-backed case folding
+- Added `examples/strings.ax` as the focused native string-helper showcase
+- Tightened `HOST_CALL` back to its original literal-list-only stance and kept its whitelist narrow (`int_to_string`, `float_to_string`)
 
 #### 4. Defer Mutable State
 **Goal:** Avoid semantic and architectural churn until the concurrency direction is more settled.

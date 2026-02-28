@@ -8,6 +8,15 @@ defmodule Axiom.Checker do
 
   alias Axiom.Checker.{Error, Stack, Effects, Unify}
 
+  @host_call_signatures %{
+    "str_upcase" => %{args: [:str], return: :str},
+    "str_downcase" => %{args: [:str], return: :str},
+    "str_reverse" => %{args: [:str], return: :str},
+    "str_replace" => %{args: [:str, :str, :str], return: :str},
+    "int_to_string" => %{args: [:int], return: :str},
+    "float_to_string" => %{args: [:float], return: :str}
+  }
+
   @doc """
   Checks a list of parsed items for static type errors.
 
@@ -351,6 +360,10 @@ defmodule Axiom.Checker do
     walk(rest, %{state | stack: Stack.push(state.stack, :str)})
   end
 
+  defp walk([{:list_lit, _, _}, {:op, :host_call, pos}, {:ident, name, _} | rest], state) do
+    check_literal_host_call(name, [], pos, rest, state)
+  end
+
   defp walk([{:list_lit, _, _} | rest], state) do
     # Empty list literal []
     {tvar, state} = fresh_tvar(state)
@@ -374,8 +387,15 @@ defmodule Axiom.Checker do
   # List construction: [ ... ]
   defp walk([{:list_open, _, _} | rest], state) do
     {elem_tokens, remaining} = collect_list_elements(rest, [], 0)
-    {elem_type, state} = infer_list_element_type(elem_tokens, state)
-    walk(remaining, %{state | stack: Stack.push(state.stack, {:list, elem_type})})
+
+    case remaining do
+      [{:op, :host_call, pos}, {:ident, name, _} | tail] ->
+        check_literal_host_call(name, elem_tokens, pos, tail, state)
+
+      _ ->
+        {elem_type, state} = infer_list_element_type(elem_tokens, state)
+        walk(remaining, %{state | stack: Stack.push(state.stack, {:list, elem_type})})
+    end
   end
 
   # LET — pop top type, bind name in env for subsequent type checking
@@ -681,6 +701,29 @@ defmodule Axiom.Checker do
 
   defp walk([{:op, :step, pos} | rest], state) do
     walk(rest, add_error(state, pos, "STEP requires a function name"))
+  end
+
+  defp walk([{:op, :host_call, pos}, {:ident, name, _} | rest], state) do
+    state =
+      case Map.get(@host_call_signatures, name) do
+        nil ->
+          add_error(state, pos, "HOST_CALL '#{name}' is not in the v1 whitelist")
+
+        _ ->
+          add_error(state, pos, "HOST_CALL '#{name}' in v1 requires a literal argument list immediately before it")
+      end
+
+    case Stack.pop(state.stack) do
+      {:ok, _arg_type, new_stack} ->
+        walk(rest, %{state | stack: Stack.push(new_stack, :any)})
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :host_call, pos} | rest], state) do
+    walk(rest, add_error(state, pos, "HOST_CALL requires a whitelisted helper name"))
   end
 
   # Higher-order ops: FILTER, MAP, REDUCE, TIMES/REPEAT, WHILE
@@ -1864,6 +1907,58 @@ defmodule Axiom.Checker do
   defp format_type({:tvar, id}), do: "t#{id}"
   defp format_type({:user_type, name}), do: name
   defp format_type(other), do: inspect(other)
+
+  defp check_literal_host_call(name, arg_tokens, pos, rest, state) do
+    case Map.get(@host_call_signatures, name) do
+      nil ->
+        walk(rest, add_error(state, pos, "HOST_CALL '#{name}' is not in the v1 whitelist"))
+
+      %{args: expected_args, return: return_type} ->
+        {actual_args, state} = literal_host_arg_types(arg_tokens, state, pos)
+
+        state =
+          if length(actual_args) != length(expected_args) do
+            add_error(state, pos,
+              "HOST_CALL '#{name}' expected #{length(expected_args)} arg(s), got #{length(actual_args)}")
+          else
+            state
+          end
+
+        state =
+          Enum.zip(actual_args, expected_args)
+          |> Enum.reduce(state, fn {actual_type, expected_type}, st ->
+            case Unify.unify(actual_type, expected_type) do
+              {:ok, _} ->
+                st
+
+              :error ->
+                add_error(st, pos,
+                  "HOST_CALL '#{name}' arg type mismatch: expected #{format_type(expected_type)}, got #{format_type(actual_type)}")
+            end
+          end)
+
+        walk(rest, %{state | stack: Stack.push(state.stack, return_type)})
+    end
+  end
+
+  defp literal_host_arg_types(tokens, state, pos) do
+    Enum.reduce(tokens, {[], state}, fn token, {acc, st} ->
+      case literal_host_arg_type(token) do
+        {:ok, type} ->
+          {acc ++ [type], st}
+
+        :error ->
+          {acc, add_error(st, pos,
+            "HOST_CALL in v1 only accepts literal scalar argument lists (int, float, bool, str)")}
+      end
+    end)
+  end
+
+  defp literal_host_arg_type({:int_lit, _, _}), do: {:ok, :int}
+  defp literal_host_arg_type({:float_lit, _, _}), do: {:ok, :float}
+  defp literal_host_arg_type({:bool_lit, _, _}), do: {:ok, :bool}
+  defp literal_host_arg_type({:str_lit, _, _}), do: {:ok, :str}
+  defp literal_host_arg_type(_token), do: :error
 
   defp format_step_signature(param_types, return_types) do
     params =

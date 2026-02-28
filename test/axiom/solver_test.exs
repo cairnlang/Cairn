@@ -1141,6 +1141,20 @@ defmodule Axiom.SolverTest do
       assert reason =~ "FLOOR"
     end
 
+    test "function with host interop returns unknown" do
+      func = %Function{
+        name: "host_func",
+        param_types: [:int],
+        return_types: [:int],
+        body: [{:op, :host_call, 0}, {:ident, "str_upcase", 1}],
+        pre_condition: nil,
+        post_condition: nil
+      }
+
+      assert {:unknown, reason} = Prove.prove(func)
+      assert reason =~ "HOST_CALL"
+    end
+
     test "MATCH on result type can be disproven" do
       source = """
       TYPE result = Ok int | Err str

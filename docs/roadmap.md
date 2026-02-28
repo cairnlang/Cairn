@@ -555,6 +555,13 @@ These are worthwhile practicality slices that can be interleaved with the v0.7.0
 
 **Why third:** huge practical upside, but easy to overdo in ways that weaken the pressure to improve Axiom itself.
 
+**Bounded slice now landed (`v0.7.3a`):**
+- Added `HOST_CALL helper` as the first narrow host-interop escape hatch
+- Kept it intentionally strict: the checker only accepts a literal scalar arg list immediately before `HOST_CALL`, and the helper name must be in a small typed whitelist
+- The first whitelist is string/format oriented (`str_upcase`, `str_downcase`, `str_reverse`, `str_replace`, `int_to_string`, `float_to_string`)
+- Kept `PROVE` conservative: `HOST_CALL` degrades to `UNKNOWN`
+- Added `examples/interop.ax` as the focused showcase for the typed-whitelist v1 interop path
+
 #### 4. Defer Mutable State
 **Goal:** Avoid semantic and architectural churn until the concurrency direction is more settled.
 

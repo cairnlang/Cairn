@@ -31,6 +31,7 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :floor, 0}]} = Axiom.Lexer.tokenize("FLOOR")
       assert {:ok, [{:op, :ceil, 0}]} = Axiom.Lexer.tokenize("CEIL")
       assert {:ok, [{:op, :round, 0}]} = Axiom.Lexer.tokenize("ROUND")
+      assert {:ok, [{:op, :host_call, 0}]} = Axiom.Lexer.tokenize("HOST_CALL")
       assert {:ok, [{:op, :with_state, 0}]} = Axiom.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :repeat, 0}]} = Axiom.Lexer.tokenize("REPEAT")
       assert {:ok, [{:op, :step, 0}]} = Axiom.Lexer.tokenize("STEP")
@@ -199,6 +200,15 @@ defmodule AxiomTest do
       assert_raise Axiom.RuntimeError, ~r/SQRT expects a non-negative float/, fn ->
         Axiom.eval("-1.0 SQRT")
       end
+    end
+
+    test "host interop v1 calls whitelisted helpers" do
+      assert Axiom.eval("[ \"hello\" ] HOST_CALL str_upcase") == ["HELLO"]
+      assert Axiom.eval("[ \"One Two\" ] HOST_CALL str_downcase") == ["one two"]
+      assert Axiom.eval("[ \"abc\" ] HOST_CALL str_reverse") == ["cba"]
+      assert Axiom.eval("[ \"ha ha\" \"ha\" \"xo\" ] HOST_CALL str_replace") == ["xo xo"]
+      assert Axiom.eval("[ 42 ] HOST_CALL int_to_string") == ["42"]
+      assert Axiom.eval("[ 3.14 ] HOST_CALL float_to_string") == ["3.14"]
     end
 
     test "comparison" do

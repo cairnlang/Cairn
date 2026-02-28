@@ -396,6 +396,48 @@ defmodule Axiom.Runtime do
           "cannot apply #{op} to stack: #{inspect(Enum.take(stack, 3))}... (#{length(stack)} elements)"
   end
 
+  @doc """
+  Execute a whitelisted host helper for the narrow interop v1 slice.
+  """
+  def host_call(name, args) when is_binary(name) and is_list(args) do
+    wrapper =
+      case name do
+        "str_upcase" -> {:ok, 1, fn [value] when is_binary(value) -> String.upcase(value) end}
+        "str_downcase" -> {:ok, 1, fn [value] when is_binary(value) -> String.downcase(value) end}
+        "str_reverse" -> {:ok, 1, fn [value] when is_binary(value) -> String.reverse(value) end}
+        "str_replace" -> {:ok, 3, fn [value, pattern, replacement] when is_binary(value) and is_binary(pattern) and is_binary(replacement) -> String.replace(value, pattern, replacement) end}
+        "int_to_string" -> {:ok, 1, fn [value] when is_integer(value) -> Integer.to_string(value) end}
+        "float_to_string" -> {:ok, 1, fn [value] when is_float(value) -> Float.to_string(value) end}
+        _ -> :error
+      end
+
+    case wrapper do
+      {:ok, arity, fun} ->
+        if length(args) != arity do
+          raise Axiom.RuntimeError, "HOST_CALL #{name}: expected #{arity} arg(s), got #{length(args)}"
+        end
+
+        try do
+          case fun.(args) do
+            result when is_binary(result) -> result
+            other -> raise Axiom.RuntimeError, "HOST_CALL #{name}: returned unsupported host value #{inspect(other)}"
+          end
+        rescue
+          e in Axiom.RuntimeError ->
+            reraise e, __STACKTRACE__
+
+          FunctionClauseError ->
+            raise Axiom.RuntimeError, "HOST_CALL #{name}: argument types do not match the whitelist signature"
+
+          e ->
+            raise Axiom.RuntimeError, "HOST_CALL #{name}: host wrapper raised #{Exception.message(e)}"
+        end
+
+      :error ->
+        raise Axiom.RuntimeError, "HOST_CALL #{name}: unknown host helper"
+    end
+  end
+
   # --- FMT helpers ---
 
   defp format_string(format, stack) do

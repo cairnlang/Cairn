@@ -134,6 +134,25 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "STEP at word #{pos + 1}: requires a function name"
   end
 
+  # HOST_CALL helper_name — narrow, whitelisted host interop v1.
+  defp run([{:op, :host_call, _pos}, {:ident, name, _} | rest], [args | stack], env) when is_list(args) do
+    result = Runtime.host_call(name, args)
+    run(rest, [result | stack], env)
+  end
+
+  defp run([{:op, :host_call, pos}, {:ident, _name, _} | _], [other | _], _env) do
+    raise Axiom.RuntimeError,
+      "HOST_CALL at word #{pos + 1}: requires a list of arguments on the stack, got #{inspect(other)}"
+  end
+
+  defp run([{:op, :host_call, pos}, {:ident, _name, _} | _], [], _env) do
+    raise Axiom.RuntimeError, "HOST_CALL at word #{pos + 1}: stack underflow"
+  end
+
+  defp run([{:op, :host_call, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "HOST_CALL at word #{pos + 1}: requires a whitelisted helper name"
+  end
+
   # LET — pop top value, bind to the following identifier name
   defp run([{:let_kw, _, _pos}, {:ident, name, _} | rest], [value | stack], env) do
     run(rest, stack, Map.put(env, name, {:let_binding, value}))

@@ -333,6 +333,7 @@ defmodule Axiom.Solver.Symbolic do
               :floor,
               :ceil,
               :round,
+              :host_call,
               :argv,
               :read_file,
               :write_file,

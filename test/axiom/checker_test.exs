@@ -146,6 +146,10 @@ defmodule Axiom.CheckerTest do
       assert {:ok, %{pops: [], pushes: [:float]}} = Effects.lookup(:e)
     end
 
+    test "HOST_CALL stays special-cased outside the generic effects table" do
+      assert :unknown = Effects.lookup(:host_call)
+    end
+
     test "collection helper operators have effects" do
       assert {:ok, %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:list, :any}}]}} =
                Effects.lookup(:zip)
@@ -240,6 +244,31 @@ defmodule Axiom.CheckerTest do
 
       errors = check_errors("2 8.0 POW")
       assert Enum.any?(errors, fn e -> e.message =~ "POW" and e.message =~ "expected float" and e.message =~ "got int" end)
+    end
+
+    test "HOST_CALL accepts typed whitelisted helpers with literal arg lists" do
+      check_ok("[ \"hello\" ] HOST_CALL str_upcase")
+      check_ok("[ \"ha ha\" \"ha\" \"xo\" ] HOST_CALL str_replace")
+      check_ok("[ 42 ] HOST_CALL int_to_string")
+      check_ok("[ 3.14 ] HOST_CALL float_to_string")
+    end
+
+    test "HOST_CALL rejects unknown helper names" do
+      errors = check_errors("[ \"hello\" ] HOST_CALL nope")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'nope' is not in the v1 whitelist" end)
+    end
+
+    test "HOST_CALL enforces literal arg arity and types" do
+      errors = check_errors("[ ] HOST_CALL str_upcase")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_upcase' expected 1 arg(s), got 0" end)
+
+      errors = check_errors("[ 42 ] HOST_CALL str_upcase")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_upcase' arg type mismatch" end)
+    end
+
+    test "HOST_CALL rejects non-literal argument lists in v1" do
+      errors = check_errors("[] LET args args HOST_CALL str_upcase")
+      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'str_upcase' in v1 requires a literal argument list immediately before it" end)
     end
   end
 

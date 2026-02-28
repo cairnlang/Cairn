@@ -34,6 +34,16 @@ DEF http_html_file_ok : str -> str str int
   http_html_ok
 END
 
+# Escape untrusted text before embedding it into HTML.
+# Order matters: ampersands must be escaped first.
+DEF html_escape : str -> str
+  "&" "&amp;" REPLACE
+  "<" "&lt;" REPLACE
+  ">" "&gt;" REPLACE
+  "\"" "&quot;" REPLACE
+  "'" "&#39;" REPLACE
+END
+
 # Pack an HTTP_SERVE response stack into one value for route chaining.
 DEF http_pack_response : str str int -> [any]
   LET body

@@ -427,6 +427,9 @@ LET method
 LET query
 "name" query "friend" map_get_or
 
+# Escape untrusted text before embedding it into HTML:
+"<script>alert('hola')</script>" html_escape
+
 # Current HTTP_SERVE defaults:
 # - request_line_max = 4096   (oversized first line -> 414 URI Too Long)
 # - read_timeout_ms  = 5000   (idle client -> quiet close)

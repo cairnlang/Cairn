@@ -342,6 +342,11 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Idle clients now time out cleanly without killing the listener
 - `HTTP_SERVE` accepts an optional options map so those bounds can be tuned without changing the handler API
 
+### v0.8.3n — Safe Dynamic HTML Foundations
+- Added `html_escape` to the official web prelude so Cairn can safely embed untrusted text into HTML responses
+- Expanded the web-prelude demo to show concrete escaping of hostile-looking markup
+- Upgraded the tiny web server with a `/hello?name=...` HTML route that escapes user input before rendering it
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

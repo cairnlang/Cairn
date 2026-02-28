@@ -101,12 +101,12 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/strings.crn`: native string helpers (`LOWER`, `UPPER`, `REPLACE`, ...)
 - `examples/prelude/env_parse.crn`: auto-loaded config helpers (`env_map`, `env_keys`, `env_fetch`)
 - `examples/prelude/ini_parse.crn`: auto-loaded INI helpers (`ini_map`, `ini_sections`, `ini_fetch`)
-- `examples/prelude/web_helpers.crn`: auto-loaded web helpers (`http_html_ok`, `http_text_method_not_allowed`, `route_get_html_file`, `route_get_text`, `route_finish_get`)
+- `examples/prelude/web_helpers.crn`: auto-loaded web helpers (`http_html_ok`, `html_escape`, `http_text_method_not_allowed`, `route_get_html_file`, `route_get_text`, `route_finish_get`)
 - `examples/practical/mini_grep.crn`: bounded grep-like CLI utility
 - `examples/practical/mini_env.crn`: bounded `.env` query utility
 - `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
-- `examples/web/hello_static.crn`: tiny two-page static server with Cairn-owned `GET` route helpers, parsed query visibility, explicit bind address support, and bounded transport defaults for timeouts and request-line size (`HTTP_SERVE`)
+- `examples/web/hello_static.crn`: tiny multi-route server with Cairn-owned `GET` route helpers, parsed query visibility, explicit bind address support, bounded transport defaults, and a safe dynamic HTML greeting route that escapes user input (`HTTP_SERVE`)
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake
 - `examples/concurrency/guess_binary.crn`: stateful actor workflow with bounded repeated steps
 

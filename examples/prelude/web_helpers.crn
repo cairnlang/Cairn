@@ -7,6 +7,10 @@ html_status "html_status={}" FMT SAID
 html_type "html_type={}" FMT SAID
 html_body "html_body={}" FMT SAID
 
+"<script>alert('hola')</script> & friends" html_escape
+LET escaped_html
+escaped_html "escaped_html={}" FMT SAID
+
 "missing\n" http_text_not_found
 LET missing_body
 LET missing_type

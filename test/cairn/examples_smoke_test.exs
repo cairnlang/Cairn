@@ -132,6 +132,7 @@ defmodule Cairn.ExamplesSmokeTest do
       "html_status=200",
       "html_type=text/html; charset=utf-8",
       "html_body=<h1>Cairn</h1>",
+      "escaped_html=&lt;script&gt;alert(&#39;hola&#39;)&lt;/script&gt; &amp; friends",
       "missing_status=404",
       "missing_type=text/plain; charset=utf-8",
       "missing_body=missing",

@@ -24,6 +24,26 @@ DEF route_get_echo : map[str str] str str -> result
   END
 END
 
+DEF route_get_hello_html : map[str str] str str -> result
+  LET query
+  LET method
+  LET path
+
+  method "GET" EQ
+  path "/hello" EQ
+  AND
+  IF
+    "name" query "friend" map_get_or
+    html_escape
+    "<h1>Hello, {}</h1>\n<p>This name was HTML-escaped in Cairn.</p>\n" FMT
+    http_html_ok
+    http_pack_response
+    Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
 DEF handle_static_request : str str map[str str] -> str str int
   LET path
   LET method
@@ -33,6 +53,8 @@ DEF handle_static_request : str str map[str str] -> str str int
   path method "/about" "examples/web/static/about.html" route_get_html_file
   route_or
   path method query route_get_echo
+  route_or
+  path method query route_get_hello_html
   route_or
   method route_finish_get
 END

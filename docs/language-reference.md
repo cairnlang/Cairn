@@ -120,7 +120,7 @@ ARGV                           # push command-line args as a list of strings
 READ_FILE                      # pop filename, push result (Ok str | Err str)
 WRITE_FILE                     # pop contents + filename, push result (Ok any | Err str)
 READ_FILE! WRITE_FILE!         # unsafe file ops (raise on failure)
-HTTP_SERVE                     # pop port + html path, serve one localhost HTTP request, then return
+HTTP_SERVE                     # pop port + handler block, serve one localhost HTTP request, then return
 READ_LINE                      # read one line from stdin
 RANDOM                         # pop N, push random integer in [1, N]
 ```
@@ -399,7 +399,20 @@ ARGV HEAD READ_FILE! SAID
 READ_LINE SAID
 
 # Serve one static HTML response on localhost, then return
-"examples/web/static/index.html" 8080 HTTP_SERVE
+8089 {
+  DUP "/" EQ
+  IF
+    DROP
+    200
+    "text/html; charset=utf-8"
+    "examples/web/static/index.html" READ_FILE!
+  ELSE
+    DROP
+    404
+    "text/plain; charset=utf-8"
+    "not found\n"
+  END
+} HTTP_SERVE
 ```
 
 ## Examples

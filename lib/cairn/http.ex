@@ -9,17 +9,11 @@ defmodule Cairn.HTTP do
 
   @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true, ip: {127, 0, 0, 1}]
 
-  @spec serve_once(String.t(), integer()) :: :ok
-  def serve_once(path, port) when is_binary(path) and is_integer(port) do
+  @spec serve_once(integer(), (String.t() -> {integer(), String.t(), String.t()})) :: :ok
+  def serve_once(port, handler) when is_integer(port) and is_function(handler, 1) do
     if port <= 0 or port > 65_535 do
       raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
     end
-
-    body =
-      case File.read(path) do
-        {:ok, contents} -> contents
-        {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: cannot read '#{path}': #{reason}"
-      end
 
     {:ok, listener} =
       case :gen_tcp.listen(port, @listen_opts) do
@@ -41,7 +35,7 @@ defmodule Cairn.HTTP do
             {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
           end
 
-        :ok = :gen_tcp.send(client, response_for_request(request, body))
+        :ok = :gen_tcp.send(client, response_for_request(request, handler))
       after
         :gen_tcp.close(client)
       end
@@ -52,13 +46,21 @@ defmodule Cairn.HTTP do
     :ok
   end
 
-  defp response_for_request(request, body) do
+  defp response_for_request(request, handler) do
     case parse_request_line(request) do
-      {"GET", "/"} ->
-        http_response("200 OK", "text/html; charset=utf-8", body)
+      {:invalid, :invalid} ->
+        http_response(400, "text/plain; charset=utf-8", "bad request\n")
 
-      _ ->
-        http_response("404 Not Found", "text/plain; charset=utf-8", "not found\n")
+      {_method, path} ->
+        case handler.(path) do
+          {status, content_type, body}
+              when is_integer(status) and is_binary(content_type) and is_binary(body) ->
+            http_response(status, content_type, body)
+
+          other ->
+            raise Cairn.RuntimeError,
+              "HTTP_SERVE handler must return {status_int, content_type_str, body_str}, got #{inspect(other)}"
+        end
     end
   end
 
@@ -78,7 +80,7 @@ defmodule Cairn.HTTP do
   defp http_response(status, content_type, body) do
     [
       "HTTP/1.1 ",
-      status,
+      status_line(status),
       "\r\n",
       "Content-Type: ",
       content_type,
@@ -91,4 +93,9 @@ defmodule Cairn.HTTP do
     ]
     |> IO.iodata_to_binary()
   end
+
+  defp status_line(200), do: "200 OK"
+  defp status_line(400), do: "400 Bad Request"
+  defp status_line(404), do: "404 Not Found"
+  defp status_line(status), do: Integer.to_string(status) <> " OK"
 end

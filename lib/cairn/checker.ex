@@ -729,6 +729,29 @@ defmodule Cairn.Checker do
     walk(rest, add_error(state, pos, "HOST_CALL requires a whitelisted helper name"))
   end
 
+  defp walk([{:op, :http_serve, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, _block_tokens}, :int], new_stack} ->
+        walk(rest, %{state | stack: new_stack})
+
+      {[:int, {:block, _block_tokens}], new_stack} ->
+        walk(rest, %{state | stack: new_stack})
+
+      {[top, under], new_stack} ->
+        state =
+          %{state | stack: new_stack}
+          |> add_error(
+            pos,
+            "HTTP_SERVE requires a block handler and integer port, got #{format_type(top)} over #{format_type(under)}"
+          )
+
+        walk(rest, state)
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "HTTP_SERVE requires a block handler and integer port (stack underflow)"))
+    end
+  end
+
   # Higher-order ops: FILTER, MAP, REDUCE, TIMES/REPEAT, WHILE
   defp walk([{:op, :filter, pos} | rest], state) do
     check_filter(pos, rest, state)

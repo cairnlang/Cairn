@@ -7,7 +7,24 @@ defmodule Cairn.HTTPTest do
 
     task =
       Task.async(fn ->
-        assert [] = Cairn.eval(~s|"#{path}" #{port} HTTP_SERVE|)
+        source = """
+        #{port} {
+          DUP "/" EQ
+          IF
+            DROP
+            200
+            "text/html; charset=utf-8"
+            "#{path}" READ_FILE!
+          ELSE
+            DROP
+            404
+            "text/plain; charset=utf-8"
+            "not found\\n"
+          END
+        } HTTP_SERVE
+        """
+
+        assert [] = Cairn.eval(source)
       end)
 
     response = http_get(port, "/")
@@ -25,7 +42,24 @@ defmodule Cairn.HTTPTest do
 
     task =
       Task.async(fn ->
-        assert [] = Cairn.eval(~s|"#{path}" #{port} HTTP_SERVE|)
+        source = """
+        #{port} {
+          DUP "/" EQ
+          IF
+            DROP
+            200
+            "text/html; charset=utf-8"
+            "#{path}" READ_FILE!
+          ELSE
+            DROP
+            404
+            "text/plain; charset=utf-8"
+            "not found\\n"
+          END
+        } HTTP_SERVE
+        """
+
+        assert [] = Cairn.eval(source)
       end)
 
     response = http_get(port, "/nope")

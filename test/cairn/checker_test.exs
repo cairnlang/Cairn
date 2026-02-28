@@ -119,7 +119,7 @@ defmodule Cairn.CheckerTest do
     test "I/O operators have effects" do
       assert {:ok, %{pops: [], pushes: [{:list, :str}]}} = Effects.lookup(:argv)
       assert {:ok, %{pops: [:any], pushes: [:any]}} = Effects.lookup(:say)
-      assert {:ok, %{pops: [:int, :str], pushes: []}} = Effects.lookup(:http_serve)
+      assert {:ok, %{pops: [{:block, :opaque}, :int], pushes: []}} = Effects.lookup(:http_serve)
     end
 
     test "string primitive operators have effects" do

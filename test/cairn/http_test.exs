@@ -68,8 +68,38 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "HTTP_SERVE keeps accepting while an earlier client stays idle" do
+    path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, path, about_path)
+    idle_socket = wait_for_connect(port, 50)
+
+    response = http_get(port, "/")
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "<h1>Hello from Cairn</h1>"
+
+    :gen_tcp.close(idle_socket)
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   defp http_get(port, path) do
     connect_and_request(port, path, 50)
+  end
+
+  defp wait_for_connect(_port, 0), do: flunk("server did not accept an idle client in time")
+
+  defp wait_for_connect(port, attempts) do
+    case :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, packet: :raw, active: false], 100) do
+      {:ok, socket} ->
+        socket
+
+      {:error, _reason} ->
+        Process.sleep(20)
+        wait_for_connect(port, attempts - 1)
+    end
   end
 
   defp connect_and_request(_port, _path, 0), do: flunk("server did not start in time")

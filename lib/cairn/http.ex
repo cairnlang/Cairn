@@ -101,18 +101,33 @@ defmodule Cairn.HTTP do
         {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: accept failed: #{inspect(reason)}"
       end
 
-    try do
-      request =
-        case :gen_tcp.recv(client, 0, 5_000) do
-          {:ok, data} -> data
-          {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
+    worker =
+      spawn(fn ->
+        receive do
+          {:serve, socket} -> handle_client(socket, handler)
         end
+      end)
 
-      :ok = :gen_tcp.send(client, response_for_request(request, handler))
+    :ok = :gen_tcp.controlling_process(client, worker)
+    send(worker, {:serve, client})
+
+    serve_loop(listener, handler)
+  end
+
+  defp handle_client(client, handler) do
+    try do
+      case :gen_tcp.recv(client, 0, 5_000) do
+        {:ok, request} ->
+          :ok = :gen_tcp.send(client, response_for_request(request, handler))
+
+        {:error, :closed} ->
+          :ok
+
+        {:error, reason} ->
+          raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
+      end
     after
       :gen_tcp.close(client)
     end
-
-    serve_loop(listener, handler)
   end
 end

@@ -2,7 +2,7 @@ defmodule Cairn.REPL do
   @moduledoc """
   Interactive REPL for Cairn.
 
-  Provides an `ax>` prompt for evaluating Cairn expressions.
+  Provides a `cairn>` prompt for evaluating Cairn expressions.
   Function definitions persist within the session.
   """
 
@@ -18,9 +18,9 @@ defmodule Cairn.REPL do
   defp loop(stack, env) do
     prompt =
       if stack == [] do
-        "ax> "
+        "cairn> "
       else
-        "ax #{inspect_stack(stack)}> "
+        "cairn #{inspect_stack(stack)}> "
       end
 
     case IO.gets(prompt) do

@@ -18,31 +18,31 @@ END
 
 SPAWN msg {
   queue_script
-  0
+  0 {
+    RECEIVE
+      Inc { STATE 1 ADD SET_STATE }
+      Dec { STATE 1 SUB SET_STATE }
+      Emit { STATE emit_count DROP }
+    END
 
-  RECEIVE
-    Inc { 1 ADD }
-    Dec { 1 SUB }
-    Emit { emit_count }
-  END
+    RECEIVE
+      Inc { STATE 1 ADD SET_STATE }
+      Dec { STATE 1 SUB SET_STATE }
+      Emit { STATE emit_count DROP }
+    END
 
-  RECEIVE
-    Inc { 1 ADD }
-    Dec { 1 SUB }
-    Emit { emit_count }
-  END
+    RECEIVE
+      Inc { STATE 1 ADD SET_STATE }
+      Dec { STATE 1 SUB SET_STATE }
+      Emit { STATE emit_count DROP }
+    END
 
-  RECEIVE
-    Inc { 1 ADD }
-    Dec { 1 SUB }
-    Emit { emit_count }
-  END
-
-  RECEIVE
-    Inc { emit_count }
-    Dec { emit_count }
-    Emit { emit_count }
-  END
+    RECEIVE
+      Inc { STATE emit_count DROP }
+      Dec { STATE emit_count DROP }
+      Emit { STATE emit_count DROP }
+    END
+  } WITH_STATE
 
   DROP
   DROP

@@ -67,6 +67,7 @@ defmodule Axiom.Checker do
       protocols: protocols,
       current_actor_type: nil,
       current_protocol_steps: nil,
+      current_state_type: nil,
       actor_required: actor_required
     }
 
@@ -589,6 +590,41 @@ defmodule Axiom.Checker do
 
       :underflow ->
         walk(rest, add_error(state, pos, "APPLY requires a block on the stack (stack underflow)"))
+    end
+  end
+
+  # WITH_STATE / STATE / SET_STATE
+  defp walk([{:op, :with_state, pos} | rest], state) do
+    check_with_state(pos, rest, state)
+  end
+
+  defp walk([{:op, :state, pos} | rest], %{current_state_type: nil} = state) do
+    walk(rest, add_error(state, pos, "STATE is only available inside WITH_STATE"))
+  end
+
+  defp walk([{:op, :state, _pos} | rest], %{current_state_type: state_type} = state) do
+    walk(rest, %{state | stack: Stack.push(state.stack, state_type)})
+  end
+
+  defp walk([{:op, :set_state, pos} | rest], %{current_state_type: nil} = state) do
+    walk(rest, add_error(state, pos, "SET_STATE is only available inside WITH_STATE"))
+  end
+
+  defp walk([{:op, :set_state, pos} | rest], %{current_state_type: state_type} = state) do
+    case Stack.pop(state.stack) do
+      {:ok, new_state_type, new_stack} ->
+        state =
+          case Unify.unify(new_state_type, state_type) do
+            {:ok, _} -> %{state | stack: new_stack}
+            :error ->
+              add_error(%{state | stack: new_stack}, pos,
+                "SET_STATE expected #{format_type(state_type)}, got #{format_type(new_state_type)}")
+          end
+
+        walk(rest, state)
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "SET_STATE requires a value on the stack (stack underflow)"))
     end
   end
 
@@ -1304,6 +1340,66 @@ defmodule Axiom.Checker do
 
       :underflow ->
         walk(rest, add_error(state, pos, "TIMES requires 2 values on the stack (stack underflow)"))
+    end
+  end
+
+  defp check_with_state(pos, rest, state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[{:block, block_tokens}, state_type], base} ->
+        block_state = %{
+          state
+          | stack: Stack.new(),
+            current_state_type: state_type
+        }
+
+        block_state = walk(block_tokens, block_state)
+
+        state = %{
+          state
+          | stack: Stack.push(base, state_type),
+            errors: block_state.errors,
+            next_tvar: block_state.next_tvar
+        }
+
+        state =
+          if Stack.depth(block_state.stack) == 0 do
+            state
+          else
+            add_error(state, pos, "WITH_STATE block must leave no visible values")
+          end
+
+        walk(rest, state)
+
+      {[state_type, {:block, block_tokens}], base} ->
+        block_state = %{
+          state
+          | stack: Stack.new(),
+            current_state_type: state_type
+        }
+
+        block_state = walk(block_tokens, block_state)
+
+        state = %{
+          state
+          | stack: Stack.push(base, state_type),
+            errors: block_state.errors,
+            next_tvar: block_state.next_tvar
+        }
+
+        state =
+          if Stack.depth(block_state.stack) == 0 do
+            state
+          else
+            add_error(state, pos, "WITH_STATE block must leave no visible values")
+          end
+
+        walk(rest, state)
+
+      {_, _} ->
+        walk(rest, add_error(state, pos, "WITH_STATE requires an initial state and a block"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "WITH_STATE requires 2 values on the stack (stack underflow)"))
     end
   end
 

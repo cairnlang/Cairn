@@ -443,6 +443,10 @@ defmodule Axiom.CheckerTest do
       check_ok("5 { DUP ADD } APPLY")
     end
 
+    test "WITH_STATE threads explicit local state" do
+      check_ok("1 { STATE 1 ADD SET_STATE } WITH_STATE")
+    end
+
     test "FILTER with block" do
       check_ok("[ 1 2 3 4 5 ] { 2 MOD 1 EQ } FILTER")
     end
@@ -482,6 +486,26 @@ defmodule Axiom.CheckerTest do
     test "APPLY with non-block is error" do
       errors = check_errors("5 42 APPLY")
       assert Enum.any?(errors, fn e -> e.message =~ "APPLY" end)
+    end
+
+    test "STATE outside WITH_STATE is an error" do
+      errors = check_errors("STATE")
+      assert Enum.any?(errors, fn e -> e.message =~ "STATE is only available inside WITH_STATE" end)
+    end
+
+    test "SET_STATE outside WITH_STATE is an error" do
+      errors = check_errors("1 SET_STATE")
+      assert Enum.any?(errors, fn e -> e.message =~ "SET_STATE is only available inside WITH_STATE" end)
+    end
+
+    test "SET_STATE must preserve the state type" do
+      errors = check_errors("1 { \"oops\" SET_STATE } WITH_STATE")
+      assert Enum.any?(errors, fn e -> e.message =~ "SET_STATE expected int, got str" end)
+    end
+
+    test "WITH_STATE block must leave no visible values" do
+      errors = check_errors("1 { STATE } WITH_STATE")
+      assert Enum.any?(errors, fn e -> e.message =~ "WITH_STATE block must leave no visible values" end)
     end
   end
 

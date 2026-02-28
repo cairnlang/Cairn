@@ -23,6 +23,7 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :filter, 0}]} = Axiom.Lexer.tokenize("FILTER")
       assert {:ok, [{:op, :flat_map, 0}]} = Axiom.Lexer.tokenize("FLAT_MAP")
       assert {:ok, [{:op, :group_by, 0}]} = Axiom.Lexer.tokenize("GROUP_BY")
+      assert {:ok, [{:op, :with_state, 0}]} = Axiom.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :dup, 0}]} = Axiom.Lexer.tokenize("DUP")
     end
 
@@ -231,6 +232,27 @@ defmodule AxiomTest do
 
     test "filter then map then sum (the showcase example)" do
       assert Axiom.eval("[ 1 2 3 4 5 ] { 2 MOD 1 EQ } FILTER { SQ } MAP SUM") == [35]
+    end
+
+    test "with_state threads local state through a block" do
+      assert Axiom.eval("1 { STATE 1 ADD SET_STATE } WITH_STATE") == [2]
+      assert Axiom.eval("1 { STATE 1 ADD SET_STATE STATE 2 MUL SET_STATE } WITH_STATE") == [4]
+    end
+
+    test "with_state block must leave no visible values" do
+      assert_raise Axiom.StaticError, ~r/WITH_STATE block must leave no visible values/, fn ->
+        Axiom.eval("1 { STATE } WITH_STATE")
+      end
+    end
+
+    test "state ops require with_state at runtime" do
+      assert_raise Axiom.StaticError, ~r/STATE is only available inside WITH_STATE/, fn ->
+        Axiom.eval("STATE")
+      end
+
+      assert_raise Axiom.StaticError, ~r/SET_STATE is only available inside WITH_STATE/, fn ->
+        Axiom.eval("1 SET_STATE")
+      end
     end
 
     test "if/end true branch" do

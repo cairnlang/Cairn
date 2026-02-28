@@ -427,6 +427,12 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded protocol coverage so helper-call mismatches fail at the call site with protocol-aware diagnostics
 - Updated `examples/concurrency/protocol_ping_pong.ax` to exercise helper-based protocol conformance rather than only inline steps
 
+### v0.7.1a — Explicit State Threading Foundations
+- Added `WITH_STATE`, `STATE`, and `SET_STATE` as a bounded, explicit local-state model for block-scoped state evolution
+- Kept the feature deliberately local: no shared mutation, no outer-scope rebinding, and no changes to ordinary block semantics
+- Enforced same-type state updates plus stack-clean `WITH_STATE` bodies in both the checker and runtime
+- Rewrote `examples/concurrency/counter.ax` around `WITH_STATE`, making the first actor-state example use explicit local state threading instead of raw stack-carried state
+
 ---
 
 ## Next Up

@@ -44,6 +44,46 @@ defmodule Axiom.Evaluator do
     run(rest, stack, env)
   end
 
+  # WITH_STATE — explicit, local state threading for one block.
+  defp run([{:op, :with_state, pos} | rest], [{:block, block_tokens, block_env}, state_value | stack], env) do
+    run_with_state(rest, pos, block_tokens, block_env, state_value, stack, env)
+  end
+
+  defp run([{:op, :with_state, pos} | rest], [state_value, {:block, block_tokens, block_env} | stack], env) do
+    run_with_state(rest, pos, block_tokens, block_env, state_value, stack, env)
+  end
+
+  defp run([{:op, :with_state, pos} | _], [_, other | _], _env) do
+    raise Axiom.RuntimeError,
+      "WITH_STATE at word #{pos + 1}: requires a block and initial state, got #{inspect(other)}"
+  end
+
+  defp run([{:op, :with_state, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "WITH_STATE at word #{pos + 1}: stack underflow"
+  end
+
+  defp run([{:op, :state, pos} | rest], stack, env) do
+    case Map.fetch(env, :__axiom_state__) do
+      {:ok, state_value} ->
+        run(rest, [state_value | stack], env)
+
+      :error ->
+        raise Axiom.RuntimeError, "STATE at word #{pos + 1}: only available inside WITH_STATE"
+    end
+  end
+
+  defp run([{:op, :set_state, pos} | rest], [value | stack], env) do
+    if Map.has_key?(env, :__axiom_state__) do
+      run(rest, stack, Map.put(env, :__axiom_state__, value))
+    else
+      raise Axiom.RuntimeError, "SET_STATE at word #{pos + 1}: only available inside WITH_STATE"
+    end
+  end
+
+  defp run([{:op, :set_state, pos} | _], [], _env) do
+    raise Axiom.RuntimeError, "SET_STATE at word #{pos + 1}: empty stack"
+  end
+
   # LET — pop top value, bind to the following identifier name
   defp run([{:let_kw, _, _pos}, {:ident, name, _} | rest], [value | stack], env) do
     run(rest, stack, Map.put(env, name, {:let_binding, value}))
@@ -743,5 +783,22 @@ defmodule Axiom.Evaluator do
           function_name: func.name,
           stack: result_stack
     end
+  end
+
+  defp run_with_state(rest, pos, block_tokens, block_env, state_value, stack, env) do
+    merged_env =
+      block_env
+      |> Map.merge(env)
+      |> Map.put(:__axiom_state__, state_value)
+
+    {block_stack, block_env_after} = run(block_tokens, [], merged_env)
+
+    if block_stack != [] do
+      raise Axiom.RuntimeError,
+        "WITH_STATE at word #{pos + 1}: block must leave no visible values, got #{inspect(block_stack)}"
+    end
+
+    final_state = Map.fetch!(block_env_after, :__axiom_state__)
+    run(rest, [final_state | stack], env)
   end
 end

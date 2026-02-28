@@ -59,6 +59,10 @@ defmodule Cairn.CLI do
      [
        "examples/ambitious/orchestrator.crn"
      ]},
+    {"web",
+     [
+       "examples/web/hello_static.crn"
+     ]},
     {"prelude",
      [
        "examples/prelude/result_flow.crn",

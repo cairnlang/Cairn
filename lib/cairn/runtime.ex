@@ -373,6 +373,12 @@ defmodule Cairn.Runtime do
     end
   end
 
+  # HTTP_SERVE: pop port and path, serve one plain HTTP request on localhost, then return.
+  def execute(:http_serve, [port, path | rest]) when is_integer(port) and is_binary(path) do
+    Cairn.HTTP.serve_once(path, port)
+    rest
+  end
+
   # READ_LINE: read one line from stdin, push trimmed string
   def execute(:read_line, stack) do
     line = IO.gets("") |> String.trim_trailing("\n")

@@ -1,0 +1,2 @@
+"web: serving examples/web/static/index.html at http://127.0.0.1:8080/" SAID
+"examples/web/static/index.html" 8080 HTTP_SERVE

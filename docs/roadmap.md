@@ -292,6 +292,12 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - The run stays bounded and deterministic while still exercising actors, `MONITOR`/`AWAIT`, and a supervised restart-once path
 - Expanded the curated example list and smoke coverage so the new ambitious example stays part of the visible runnable surface
 
+### v0.8.3a — Static HTTP Hello Server
+- Added `HTTP_SERVE` as the first bounded host-backed HTTP serving primitive
+- `HTTP_SERVE` serves one request on localhost, returns a static HTML file for `GET /`, responds `404` otherwise, then exits
+- Added `examples/web/hello_static.crn` and `examples/web/static/index.html` as the first browser-facing Cairn example
+- Added localhost integration coverage for `200 OK` and `404 Not Found`
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

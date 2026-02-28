@@ -37,6 +37,7 @@ defmodule CairnTest do
       assert {:ok, [{:op, :ends_with, 0}]} = Cairn.Lexer.tokenize("ENDS_WITH")
       assert {:ok, [{:op, :replace, 0}]} = Cairn.Lexer.tokenize("REPLACE")
       assert {:ok, [{:op, :reverse_str, 0}]} = Cairn.Lexer.tokenize("REVERSE_STR")
+      assert {:ok, [{:op, :http_serve, 0}]} = Cairn.Lexer.tokenize("HTTP_SERVE")
       assert {:ok, [{:op, :with_state, 0}]} = Cairn.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :repeat, 0}]} = Cairn.Lexer.tokenize("REPEAT")
       assert {:ok, [{:op, :step, 0}]} = Cairn.Lexer.tokenize("STEP")

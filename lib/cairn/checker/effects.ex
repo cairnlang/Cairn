@@ -102,6 +102,7 @@ defmodule Cairn.Checker.Effects do
     write_file: %{pops: [:str, :str], pushes: [{:user_type, "result"}]},
     read_file!: %{pops: [:str], pushes: [:str]},
     write_file!: %{pops: [:str, :str], pushes: []},
+    http_serve: %{pops: [:int, :str], pushes: []},
 
     # Map operations
     get: %{pops: [:any, {:map, :any, :any}], pushes: [:any]},

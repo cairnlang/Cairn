@@ -284,6 +284,8 @@ defmodule Cairn.HTTPTest do
     assert response =~ "Cairn Todo"
     assert response =~ "Open: 2 | Done: 1 | Total: 3"
     assert response =~ "@picocss/pico@2/css/pico.min.css"
+    assert response =~ "todo-done-button"
+    assert response =~ "todo-item-done"
     assert response =~ "buy milk"
     assert response =~ "&lt;script&gt;alert(&#39;hola&#39;)&lt;/script&gt;"
     refute response =~ "<script>alert('hola')</script>"
@@ -319,7 +321,9 @@ defmodule Cairn.HTTPTest do
     assert add_response =~ "HTTP/1.1 200 OK"
     assert add_response =~ "book flight"
     assert done_response =~ "HTTP/1.1 200 OK"
-    assert done_response =~ "<strong>done</strong> buy milk"
+    assert done_response =~ "todo-item-done"
+    assert done_response =~ "<span class=\"todo-status\">done</span>"
+    assert done_response =~ "<span class=\"todo-title\">buy milk</span>"
 
     assert nil == Task.shutdown(task, :brutal_kill)
 
@@ -329,7 +333,7 @@ defmodule Cairn.HTTPTest do
     restarted_task = start_todo_app(next_port)
     persisted_response = http_get(next_port, "/")
 
-    assert persisted_response =~ "<strong>done</strong> buy milk"
+    assert persisted_response =~ "todo-item-done"
     assert persisted_response =~ "prepare slides"
     assert persisted_response =~ "book flight"
     assert persisted_response =~ "Open: 2 | Done: 1 | Total: 3"

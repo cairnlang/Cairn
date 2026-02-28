@@ -154,20 +154,40 @@ defmodule Cairn.Evaluator do
   end
 
   # HTTP_SERVE — bounded host-backed HTTP serving with Cairn-owned request routing.
-  # Stack shape: 8080 { ...path -> status, content_type, body... } HTTP_SERVE
+  # Stack shapes:
+  #   8080 { ...path -> status, content_type, body... } HTTP_SERVE
+  #   "0.0.0.0" 8080 { ... } HTTP_SERVE
   defp run([{:op, :http_serve, pos} | rest], [{:block, block_tokens, block_env}, port | stack], env)
        when is_integer(port) do
-    run_http_serve(rest, pos, block_tokens, block_env, port, stack, env)
+    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, stack, env)
   end
 
   defp run([{:op, :http_serve, pos} | rest], [port, {:block, block_tokens, block_env} | stack], env)
        when is_integer(port) do
-    run_http_serve(rest, pos, block_tokens, block_env, port, stack, env)
+    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, stack, env)
+  end
+
+  defp run(
+         [{:op, :http_serve, pos} | rest],
+         [{:block, block_tokens, block_env}, port, bind_host | stack],
+         env
+       )
+       when is_integer(port) and is_binary(bind_host) do
+    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, stack, env)
+  end
+
+  defp run(
+         [{:op, :http_serve, pos} | rest],
+         [bind_host, port, {:block, block_tokens, block_env} | stack],
+         env
+       )
+       when is_integer(port) and is_binary(bind_host) do
+    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, stack, env)
   end
 
   defp run([{:op, :http_serve, pos} | _], [top, under | _], _env) do
     raise Cairn.RuntimeError,
-      "HTTP_SERVE at word #{pos + 1}: requires a block handler and integer port, got #{inspect(top)} over #{inspect(under)}"
+      "HTTP_SERVE at word #{pos + 1}: requires a block handler and integer port (optionally beneath a bind address), got #{inspect(top)} over #{inspect(under)}"
   end
 
   defp run([{:op, :http_serve, pos} | _], _stack, _env) do
@@ -476,10 +496,10 @@ defmodule Cairn.Evaluator do
   defp normalize_down_reason(reason) when is_binary(reason), do: reason
   defp normalize_down_reason(reason), do: inspect(reason)
 
-  defp run_http_serve(rest, pos, block_tokens, block_env, port, stack, env) do
+  defp run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, stack, env) do
     handler_env = Map.merge(block_env, env)
 
-    Cairn.HTTP.serve(port, fn path ->
+    Cairn.HTTP.serve(bind_host, port, fn path ->
       case eval_tokens(block_tokens, [path], handler_env) do
         [body, content_type, status] when is_binary(body) and is_binary(content_type) and is_integer(status) ->
           {status, content_type, body}

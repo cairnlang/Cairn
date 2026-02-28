@@ -269,6 +269,10 @@ defmodule Cairn.CheckerTest do
       errors = check_errors("[] LET args args HOST_CALL int_to_string")
       assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'int_to_string' in v1 requires a literal argument list immediately before it" end)
     end
+
+    test "HTTP_SERVE accepts the explicit bind-address form" do
+      check_ok(~s|"0.0.0.0" 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|)
+    end
   end
 
   # ── Stack underflow ──

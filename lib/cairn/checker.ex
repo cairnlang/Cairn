@@ -730,25 +730,34 @@ defmodule Cairn.Checker do
   end
 
   defp walk([{:op, :http_serve, pos} | rest], state) do
-    case Stack.pop_n(state.stack, 2) do
-      {[{:block, _block_tokens}, :int], new_stack} ->
+    case Stack.pop_n(state.stack, 3) do
+      {[{:block, _block_tokens}, :int, :str], new_stack} ->
         walk(rest, %{state | stack: new_stack})
 
-      {[:int, {:block, _block_tokens}], new_stack} ->
+      {[:str, :int, {:block, _block_tokens}], new_stack} ->
         walk(rest, %{state | stack: new_stack})
 
-      {[top, under], new_stack} ->
-        state =
-          %{state | stack: new_stack}
-          |> add_error(
-            pos,
-            "HTTP_SERVE requires a block handler and integer port, got #{format_type(top)} over #{format_type(under)}"
-          )
+      _ ->
+        case Stack.pop_n(state.stack, 2) do
+          {[{:block, _block_tokens}, :int], new_stack} ->
+            walk(rest, %{state | stack: new_stack})
 
-        walk(rest, state)
+          {[:int, {:block, _block_tokens}], new_stack} ->
+            walk(rest, %{state | stack: new_stack})
 
-      :underflow ->
-        walk(rest, add_error(state, pos, "HTTP_SERVE requires a block handler and integer port (stack underflow)"))
+          {[top, under], new_stack} ->
+            state =
+              %{state | stack: new_stack}
+              |> add_error(
+                pos,
+                "HTTP_SERVE requires a block handler and integer port (optionally beneath a bind address), got #{format_type(top)} over #{format_type(under)}"
+              )
+
+            walk(rest, state)
+
+          :underflow ->
+            walk(rest, add_error(state, pos, "HTTP_SERVE requires a block handler and integer port (optionally beneath a bind address) (stack underflow)"))
+        end
     end
   end
 

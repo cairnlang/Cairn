@@ -1,5 +1,21 @@
-"web: serving examples/web/static/index.html at http://127.0.0.1:8089/" SAID
-8089 {
+ARGV LEN 0 GT
+IF
+  ARGV HEAD
+ELSE
+  "127.0.0.1"
+END
+LET bind_host
+
+ARGV LEN 1 GT
+IF
+  8089 ARGV TAIL HEAD to_int_or
+ELSE
+  8089
+END
+LET port
+
+port bind_host port bind_host "web: serving funny pages at http://{}:{}/ and http://{}:{}/about" FMT SAID
+bind_host port {
   DUP "/" EQ
   IF
     DROP
@@ -7,9 +23,17 @@
     "text/html; charset=utf-8"
     "examples/web/static/index.html" READ_FILE!
   ELSE
-    DROP
-    404
-    "text/plain; charset=utf-8"
-    "not found\n"
+    DUP "/about" EQ
+    IF
+      DROP
+      200
+      "text/html; charset=utf-8"
+      "examples/web/static/about.html" READ_FILE!
+    ELSE
+      DROP
+      404
+      "text/plain; charset=utf-8"
+      "not found\n"
+    END
   END
 } HTTP_SERVE

@@ -99,7 +99,7 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/practical/mini_env.crn`: bounded `.env` query utility
 - `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
-- `examples/web/hello_static.crn`: first bounded static HTTP server with Cairn-owned path routing (`HTTP_SERVE`)
+- `examples/web/hello_static.crn`: tiny two-page static server with Cairn-owned path routing and explicit bind address support (`HTTP_SERVE`)
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake
 - `examples/concurrency/guess_binary.crn`: stateful actor workflow with bounded repeated steps
 

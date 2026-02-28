@@ -304,6 +304,11 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - `HTTP_SERVE` handlers now receive the request path and must leave `[body, content_type, status]` on the stack
 - Updated `examples/web/hello_static.crn` so Cairn explicitly handles `GET /` and `404` instead of delegating that choice to Elixir
 
+### v0.8.3d — Bind Address Control and Multi-Page Static Demo
+- Extended `HTTP_SERVE` to accept an explicit bind address literal from Cairn (`"0.0.0.0" 8080 { ... } HTTP_SERVE`)
+- Kept the safer no-address form as shorthand for loopback (`127.0.0.1`)
+- Expanded the static web demo into two linked pages (`/` and `/about`) so routing is visibly Cairn-owned
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

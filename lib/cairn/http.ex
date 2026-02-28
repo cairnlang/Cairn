@@ -7,18 +7,28 @@ defmodule Cairn.HTTP do
   testable and usable from a browser.
   """
 
-  @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true, ip: {127, 0, 0, 1}]
+  @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true]
 
   @spec serve(integer(), (String.t() -> {integer(), String.t(), String.t()})) :: no_return()
   def serve(port, handler) when is_integer(port) and is_function(handler, 1) do
+    serve("127.0.0.1", port, handler)
+  end
+
+  @spec serve(String.t(), integer(), (String.t() -> {integer(), String.t(), String.t()})) :: no_return()
+  def serve(bind_host, port, handler)
+      when is_binary(bind_host) and is_integer(port) and is_function(handler, 1) do
     if port <= 0 or port > 65_535 do
       raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
     end
 
+    ip = resolve_bind_ip!(bind_host)
+
     {:ok, listener} =
-      case :gen_tcp.listen(port, @listen_opts) do
+      case :gen_tcp.listen(port, Keyword.put(@listen_opts, :ip, ip)) do
         {:ok, socket} -> {:ok, socket}
-        {:error, reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: cannot listen on #{port}: #{inspect(reason)}"
+        {:error, reason} ->
+          raise Cairn.RuntimeError,
+            "HTTP_SERVE: cannot listen on #{bind_host}:#{port}: #{inspect(reason)}"
       end
 
     serve_loop(listener, handler)
@@ -76,6 +86,13 @@ defmodule Cairn.HTTP do
   defp status_line(400), do: "400 Bad Request"
   defp status_line(404), do: "404 Not Found"
   defp status_line(status), do: Integer.to_string(status) <> " OK"
+
+  defp resolve_bind_ip!(bind_host) do
+    case :inet.parse_address(String.to_charlist(bind_host)) do
+      {:ok, ip} -> ip
+      {:error, _reason} -> raise Cairn.RuntimeError, "HTTP_SERVE: bind address must be an IPv4/IPv6 literal, got #{inspect(bind_host)}"
+    end
+  end
 
   defp serve_loop(listener, handler) do
     {:ok, client} =

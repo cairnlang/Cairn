@@ -89,7 +89,7 @@ SPAWN msg {
   RefState
   {
     7 {
-      STATE ref_step SET_STATE
+      STEP ref_step
     } REPEAT
   } WITH_STATE
 
@@ -113,7 +113,7 @@ SPAWN msg {
   SearchState
   {
     7 {
-      STATE search_step SET_STATE
+      STEP search_step
     } REPEAT
   } WITH_STATE
 

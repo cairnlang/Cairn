@@ -1,5 +1,5 @@
 # examples/concurrency/traffic_light.ax
-# Stateful actor example with typed phase transitions in a local WITH_STATE thread.
+# Stateful actor example with typed phase transitions in a local WITH_STATE thread using STEP.
 
 IMPORT "lib/actor.ax"
 
@@ -44,7 +44,7 @@ SPAWN msg {
 
   Green {
     7 {
-      STATE step_light SET_STATE
+      STEP step_light
     } REPEAT
   } WITH_STATE
 

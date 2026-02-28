@@ -25,6 +25,7 @@ defmodule AxiomTest do
       assert {:ok, [{:op, :group_by, 0}]} = Axiom.Lexer.tokenize("GROUP_BY")
       assert {:ok, [{:op, :with_state, 0}]} = Axiom.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :repeat, 0}]} = Axiom.Lexer.tokenize("REPEAT")
+      assert {:ok, [{:op, :step, 0}]} = Axiom.Lexer.tokenize("STEP")
       assert {:ok, [{:op, :dup, 0}]} = Axiom.Lexer.tokenize("DUP")
     end
 
@@ -240,6 +241,15 @@ defmodule AxiomTest do
       assert Axiom.eval("1 { STATE 1 ADD SET_STATE STATE 2 MUL SET_STATE } WITH_STATE") == [4]
     end
 
+    test "step applies a state helper inside with_state" do
+      assert Axiom.eval("""
+             DEF bump : int -> int
+               1 ADD
+             END
+             1 { STEP bump } WITH_STATE
+             """) == [2]
+    end
+
     test "with_state can thread an ADT-wrapped composite state" do
       assert Axiom.eval("""
              TYPE pair = Pair int int
@@ -301,6 +311,10 @@ defmodule AxiomTest do
 
       assert_raise Axiom.StaticError, ~r/SET_STATE is only available inside WITH_STATE/, fn ->
         Axiom.eval("1 SET_STATE")
+      end
+
+      assert_raise Axiom.StaticError, ~r/STEP is only available inside WITH_STATE/, fn ->
+        Axiom.eval("STEP bump")
       end
     end
 

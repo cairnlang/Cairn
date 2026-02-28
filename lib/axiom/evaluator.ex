@@ -104,6 +104,36 @@ defmodule Axiom.Evaluator do
     raise Axiom.RuntimeError, "SET_STATE at word #{pos + 1}: empty stack"
   end
 
+  defp run([{:op, :step, pos}, {:ident, name, _} | rest], stack, env) do
+    case {Map.fetch(env, :__axiom_state__), Map.get(env, name)} do
+      {:error, _} ->
+        raise Axiom.RuntimeError, "STEP at word #{pos + 1}: only available inside WITH_STATE"
+
+      {{:ok, state_value}, %Axiom.Types.Function{} = func} ->
+        result_stack = eval_function_call(func, [state_value], env)
+
+        case result_stack do
+          [next_state] ->
+            run(rest, stack, Map.put(env, :__axiom_state__, next_state))
+
+          other ->
+            raise Axiom.RuntimeError,
+              "STEP at word #{pos + 1}: function '#{name}' must return exactly one state value, got #{inspect(other)}"
+        end
+
+      {{:ok, _state_value}, nil} ->
+        raise Axiom.RuntimeError, "STEP at word #{pos + 1}: undefined function '#{name}'"
+
+      {{:ok, _state_value}, other} ->
+        raise Axiom.RuntimeError,
+          "STEP at word #{pos + 1}: expected function name after STEP, got #{inspect(other)}"
+    end
+  end
+
+  defp run([{:op, :step, pos} | _], _stack, _env) do
+    raise Axiom.RuntimeError, "STEP at word #{pos + 1}: requires a function name"
+  end
+
   # LET — pop top value, bind to the following identifier name
   defp run([{:let_kw, _, _pos}, {:ident, name, _} | rest], [value | stack], env) do
     run(rest, stack, Map.put(env, name, {:let_binding, value}))

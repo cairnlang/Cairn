@@ -1,5 +1,5 @@
 # examples/concurrency/counter.ax
-# Stateful actor example: state lives in a local WITH_STATE thread across repeated actor-local RECEIVE steps.
+# Stateful actor example: state lives in a local WITH_STATE thread across repeated actor-local RECEIVE steps via STEP.
 
 IMPORT "lib/actor.ax"
 
@@ -28,7 +28,7 @@ SPAWN msg {
   queue_script
   0 {
     4 {
-      STATE step_count SET_STATE
+      STEP step_count
     } REPEAT
   } WITH_STATE
 

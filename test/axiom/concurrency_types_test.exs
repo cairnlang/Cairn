@@ -139,7 +139,7 @@ defmodule Axiom.ConcurrencyTypesTest do
       SPAWN msg {
         Green {
           2 {
-            STATE step_light SET_STATE
+            STEP step_light
           } REPEAT
         } WITH_STATE
         DROP

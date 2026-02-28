@@ -628,6 +628,61 @@ defmodule Axiom.Checker do
     end
   end
 
+  defp walk([{:op, :step, pos}, {:ident, _name, _} | rest], %{current_state_type: nil} = state) do
+    walk(rest, add_error(state, pos, "STEP is only available inside WITH_STATE"))
+  end
+
+  defp walk([{:op, :step, pos}, {:ident, name, _} | rest], %{current_state_type: state_type} = state) do
+    case Map.get(state.env, name) do
+      nil ->
+        walk(rest, add_error(state, pos, "undefined function '#{name}'"))
+
+      %{let_binding: true} ->
+        walk(rest, add_error(state, pos, "STEP requires a function name, got LET binding '#{name}'"))
+
+      %{param_types: [param_type], return_types: [return_type]} = entry ->
+        state =
+          if Map.get(entry, :actor_required, false) and is_nil(state.current_actor_type) do
+            add_error(state, pos, "function '#{name}' requires actor context")
+          else
+            state
+          end
+
+        state =
+          case Unify.unify(param_type, state_type) do
+            {:ok, _} -> state
+            :error ->
+              add_error(state, pos,
+                "STEP function '#{name}' expected #{format_type(param_type)}, got #{format_type(state_type)}")
+          end
+
+        state =
+          case Unify.unify(return_type, state_type) do
+            {:ok, _} -> state
+            :error ->
+              add_error(state, pos,
+                "STEP function '#{name}' must return #{format_type(state_type)}, got #{format_type(return_type)}")
+          end
+
+        state = advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
+        walk(rest, state)
+
+      %{param_types: param_types, return_types: return_types} ->
+        walk(
+          rest,
+          add_error(
+            state,
+            pos,
+            "STEP function '#{name}' must have signature #{format_type(state_type)} -> #{format_type(state_type)}, got #{format_step_signature(param_types, return_types)}"
+          )
+        )
+    end
+  end
+
+  defp walk([{:op, :step, pos} | rest], state) do
+    walk(rest, add_error(state, pos, "STEP requires a function name"))
+  end
+
   # Higher-order ops: FILTER, MAP, REDUCE, TIMES/REPEAT, WHILE
   defp walk([{:op, :filter, pos} | rest], state) do
     check_filter(pos, rest, state)
@@ -1809,6 +1864,22 @@ defmodule Axiom.Checker do
   defp format_type({:tvar, id}), do: "t#{id}"
   defp format_type({:user_type, name}), do: name
   defp format_type(other), do: inspect(other)
+
+  defp format_step_signature(param_types, return_types) do
+    params =
+      case param_types do
+        [] -> "void"
+        types -> Enum.map_join(types, " ", &format_type/1)
+      end
+
+    returns =
+      case return_types do
+        [] -> "void"
+        types -> Enum.map_join(types, " ", &format_type/1)
+      end
+
+    "#{params} -> #{returns}"
+  end
 
   defp format_op(op), do: String.upcase(to_string(op))
 

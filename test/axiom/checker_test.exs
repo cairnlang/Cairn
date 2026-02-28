@@ -447,6 +447,15 @@ defmodule Axiom.CheckerTest do
       check_ok("1 { STATE 1 ADD SET_STATE } WITH_STATE")
     end
 
+    test "STEP applies a state helper inside WITH_STATE" do
+      check_ok("""
+      DEF bump : int -> int
+        1 ADD
+      END
+      1 { STEP bump } WITH_STATE
+      """)
+    end
+
     test "WITH_STATE accepts ADT-wrapped composite state" do
       check_ok("""
       TYPE pair = Pair int int
@@ -540,6 +549,11 @@ defmodule Axiom.CheckerTest do
     test "SET_STATE outside WITH_STATE is an error" do
       errors = check_errors("1 SET_STATE")
       assert Enum.any?(errors, fn e -> e.message =~ "SET_STATE is only available inside WITH_STATE" end)
+    end
+
+    test "STEP outside WITH_STATE is an error" do
+      errors = check_errors("STEP bump")
+      assert Enum.any?(errors, fn e -> e.message =~ "STEP is only available inside WITH_STATE" end)
     end
 
     test "SET_STATE must preserve the state type" do

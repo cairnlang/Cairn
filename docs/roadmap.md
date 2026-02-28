@@ -448,6 +448,11 @@ Axiom bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Rewrote `examples/concurrency/counter.ax`, `examples/concurrency/traffic_light.ax`, and `examples/concurrency/guess_binary.ax` around helper-driven `REPEAT` loops, removing the manual unrolled `RECEIVE` chains
 - This is the first direct reduction of concurrency-example boilerplate after the `WITH_STATE` work: repeated actor steps now compress into one visible state transition block instead of duplicated receive bodies
 
+### v0.7.1e — STEP Combinator For Stateful Actor Loops
+- Added `STEP fn` as a bounded `WITH_STATE`-only combinator for applying a `state -> state` helper and storing the result back into the hidden local state
+- Rewrote the `REPEAT`-based actor examples (`counter.ax`, `traffic_light.ax`, `guess_binary.ax`) from `STATE ... SET_STATE` plumbing to `STEP helper`, making the intended state-transition unit explicit
+- This is a small but real readability lift: the common actor loop shape is now “repeat this state step” instead of “load hidden state, call helper, write hidden state back”
+
 ---
 
 ## Next Up

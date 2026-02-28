@@ -258,6 +258,12 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ### v0.6.0ac — PROVE Stabilization Gate
 - Added PRE-normalizer idempotence coverage to prevent canonicalization drift under repeated normalization
 - Added JSON trace stability coverage for contiguous `event_index` sequencing and run boundary events
+
+### v0.8.0b — Standalone Cairn Executable
+- Added a shared `Cairn.CLI` entrypoint and configured `mix escript.build` to produce a standalone `./cairn` executable
+- `cairn` now starts the REPL with no file arguments and runs `file.crn [args...]` in file mode with `ARGV` preserved
+- Kept file-mode flags aligned across the standalone executable and `mix cairn.run` (`--help`, `--examples`, `--show-prelude`, `--verbose`, `--json-errors`)
+- Refactored `Mix.Tasks.Cairn.Run` into a thin wrapper over the shared CLI so task mode and standalone mode stay behaviorally aligned
 - Added a relaxed runtime budget guard for `examples/prove/all_proven.crn` to catch severe performance regressions
 - Documented rule-admission criteria and locked this slice to guardrails (no broad speculative inference expansion)
 

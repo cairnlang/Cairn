@@ -1,166 +1,21 @@
 defmodule Mix.Tasks.Cairn.Run do
   @moduledoc """
-  Runs a Cairn (`.crn`) source file.
+  Development wrapper around the standalone Cairn CLI.
 
   ## Usage
 
       mix cairn.run path/to/program.crn
 
-  The file is read, parsed, and evaluated. The final stack is printed to stdout.
+  This delegates to `Cairn.CLI` in file mode so the Mix task and the standalone
+  executable stay behaviorally aligned.
   """
 
   use Mix.Task
 
   @shortdoc "Run a Cairn (.crn) source file"
 
-  @prelude_modules [
-    {"lib/prelude/result.crn", ["result_is_ok", "result_is_err", "result_unwrap_or"]},
-    {"lib/prelude/str.crn", ["lines_nonempty", "csv_ints"]},
-    {"lib/prelude.crn", ["to_int_or", "to_float_or", "read_file_or", "ask_or"]}
-  ]
-  @example_groups [
-    {"basics", ["examples/hello_world.crn", "examples/collatz.crn", "examples/recur.crn", "examples/bank.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn"]},
-    {"practical", ["examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/ledger_cli.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/imports/main.crn", "examples/json/demo.crn"]},
-    {"concurrency", ["examples/concurrency/ping_pong_types.crn", "examples/concurrency/protocol_ping_pong.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/traffic_light.crn", "examples/concurrency/ping_once.crn", "examples/concurrency/self_boot.crn", "examples/concurrency/two_pings.crn", "examples/concurrency/counter.crn", "examples/concurrency/notifier.crn", "examples/concurrency/restart_once.crn", "examples/concurrency/supervisor_worker.crn", "examples/concurrency/guess_binary.crn"]},
-    {"prelude", ["examples/prelude/result_flow.crn", "examples/prelude/csv_parse.crn", "examples/prelude/io_safe.crn"]},
-    {"diagnostics", ["examples/diagnostics/static_type.crn", "examples/diagnostics/runtime_div_zero.crn", "examples/diagnostics/contract_fail.crn"]},
-    {"prove", ["examples/prove/all_proven.crn", "examples/prove/proven_option.crn", "examples/prove/proven_shape_trace.crn"]}
-  ]
-
   @impl Mix.Task
   def run(args) do
-    {opts, rest, invalid} =
-      OptionParser.parse(args,
-        strict: [
-          help: :boolean,
-          show_prelude: :boolean,
-          verbose: :boolean,
-          json_errors: :boolean,
-          examples: :boolean
-        ]
-      )
-
-    cond do
-      invalid != [] ->
-        Mix.shell().error("Invalid option(s): #{format_invalid_options(invalid)}")
-        print_help()
-
-      opts[:help] ->
-        print_help()
-
-      opts[:examples] ->
-        print_examples()
-
-      true ->
-        case rest do
-          [path | argv] ->
-            Process.put(:cairn_argv, argv)
-            maybe_print_prelude_banner(opts)
-            run_file(path, opts)
-
-          [] ->
-            Mix.shell().error("Usage: mix cairn.run <file.crn> [args...]")
-            Mix.shell().error("Run `mix cairn.run --help` for options, or `mix cairn.run --examples` for runnable samples.")
-        end
-    end
-  end
-
-  defp run_file(path, opts) do
-    started_at_ms = System.monotonic_time(:millisecond)
-
-    try do
-      {stack, _env} = Cairn.eval_file(path)
-
-      stack
-      |> Enum.reverse()
-      |> Enum.each(fn val -> IO.puts(format_value(val)) end)
-
-      elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
-      IO.puts(:stderr, "RUN SUMMARY: status=ok values=#{length(stack)} elapsed_ms=#{elapsed_ms}")
-    rescue
-      e in Cairn.StaticError ->
-        emit_diagnostic(e, path, opts)
-        elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
-        IO.puts(:stderr, "RUN SUMMARY: status=error kind=static elapsed_ms=#{elapsed_ms}")
-        System.halt(1)
-
-      e in Cairn.RuntimeError ->
-        emit_diagnostic(e, path, opts)
-        elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
-        IO.puts(:stderr, "RUN SUMMARY: status=error kind=runtime elapsed_ms=#{elapsed_ms}")
-        System.halt(1)
-
-      e in Cairn.ContractError ->
-        emit_diagnostic(e, path, opts)
-        elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
-        IO.puts(:stderr, "RUN SUMMARY: status=error kind=contract elapsed_ms=#{elapsed_ms}")
-        System.halt(1)
-    end
-  end
-
-  defp format_value(list) when is_list(list), do: inspect(list)
-  defp format_value(true), do: "T"
-  defp format_value(false), do: "F"
-  defp format_value(val) when is_binary(val), do: val
-  defp format_value(val) when is_number(val), do: to_string(val)
-  defp format_value(val) when is_atom(val), do: to_string(val)
-  defp format_value(val), do: inspect(val)
-
-  defp maybe_print_prelude_banner(opts) do
-    if opts[:show_prelude] || opts[:verbose] do
-      if System.get_env("CAIRN_NO_PRELUDE") in ["1", "true", "TRUE"] do
-        IO.puts(:stderr, "PRELUDE: disabled (CAIRN_NO_PRELUDE=1)")
-      else
-        IO.puts(:stderr, "PRELUDE: auto-load enabled")
-
-        Enum.each(@prelude_modules, fn {file, functions} ->
-          IO.puts(:stderr, "  #{file}: #{Enum.join(functions, ", ")}")
-        end)
-      end
-    end
-  end
-
-  defp format_invalid_options(invalid) do
-    invalid
-    |> Enum.map(fn {key, _value} -> "--#{key}" end)
-    |> Enum.join(", ")
-  end
-
-  defp print_help do
-    IO.puts("""
-    Usage:
-      mix cairn.run [options] <file.crn> [args...]
-
-    Options:
-      --help            Show this help text
-      --examples        Show categorized runnable example files
-      --show-prelude    Print loaded prelude modules/functions to stderr before running
-      --verbose         Alias for --show-prelude
-      --json-errors     Emit structured JSON diagnostics for failures
-
-    Environment:
-      CAIRN_NO_PRELUDE=1               Disable auto-loading lib/prelude.crn in file mode
-      CAIRN_PROVE_TRACE=summary|verbose|json
-                                      Enable PROVE MATCH trace diagnostics (stderr)
-    """)
-  end
-
-  defp print_examples do
-    IO.puts("Examples:")
-
-    Enum.each(@example_groups, fn {group, files} ->
-      IO.puts("  #{group}:")
-      Enum.each(files, &IO.puts("    #{&1}"))
-    end)
-  end
-
-  defp emit_diagnostic(error, path, opts) do
-    diag = Cairn.Diagnostic.from_exception(error, path)
-
-    if opts[:json_errors] do
-      IO.puts(:stderr, Cairn.Diagnostic.format_json(diag))
-    else
-      Enum.each(Cairn.Diagnostic.format_text(diag), &IO.puts(:stderr, &1))
-    end
+    _ = Cairn.CLI.run(args, no_args: :usage, halt_on_error: true)
   end
 end

@@ -9,78 +9,81 @@ Stack-based, postfix, contract-checked. Designed around the idea that an AI-firs
 ## Quick Start
 
 ```bash
+# Build the standalone executable
+mix escript.build
+
 # Run a file
-mix cairn.run examples/collatz.crn
+./cairn examples/collatz.crn
 
 # CLI options + environment reference
-mix cairn.run --help
-mix cairn.run --examples
+./cairn --help
+./cairn --examples
 
 # Recursion (factorial + fibonacci)
-mix cairn.run examples/recur.crn
+./cairn examples/recur.crn
 
 # Algebraic data types + pattern matching
-mix cairn.run examples/option.crn
+./cairn examples/option.crn
 
 # Verify contracts (randomized + solver-backed)
-mix cairn.run examples/bank.crn
+./cairn examples/bank.crn
 
 # Run the curated proof examples
-mix cairn.run examples/prove/all_proven.crn
+./cairn examples/prove/all_proven.crn
 
 # Proof details, solver notes, and trace modes:
 # see docs/prove.md
 
 # JSON parser + encoder demo (modular IMPORT example)
-mix cairn.run examples/json/demo.crn
+./cairn examples/json/demo.crn
 
 # Minimal 2-file IMPORT demo
-mix cairn.run examples/imports/main.crn
+./cairn examples/imports/main.crn
 
 # Practical mini-app (imports + prelude + file I/O + VERIFY)
-mix cairn.run examples/practical/all_practical.crn
-mix cairn.run examples/practical/main.crn
-mix cairn.run examples/practical/ledger.crn
-mix cairn.run examples/practical/todo.crn
-mix cairn.run examples/practical/ledger_cli.crn
-mix cairn.run examples/practical/ledger_cli.crn examples/practical/data/ledger.csv
-mix cairn.run examples/practical/expenses.crn
-mix cairn.run examples/practical/expenses.crn examples/practical/data/expenses.csv
-mix cairn.run examples/practical/cashflow.crn
-mix cairn.run examples/practical/cashflow.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
-mix cairn.run examples/practical/cashflow_alerts.crn
-mix cairn.run examples/practical/cashflow_alerts.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
+./cairn examples/practical/all_practical.crn
+./cairn examples/practical/main.crn
+./cairn examples/practical/ledger.crn
+./cairn examples/practical/todo.crn
+./cairn examples/practical/ledger_cli.crn
+./cairn examples/practical/ledger_cli.crn examples/practical/data/ledger.csv
+./cairn examples/practical/expenses.crn
+./cairn examples/practical/expenses.crn examples/practical/data/expenses.csv
+./cairn examples/practical/cashflow.crn
+./cairn examples/practical/cashflow.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
+./cairn examples/practical/cashflow_alerts.crn
+./cairn examples/practical/cashflow_alerts.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
 
 # Typed-concurrency examples (type-focused + minimal runtime)
-mix cairn.run examples/concurrency/ping_pong_types.crn
-mix cairn.run examples/concurrency/protocol_ping_pong.crn
-mix cairn.run examples/concurrency/traffic_light_types.crn
-mix cairn.run examples/concurrency/ping_once.crn
-mix cairn.run examples/concurrency/self_boot.crn
-mix cairn.run examples/concurrency/two_pings.crn
-mix cairn.run examples/concurrency/counter.crn
-mix cairn.run examples/concurrency/traffic_light.crn
-mix cairn.run examples/concurrency/notifier.crn
-mix cairn.run examples/concurrency/restart_once.crn
-mix cairn.run examples/concurrency/supervisor_worker.crn
+./cairn examples/concurrency/ping_pong_types.crn
+./cairn examples/concurrency/protocol_ping_pong.crn
+./cairn examples/concurrency/traffic_light_types.crn
+./cairn examples/concurrency/ping_once.crn
+./cairn examples/concurrency/self_boot.crn
+./cairn examples/concurrency/two_pings.crn
+./cairn examples/concurrency/counter.crn
+./cairn examples/concurrency/traffic_light.crn
+./cairn examples/concurrency/notifier.crn
+./cairn examples/concurrency/restart_once.crn
+./cairn examples/concurrency/supervisor_worker.crn
 
 # Prelude helpers demo (safe result flow + string helpers)
-mix cairn.run examples/prelude_demo.crn
-mix cairn.run --show-prelude examples/prelude/result_flow.crn
-mix cairn.run examples/prelude/csv_parse.crn
-mix cairn.run examples/prelude/io_safe.crn
+./cairn examples/prelude_demo.crn
+./cairn --show-prelude examples/prelude/result_flow.crn
+./cairn examples/prelude/csv_parse.crn
+./cairn examples/prelude/io_safe.crn
 
 # Diagnostics examples (text + JSON)
-mix cairn.run examples/diagnostics/static_type.crn
-mix cairn.run examples/diagnostics/runtime_div_zero.crn
-mix cairn.run examples/diagnostics/contract_fail.crn
-mix cairn.run --json-errors examples/diagnostics/runtime_div_zero.crn
+./cairn examples/diagnostics/static_type.crn
+./cairn examples/diagnostics/runtime_div_zero.crn
+./cairn examples/diagnostics/contract_fail.crn
+./cairn --json-errors examples/diagnostics/runtime_div_zero.crn
 
 # Start the REPL
-mix run -e "Cairn.REPL.start()"
+./cairn
 
 # Interactive number guessing game
-mix cairn.run examples/guess.crn
+./cairn examples/guess.crn
 
 # Run tests (768 tests)
 mix test
@@ -92,20 +95,21 @@ mix test.practical
 ### First 15 Minutes
 
 ```bash
-# 1) Run a tiny program
-mix cairn.run examples/hello_world.crn
+# 1) Build once, then run a tiny program
+mix escript.build
+./cairn examples/hello_world.crn
 
 # 2) See what to run next
-mix cairn.run --examples
+./cairn --examples
 
 # 3) Trigger and read a static failure
-mix cairn.run examples/diagnostics/static_type.crn
+./cairn examples/diagnostics/static_type.crn
 
 # 4) Inspect the same failure in JSON for tools/CI
-mix cairn.run --json-errors examples/diagnostics/runtime_div_zero.crn
+./cairn --json-errors examples/diagnostics/runtime_div_zero.crn
 
 # 5) Run property-based and solver-backed checks
-mix cairn.run examples/bank.crn
+./cairn examples/bank.crn
 ```
 
 See [`docs/cli.md`](docs/cli.md) for CLI flags, env vars, and output format conventions.
@@ -150,8 +154,8 @@ See [`examples/imports/main.crn`](examples/imports/main.crn) and [`examples/impo
 
 ### Prelude
 
-`mix cairn.run` / `Cairn.eval_file/3` auto-load `lib/prelude.crn` (disable with `CAIRN_NO_PRELUDE=1`).
-Use `mix cairn.run --show-prelude your_file.crn` (or `--verbose`) to print loaded prelude modules/functions.
+`./cairn` / `mix cairn.run` / `Cairn.eval_file/3` auto-load `lib/prelude.crn` (disable with `CAIRN_NO_PRELUDE=1`).
+Use `./cairn --show-prelude your_file.crn` (or `--verbose`) to print loaded prelude modules/functions.
 Prelude modules currently loaded by the facade:
 
 - `result_is_ok`, `result_is_err`
@@ -161,7 +165,7 @@ Prelude modules currently loaded by the facade:
 
 ### Diagnostics
 
-`mix cairn.run` now emits consistent failure diagnostics on stderr:
+`./cairn` now emits consistent failure diagnostics on stderr:
 - `ERROR kind=<static|runtime|contract>`
 - `message`, optional `location` + source `snippet`, and `hint`
 - Run summary remains on stderr (`RUN SUMMARY: ...`)
@@ -169,7 +173,7 @@ Prelude modules currently loaded by the facade:
 Use `--json-errors` for machine-readable diagnostics:
 
 ```bash
-mix cairn.run --json-errors examples/diagnostics/runtime_div_zero.crn
+./cairn --json-errors examples/diagnostics/runtime_div_zero.crn
 ```
 
 ## Language Reference

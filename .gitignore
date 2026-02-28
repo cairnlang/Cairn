@@ -22,5 +22,8 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 cairn-*.tar
 
+# Ignore the locally built standalone executable (built via "mix escript.build").
+/cairn
+
 # Temporary files, for example, from tests.
 /tmp/

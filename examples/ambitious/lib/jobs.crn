@@ -1,7 +1,5 @@
 # examples/ambitious/lib/jobs.crn — pure job parsing helpers
 
-IMPORT "messages.crn"
-
 DEF is_job_comment : str -> bool
   "#" STARTS_WITH
 END
@@ -32,6 +30,44 @@ DEF fail_line_reason : str -> str
   DUP LEN 5 SUB
   5 SWAP
   SLICE
+END
+
+DEF pair_job_id : [any] -> int
+  HEAD
+END
+
+DEF pair_job_line : [any] -> str
+  TAIL HEAD
+END
+
+DEF counts_completed : [int] -> int
+  HEAD
+END
+
+DEF counts_failed : [int] -> int
+  TAIL HEAD
+END
+
+DEF counts_restarted : [int] -> int
+  TAIL TAIL HEAD
+END
+
+DEF counts_success : [int] -> [int]
+  DUP HEAD 1 ADD LET completed
+  DUP TAIL HEAD LET failed
+  TAIL TAIL HEAD LET restarted
+  restarted [ ] CONS
+  failed SWAP CONS
+  completed SWAP CONS
+END
+
+DEF counts_failure : [int] -> [int]
+  DUP HEAD LET completed
+  DUP TAIL HEAD 1 ADD LET failed
+  TAIL TAIL HEAD 1 ADD LET restarted
+  restarted [ ] CONS
+  failed SWAP CONS
+  completed SWAP CONS
 END
 
 DEF parsed_job_count_matches : [str] -> bool

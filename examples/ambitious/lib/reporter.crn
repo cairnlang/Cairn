@@ -35,16 +35,3 @@ DEF reporter_step : bool -> bool
     done
   END
 END
-
-DEF spawn_reporter : pid[any]
-  SPAWN orch_msg {
-    DROP
-    F
-    {
-      24 {
-        STEP reporter_step
-      } REPEAT
-    } WITH_STATE
-    DROP
-  }
-END

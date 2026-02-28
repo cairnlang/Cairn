@@ -15,65 +15,90 @@ LET args
 
 args HEAD LET path
 
-SPAWN orch_msg {
-  DROP
-  F
-  {
-    24 {
-      STEP reporter_step
-    } REPEAT
-  } WITH_STATE
-  DROP
-} LET reporter
+path "orchestrator: loading jobs from {}" FMT SAID
 
-reporter MONITOR LET reporter_mon
+path READ_FILE
+MATCH
+  Ok {
+    LET raw
+    raw job_data_lines LET jobs
+    jobs LEN LET job_count
 
-SPAWN orch_msg {
-  DROP
-  path "orchestrator: loading jobs from {}" FMT reporter report_log
-  "" path read_file_or LET raw
-  raw job_data_lines LET jobs
+    job_count "orchestrator: parsed={} jobs" FMT SAID
 
-  jobs LEN "orchestrator: parsed={} jobs" FMT reporter report_log
-  "coordinator: starting bounded run" reporter report_log
+    job_count 0 EQ
+    IF
+      "orchestrator: no jobs found" SAID
+    ELSE
+      job_count 6 MUL 8 ADD LET reporter_budget
 
-  jobs HEAD LET job1
-  jobs TAIL HEAD LET job2
-  jobs TAIL TAIL HEAD LET job3
-  jobs TAIL TAIL TAIL HEAD LET job4
+      SPAWN orch_msg {
+        DROP
+        F
+        {
+          reporter_budget {
+            STEP reporter_step
+          } REPEAT
+        } WITH_STATE
+        DROP
+      } LET reporter
 
-  "coordinator: dispatching job 1 -> worker_a" reporter report_log
-  job1 sum_line_value LET value1
-  value1 "worker_a: completed job 1 result={}" FMT reporter report_log
+      reporter MONITOR LET reporter_mon
+      "coordinator: starting bounded run" reporter report_log
 
-  "coordinator: dispatching job 2 -> worker_b" reporter report_log
-  job2 max_line_value LET value2
-  value2 "worker_b: completed job 2 result={}" FMT reporter report_log
+      jobs ENUMERATE
+      [ 0 0 0 ]
+      {
+        LET pair
+        LET counts
 
-  "coordinator: dispatching job 3 -> worker_b" reporter report_log
-  job3 fail_line_reason LET reason
-  SPAWN orch_msg {
-    DROP
-    reason "worker_b: failing job 3 reason={}" FMT reporter report_log
-    "worker_failed" EXIT
-  } LET failing_worker
-  failing_worker MONITOR LET failing_mon
-  failing_mon AWAIT LET exit_reason
-  exit_reason "coordinator: observed worker_b exit={}" FMT reporter report_log
-  "coordinator: restarting worker_b once" reporter report_log
+        pair pair_job_id LET job_id
+        pair pair_job_line LET job_line
 
-  SPAWN orch_msg {
-    DROP
-    "worker_b_restarted: replacement worker ready" reporter report_log
-  } DROP
+        job_line "sum:" STARTS_WITH
+        IF
+          job_id "coordinator: dispatching job {} -> worker_a" FMT reporter report_log
+          job_line sum_line_value LET value
+          value job_id "worker_a: completed job {} result={}" FMT reporter report_log
+          counts counts_success
+        ELSE
+          job_line "max:" STARTS_WITH
+          IF
+            job_id "coordinator: dispatching job {} -> worker_b" FMT reporter report_log
+            job_line max_line_value LET value
+            value job_id "worker_b: completed job {} result={}" FMT reporter report_log
+            counts counts_success
+          ELSE
+            job_id "coordinator: dispatching job {} -> worker_b" FMT reporter report_log
+            job_line fail_line_reason LET reason
+            SPAWN orch_msg {
+              DROP
+              reason job_id "worker_b: failing job {} reason={}" FMT reporter report_log
+              "worker_failed" EXIT
+            } LET failing_worker
+            failing_worker MONITOR LET failing_mon
+            failing_mon AWAIT LET exit_reason
+            exit_reason "coordinator: observed worker_b exit={}" FMT reporter report_log
+            "coordinator: restarting worker_b once" reporter report_log
+            "worker_b_restarted: replacement worker ready" reporter report_log
+            counts counts_failure
+          END
+        END
+      } REDUCE
+      LET counts
 
-  "coordinator: dispatching job 4 -> worker_b_restarted" reporter report_log
-  job4 sum_line_value LET value4
-  value4 "worker_b_restarted: completed job 4 result={}" FMT reporter report_log
+      reporter
+      counts counts_completed
+      counts counts_failed
+      counts counts_restarted
+      Summary
+      SEND
 
-  reporter 3 1 1 Summary SEND
-} LET orchestrator
-
-orchestrator MONITOR LET orchestrator_mon
-orchestrator_mon AWAIT DROP
-reporter_mon AWAIT DROP
+      reporter_mon AWAIT DROP
+    END
+  }
+  Err {
+    LET message
+    path message "orchestrator: cannot read {} ({})" FMT SAID
+  }
+END

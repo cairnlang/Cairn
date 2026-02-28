@@ -285,6 +285,13 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - `mini_ini` is a bounded INI query tool: `--sections`, direct section/key lookup, and optional fallback values
 - Expanded example lists, prelude discoverability, smoke coverage, and direct runtime tests so the new parser path stays visible and exercised
 
+### v0.8.2a — Verbose Local Orchestrator
+- Added `examples/ambitious/orchestrator.crn` as the first application-shaped Cairn stress test
+- Added `examples/ambitious/data/jobs.txt` plus a small supporting library under `examples/ambitious/lib/`
+- The orchestrator is intentionally chatty: it narrates loading, parsing, dispatch, failure, restart, and the final summary while it runs
+- The run stays bounded and deterministic while still exercising actors, `MONITOR`/`AWAIT`, and a supervised restart-once path
+- Expanded the curated example list and smoke coverage so the new ambitious example stays part of the visible runnable surface
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

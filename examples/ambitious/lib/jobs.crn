@@ -1,0 +1,44 @@
+# examples/ambitious/lib/jobs.crn — pure job parsing helpers
+
+IMPORT "messages.crn"
+
+DEF is_job_comment : str -> bool
+  "#" STARTS_WITH
+END
+
+DEF job_data_lines : str -> [str]
+  LINES
+  { TRIM } MAP
+  { DUP LEN 0 GT SWAP is_job_comment NOT AND } FILTER
+END
+
+DEF sum_line_value : str -> int
+  DUP LEN 4 SUB
+  4 SWAP
+  SLICE
+  csv_ints
+  SUM
+END
+
+DEF max_line_value : str -> int
+  DUP LEN 4 SUB
+  4 SWAP
+  SLICE
+  csv_ints
+  SORT REVERSE HEAD
+END
+
+DEF fail_line_reason : str -> str
+  DUP LEN 5 SUB
+  5 SWAP
+  SLICE
+END
+
+DEF parsed_job_count_matches : [str] -> bool
+  DUP { TRIM } MAP
+  { DUP LEN 0 GT SWAP is_job_comment NOT AND } FILTER
+  LEN
+  SWAP LEN
+  EQ
+  POST DUP EQ T
+END

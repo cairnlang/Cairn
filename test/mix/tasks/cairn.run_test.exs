@@ -61,6 +61,8 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert output =~ "examples/concurrency/restart_once.crn"
     assert output =~ "examples/concurrency/supervisor_worker.crn"
     assert output =~ "examples/concurrency/guess_binary.crn"
+    assert output =~ "ambitious:"
+    assert output =~ "examples/ambitious/orchestrator.crn"
     assert output =~ "prelude:"
     assert output =~ "examples/prelude/result_flow.crn"
     assert output =~ "examples/prelude/env_parse.crn"

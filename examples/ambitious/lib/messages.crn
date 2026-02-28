@@ -1,0 +1,5 @@
+# examples/ambitious/lib/messages.crn — shared types for the local orchestrator
+
+TYPE orch_msg =
+  Log str
+| Summary int int int

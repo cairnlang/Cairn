@@ -33,6 +33,8 @@ defmodule Cairn.CLITest do
     assert output =~ "examples/prelude/env_parse.crn"
     assert output =~ "examples/prelude/ini_parse.crn"
     assert output =~ "examples/concurrency/guess_binary.crn"
+    assert output =~ "ambitious:"
+    assert output =~ "examples/ambitious/orchestrator.crn"
   end
 
   test "no args dispatches to the REPL in standalone mode" do

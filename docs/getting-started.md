@@ -35,6 +35,7 @@ This produces `./cairn`.
 ./cairn examples/practical/mini_grep.crn
 ./cairn examples/practical/mini_env.crn
 ./cairn examples/practical/mini_ini.crn
+./cairn examples/ambitious/orchestrator.crn
 ./cairn examples/concurrency/guess_binary.crn
 ```
 

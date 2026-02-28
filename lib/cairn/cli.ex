@@ -55,6 +55,10 @@ defmodule Cairn.CLI do
        "examples/concurrency/supervisor_worker.crn",
        "examples/concurrency/guess_binary.crn"
      ]},
+    {"ambitious",
+     [
+       "examples/ambitious/orchestrator.crn"
+     ]},
     {"prelude",
      [
        "examples/prelude/result_flow.crn",

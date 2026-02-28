@@ -27,6 +27,7 @@ Cairn is postfix and stack-based, but it is not just a calculator language. The 
 - an auto-loaded prelude
 - maps, lists, strings, blocks, loops, and local state threading
 - practical CLI utilities (`mini_grep`, `mini_env`)
+- a chatty application-shaped orchestrator example
 - typed actor workflows on the BEAM (`SPAWN`, `SEND`, `RECEIVE`, `SELF`, `MONITOR`, `AWAIT`)
 
 ## Getting Started
@@ -57,6 +58,7 @@ Good first programs to run:
 - `./cairn examples/practical/mini_grep.crn`
 - `./cairn examples/practical/mini_env.crn`
 - `./cairn examples/practical/mini_ini.crn`
+- `./cairn examples/ambitious/orchestrator.crn`
 - `./cairn examples/concurrency/guess_binary.crn`
 
 ## What It Does Well Today
@@ -94,6 +96,7 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/practical/mini_grep.crn`: bounded grep-like CLI utility
 - `examples/practical/mini_env.crn`: bounded `.env` query utility
 - `examples/practical/mini_ini.crn`: bounded INI query utility
+- `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake
 - `examples/concurrency/guess_binary.crn`: stateful actor workflow with bounded repeated steps
 

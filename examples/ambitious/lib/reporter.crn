@@ -1,0 +1,50 @@
+# examples/ambitious/lib/reporter.crn — verbose reporting helpers
+
+IMPORT "messages.crn"
+
+DEF report_log : pid[any] str -> void
+  SWAP
+  Log
+  SEND
+END
+
+DEF reporter_step : bool -> bool
+  LET done
+  done NOT
+  IF
+    RECEIVE
+      Log {
+        SAID
+        done
+      }
+      Summary {
+        LET completed
+        LET failed
+        LET restarted
+        completed "reporter: completed={}" FMT SAID
+        failed "reporter: failed={}" FMT SAID
+        restarted "reporter: restarted={}" FMT SAID
+        "reporter: run finished" SAID
+        T
+      }
+      _ {
+        done
+      }
+    END
+  ELSE
+    done
+  END
+END
+
+DEF spawn_reporter : pid[any]
+  SPAWN orch_msg {
+    DROP
+    F
+    {
+      24 {
+        STEP reporter_step
+      } REPEAT
+    } WITH_STATE
+    DROP
+  }
+END

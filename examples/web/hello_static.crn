@@ -1,4 +1,4 @@
-IMPORT "web/lib/hello_static.crn"
+IMPORT "lib/hello_static.crn"
 
 ARGV LEN 0 GT
 IF

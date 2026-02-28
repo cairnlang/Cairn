@@ -1,0 +1,25 @@
+# examples/practical/lib/mini_env.crn — helpers for a bounded .env query CLI
+
+DEF args_is_keys_mode : [str] -> bool
+  DUP LEN 2 EQ
+  IF
+    HEAD "--keys" EQ
+  ELSE
+    DROP F
+  END
+END
+
+DEF args_is_lookup_mode : [str] -> bool
+  DUP LEN 2 EQ
+  SWAP LEN 3 EQ
+  OR
+END
+
+DEF emit_lines : [str] -> void
+  { DUP SAID } MAP
+  DROP
+END
+
+DEF usage_line : any -> str
+  DROP "usage: mini_env [--keys <file> | <file> <key> [fallback]]"
+END

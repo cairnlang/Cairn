@@ -1,0 +1,57 @@
+# Prelude: config-file helpers
+
+# Parse trimmed KEY=VALUE lines into a string map, skipping blanks/comments.
+DEF env_is_data_line : str -> bool
+  DUP LEN 0 GT
+  SWAP DUP "#" STARTS_WITH NOT
+  SWAP "=" CONTAINS
+  AND AND
+END
+
+DEF env_data_lines : str -> [str]
+  LINES
+  { TRIM } MAP
+  { env_is_data_line } FILTER
+END
+
+DEF env_put_line : str map[str str] -> map[str str]
+  LET line
+  line "=" SPLIT LET parts
+  parts HEAD LET key
+  parts TAIL "=" JOIN LET value
+  key value PUT
+END
+
+DEF env_map : str -> map[str str]
+  env_data_lines
+  M[] { env_put_line } REDUCE
+END
+
+DEF env_keys : str -> [str]
+  env_data_lines
+  { "=" SPLIT HEAD } MAP
+END
+
+DEF env_fetch : str str -> result
+  LET key
+  LET raw
+  raw env_map LET source
+  source key HAS
+  IF
+    source key GET Ok
+  ELSE
+    key "missing key {}" FMT Err
+  END
+END
+
+DEF map_get_or : str map[str any] any -> any
+  LET fallback
+  LET source
+  LET key
+  source key HAS
+  IF
+    source key GET
+  ELSE
+    fallback
+  END
+END

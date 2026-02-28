@@ -1,7 +1,7 @@
 defmodule Cairn.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn"]
+  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/prelude/env_parse.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/practical/mini_env.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -113,6 +113,17 @@ defmodule Cairn.ExamplesSmokeTest do
 
     assert_output_markers("examples/practical/mini_grep_verify.crn", [
       "VERIFY leading_flag_count_bounded: OK"
+    ])
+
+    assert_output_markers("examples/prelude/env_parse.crn", [
+      "app_name=Cairn",
+      "port=4000",
+      "keys=3",
+      "token=abc=123"
+    ])
+
+    assert_output_markers("examples/practical/mini_env.crn", [
+      "Cairn"
     ])
   end
 

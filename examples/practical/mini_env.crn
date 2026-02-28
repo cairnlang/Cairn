@@ -1,0 +1,58 @@
+# examples/practical/mini_env.crn — bounded .env query utility
+# Usage: ./cairn examples/practical/mini_env.crn [--keys <file> | <file> <key> [fallback]]
+
+IMPORT "lib/mini_env.crn"
+
+ARGV DUP LEN 0 EQ
+IF
+  DROP [ "examples/practical/data/app.env" "APP_NAME" ]
+END
+LET args
+
+args args_is_keys_mode
+IF
+  args TAIL HEAD LET path
+
+  path READ_FILE
+  MATCH
+    Ok {
+      env_keys emit_lines
+    }
+    Err {
+      "mini_env: cannot read {}" FMT SAID
+    }
+  END
+ELSE
+  args args_is_lookup_mode
+  IF
+    args HEAD LET path
+    args TAIL HEAD LET key
+
+    path READ_FILE
+    MATCH
+      Ok {
+        LET raw
+        raw key env_fetch
+        MATCH
+          Ok {
+            SAID
+          }
+          Err {
+            args LEN 3 EQ
+            IF
+              DROP
+              args TAIL TAIL HEAD SAID
+            ELSE
+              "mini_env: {}" FMT SAID
+            END
+          }
+        END
+      }
+      Err {
+        "mini_env: cannot read {}" FMT SAID
+      }
+    END
+  ELSE
+    args usage_line SAID
+  END
+END

@@ -28,6 +28,8 @@ defmodule Cairn.CLITest do
     assert output =~ "basics:"
     assert output =~ "examples/hello_world.crn"
     assert output =~ "examples/practical/mini_grep.crn"
+    assert output =~ "examples/practical/mini_env.crn"
+    assert output =~ "examples/prelude/env_parse.crn"
     assert output =~ "examples/concurrency/guess_binary.crn"
   end
 

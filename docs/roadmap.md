@@ -267,6 +267,15 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added a relaxed runtime budget guard for `examples/prove/all_proven.crn` to catch severe performance regressions
 - Documented rule-admission criteria and locked this slice to guardrails (no broad speculative inference expansion)
 
+### v0.8.1a — Prelude Config Helpers and MiniEnv
+- Added `lib/prelude/config.crn` and folded `.env`-style parsing into the official auto-loaded prelude
+- Added reusable helpers: `env_data_lines`, `env_map`, `env_keys`, `env_fetch`, and `map_get_or`
+- Kept the prelude discoverability banner aligned so `--show-prelude` now surfaces the config helpers explicitly
+- Added `examples/prelude/env_parse.crn` as the focused config-prelude demo
+- Added `examples/practical/mini_env.crn` plus `examples/practical/lib/mini_env.crn` and `examples/practical/data/app.env` as the next utility-style stress test
+- `mini_env` is a bounded `.env` query tool: `--keys`, direct key lookup, and optional fallback values
+- Expanded practical/example smoke coverage and direct runtime tests so both the new prelude helpers and the utility stay exercised
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

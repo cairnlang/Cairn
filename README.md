@@ -53,6 +53,8 @@ mix escript.build
 ./cairn examples/practical/cashflow.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
 ./cairn examples/practical/cashflow_alerts.crn
 ./cairn examples/practical/cashflow_alerts.crn examples/practical/data/ledger.csv examples/practical/data/expenses.csv
+./cairn examples/practical/mini_env.crn
+./cairn examples/practical/mini_env.crn --keys examples/practical/data/app.env
 
 # Typed-concurrency examples (type-focused + minimal runtime)
 ./cairn examples/concurrency/ping_pong_types.crn
@@ -72,6 +74,7 @@ mix escript.build
 ./cairn --show-prelude examples/prelude/result_flow.crn
 ./cairn examples/prelude/csv_parse.crn
 ./cairn examples/prelude/io_safe.crn
+./cairn examples/prelude/env_parse.crn
 
 # Diagnostics examples (text + JSON)
 ./cairn examples/diagnostics/static_type.crn
@@ -85,7 +88,7 @@ mix escript.build
 # Interactive number guessing game
 ./cairn examples/guess.crn
 
-# Run tests (768 tests)
+# Run tests
 mix test
 
 # Run practical-only pipeline tests
@@ -119,7 +122,7 @@ See [`docs/practical-pipeline.md`](docs/practical-pipeline.md) for the staged pr
 `examples/math.crn` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`.
 `examples/strings.crn` is the focused native string-helper showcase for `UPPER`, `LOWER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`.
 `examples/interop.crn` is the focused typed-whitelist host interop showcase for the still-narrow `HOST_CALL` escape hatch (`int_to_string`, `float_to_string`).
-`examples/practical/mini_grep.crn` is the first utility-style CLI stress test: a bounded `grep`-like tool with `-i`, `-n`, and `-v`.
+`examples/practical/mini_grep.crn` is the first utility-style CLI stress test: a bounded `grep`-like tool with `-i`, `-n`, and `-v`. `examples/practical/mini_env.crn` is the next one: a bounded `.env` query tool with `--keys`, direct key lookup, and optional fallback values.
 Concurrency examples live under `examples/concurrency/`; `ping_pong_types.crn`, `protocol_ping_pong.crn`, and `traffic_light_types.crn` stay type-focused, while `ping_once.crn`, `self_boot.crn`, `two_pings.crn`, `counter.crn`, `traffic_light.crn`, `notifier.crn`, `restart_once.crn`, `supervisor_worker.crn`, and `guess_binary.crn` exercise the current runtime actor path (`protocol_ping_pong.crn` is the first bounded protocol-conformance example and now demonstrates helper-function conformance inside protocol-bound actors, `counter.crn`, `traffic_light.crn`, and `guess_binary.crn` now use `WITH_STATE` plus `STEP`-driven bounded `REPEAT` loops to express actor-local state steps without manual unrolled `RECEIVE` chains, `notifier.crn` is the first more practical actor-shaped workflow, `restart_once.crn` is the first minimal supervision/restart workflow, and `supervisor_worker.crn` is the first explicit supervisor/worker split). Shared actor/state/supervision helpers now live under `examples/concurrency/lib/` (`lib/actor.crn`, `lib/state.crn`, `lib/supervision.crn`), and the supervision layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` + `MONITOR`/`AWAIT`. Lifecycle-only examples like `examples/concurrency/linked_failure.crn` and `protocol_mismatch.crn` intentionally fail and are kept out of the normal runnable examples list.
 
 ### Practical Mini-Apps
@@ -128,6 +131,7 @@ Concurrency examples live under `examples/concurrency/`; `ping_pong_types.crn`, 
 - imports reusable functions from `examples/practical/lib/stats.crn`
 - reads CSV from disk with safe fallback (`read_file_or`)
 - parses and computes totals/averages via prelude helpers
+- now also includes config-oriented prelude helpers (`env_map`, `env_keys`, `env_fetch`, `map_get_or`) through `lib/prelude/config.crn`
 - runs `VERIFY score_total 40` as a lightweight regression check
 - uses additional reusable libs (`examples/practical/lib/ledger.crn`, `examples/practical/lib/todo.crn`) for report/stat pipelines
 - writes report outputs to `/tmp/cairn_*.txt` via `WRITE_FILE!` in ledger/todo flows
@@ -136,7 +140,7 @@ Concurrency examples live under `examples/concurrency/`; `ping_pong_types.crn`, 
 - includes a larger module-split app (`expenses.crn`) with parser/aggregator/report modules
 - includes a composed cross-file app (`cashflow.crn`) combining ledger + expenses pipelines and shared report helpers
 - includes a multi-step composed stage (`cashflow_alerts.crn`) that classifies risk bands and actions from composed metrics
-- now also includes a utility-style CLI (`mini_grep.crn`) that reads argv, scans a file, and prints filtered matching lines
+- now also includes utility-style CLIs: `mini_grep.crn` (file scanning) and `mini_env.crn` (config lookup)
 
 ### Imports
 

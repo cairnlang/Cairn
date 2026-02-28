@@ -1,0 +1,12 @@
+# prelude/env_parse.crn — parse simple .env-style content with prelude helpers
+
+"# demo\nAPP_NAME=Cairn\nPORT=4000\nTOKEN=abc=123\n" env_map LET env
+
+"APP_NAME" env "missing" map_get_or "app_name={}" FMT SAID
+"PORT" env "missing" map_get_or "port={}" FMT SAID
+"# demo\nAPP_NAME=Cairn\nPORT=4000\nTOKEN=abc=123\n" env_keys LEN "keys={}" FMT SAID
+"# demo\nAPP_NAME=Cairn\nPORT=4000\nTOKEN=abc=123\n" "TOKEN" env_fetch
+MATCH
+  Ok { "token={}" FMT SAID }
+  Err { "token_error={}" FMT SAID }
+END

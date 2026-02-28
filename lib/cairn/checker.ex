@@ -730,33 +730,55 @@ defmodule Cairn.Checker do
   end
 
   defp walk([{:op, :http_serve, pos} | rest], state) do
-    case Stack.pop_n(state.stack, 3) do
-      {[{:block, _block_tokens}, :int, :str], new_stack} ->
+    case Stack.pop_n(state.stack, 4) do
+      {[{:block, _block_tokens}, :int, :str, {:map, :str, :any}], new_stack} ->
         walk(rest, %{state | stack: new_stack})
 
-      {[:str, :int, {:block, _block_tokens}], new_stack} ->
+      {[{:map, :str, :any}, :str, :int, {:block, _block_tokens}], new_stack} ->
         walk(rest, %{state | stack: new_stack})
 
       _ ->
-        case Stack.pop_n(state.stack, 2) do
-          {[{:block, _block_tokens}, :int], new_stack} ->
+        case Stack.pop_n(state.stack, 3) do
+          {[{:block, _block_tokens}, :int, {:map, :str, :any}], new_stack} ->
             walk(rest, %{state | stack: new_stack})
 
-          {[:int, {:block, _block_tokens}], new_stack} ->
+          {[{:map, :str, :any}, :int, {:block, _block_tokens}], new_stack} ->
             walk(rest, %{state | stack: new_stack})
 
-          {[top, under], new_stack} ->
-            state =
-              %{state | stack: new_stack}
-              |> add_error(
-                pos,
-                "HTTP_SERVE requires a block handler and integer port (optionally beneath a bind address), got #{format_type(top)} over #{format_type(under)}"
-              )
+          {[{:block, _block_tokens}, :int, :str], new_stack} ->
+            walk(rest, %{state | stack: new_stack})
 
-            walk(rest, state)
+          {[:str, :int, {:block, _block_tokens}], new_stack} ->
+            walk(rest, %{state | stack: new_stack})
 
-          :underflow ->
-            walk(rest, add_error(state, pos, "HTTP_SERVE requires a block handler and integer port (optionally beneath a bind address) (stack underflow)"))
+          _ ->
+            case Stack.pop_n(state.stack, 2) do
+              {[{:block, _block_tokens}, :int], new_stack} ->
+                walk(rest, %{state | stack: new_stack})
+
+              {[:int, {:block, _block_tokens}], new_stack} ->
+                walk(rest, %{state | stack: new_stack})
+
+              {[top, under], new_stack} ->
+                state =
+                  %{state | stack: new_stack}
+                  |> add_error(
+                    pos,
+                    "HTTP_SERVE requires a block handler and integer port (optionally beneath a bind address and options map), got #{format_type(top)} over #{format_type(under)}"
+                  )
+
+                walk(rest, state)
+
+              :underflow ->
+                walk(
+                  rest,
+                  add_error(
+                    state,
+                    pos,
+                    "HTTP_SERVE requires a block handler and integer port (optionally beneath a bind address and options map) (stack underflow)"
+                  )
+                )
+            end
         end
     end
   end

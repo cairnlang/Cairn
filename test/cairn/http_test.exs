@@ -117,6 +117,74 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "HTTP_SERVE returns 414 for oversized request lines and keeps listening" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task =
+      start_server_with_options(
+        "127.0.0.1",
+        port,
+        ~s|M[ "request_line_max" 64 "read_timeout_ms" 500 ]|,
+        index_path,
+        about_path
+      )
+
+    long_path = "/" <> String.duplicate("a", 128)
+    long_response = http_get(port, long_path)
+    ok_response = http_get(port, "/")
+
+    assert long_response =~ "HTTP/1.1 414 URI Too Long"
+    assert long_response =~ "uri too long"
+    assert ok_response =~ "HTTP/1.1 200 OK"
+    assert ok_response =~ "<h1>Hello from Cairn</h1>"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "HTTP_SERVE returns 400 for malformed request lines" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, index_path, about_path)
+
+    response = raw_request(port, "BROKEN\r\n\r\n")
+
+    assert response =~ "HTTP/1.1 400 Bad Request"
+    assert response =~ "bad request"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "HTTP_SERVE closes idle clients after the configured read timeout without killing the listener" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task =
+      start_server_with_options(
+        "127.0.0.1",
+        port,
+        ~s|M[ "request_line_max" 4096 "read_timeout_ms" 100 ]|,
+        index_path,
+        about_path
+      )
+
+    idle_socket = wait_for_connect(port, 50)
+    Process.sleep(180)
+
+    assert {:error, :closed} = :gen_tcp.recv(idle_socket, 0, 200)
+
+    ok_response = http_get(port, "/")
+
+    assert ok_response =~ "HTTP/1.1 200 OK"
+    assert ok_response =~ "<h1>Hello from Cairn</h1>"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   defp http_get(port, path) do
     http_request(port, "GET", path)
   end
@@ -166,6 +234,26 @@ defmodule Cairn.HTTPTest do
     end
   end
 
+  defp raw_request(port, request, attempts \\ 50)
+
+  defp raw_request(_port, _request, 0) do
+    flunk("server did not start in time for raw request")
+  end
+
+  defp raw_request(port, request, attempts) do
+    case :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, packet: :raw, active: false], 100) do
+      {:ok, socket} ->
+        :ok = :gen_tcp.send(socket, request)
+        response = recv_all(socket, "")
+        :gen_tcp.close(socket)
+        response
+
+      {:error, _reason} ->
+        Process.sleep(20)
+        raw_request(port, request, attempts - 1)
+    end
+  end
+
   defp recv_all(socket, acc) do
     case :gen_tcp.recv(socket, 0, 5_000) do
       {:ok, chunk} -> recv_all(socket, acc <> chunk)
@@ -181,9 +269,19 @@ defmodule Cairn.HTTPTest do
   end
 
   defp start_server(bind_host, port, index_path, about_path) do
+    start_server_with_options(bind_host, port, nil, index_path, about_path)
+  end
+
+  defp start_server_with_options(bind_host, port, options_source, index_path, about_path) do
     Task.async(fn ->
+      prefix =
+        case options_source do
+          nil -> ~s|"#{bind_host}" #{port}|
+          source -> source <> ~s| "#{bind_host}" #{port}|
+        end
+
       source = """
-      "#{bind_host}" #{port} {
+      #{prefix} {
         LET path
         LET method
         LET query

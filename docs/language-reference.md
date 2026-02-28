@@ -404,6 +404,15 @@ READ_LINE SAID
   handle_static_request
 } HTTP_SERVE
 
+# Optional bounded transport overrides:
+M[
+  "request_line_max" 4096
+  "read_timeout_ms" 5000
+]
+"127.0.0.1" 8089 {
+  handle_static_request
+} HTTP_SERVE
+
 # The route helpers can also be used directly:
 "/about" LET path
 "GET" LET method
@@ -417,6 +426,10 @@ LET path
 LET method
 LET query
 "name" query "friend" map_get_or
+
+# Current HTTP_SERVE defaults:
+# - request_line_max = 4096   (oversized first line -> 414 URI Too Long)
+# - read_timeout_ms  = 5000   (idle client -> quiet close)
 ```
 
 ## Examples

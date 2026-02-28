@@ -273,6 +273,11 @@ defmodule Cairn.CheckerTest do
     test "HTTP_SERVE accepts the explicit bind-address form" do
       check_ok(~s|"0.0.0.0" 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|)
     end
+
+    test "HTTP_SERVE accepts an options map" do
+      check_ok(~s|M[ "request_line_max" 1024 "read_timeout_ms" 1000 ] 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|)
+      check_ok(~s|M[ "request_line_max" 1024 "read_timeout_ms" 1000 ] "0.0.0.0" 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|)
+    end
   end
 
   # ── Stack underflow ──

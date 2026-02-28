@@ -334,6 +334,14 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded the web prelude with GET-specific route helpers: `route_get_html_file`, `route_get_text`, and `route_finish_get`
 - Rewrote the tiny web demo around those GET route helpers and added a query-driven `/echo?name=...` endpoint
 
+### v0.8.3m — Bounded HTTP Hardening
+- `HTTP_SERVE` now enforces bounded transport defaults:
+  - `request_line_max = 4096`
+  - `read_timeout_ms = 5000`
+- Oversized request lines now return `414 URI Too Long`
+- Idle clients now time out cleanly without killing the listener
+- `HTTP_SERVE` accepts an optional options map so those bounds can be tuned without changing the handler API
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

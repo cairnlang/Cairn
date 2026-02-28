@@ -157,13 +157,51 @@ defmodule Cairn.Evaluator do
   # Stack shapes:
   #   8080 { ...path, method, query -> status, content_type, body... } HTTP_SERVE
   #   "0.0.0.0" 8080 { ... } HTTP_SERVE
+  #   M[ "request_line_max" 4096 "read_timeout_ms" 5000 ] "0.0.0.0" 8080 { ... } HTTP_SERVE
+  #   M[ ... ] 8080 { ... } HTTP_SERVE
+  defp run(
+         [{:op, :http_serve, pos} | rest],
+         [{:block, block_tokens, block_env}, port, bind_host, options | stack],
+         env
+       )
+       when is_integer(port) and is_binary(bind_host) and is_map(options) do
+    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, options, stack, env)
+  end
+
+  defp run(
+         [{:op, :http_serve, pos} | rest],
+         [options, bind_host, port, {:block, block_tokens, block_env} | stack],
+         env
+       )
+       when is_integer(port) and is_binary(bind_host) and is_map(options) do
+    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, options, stack, env)
+  end
+
+  defp run(
+         [{:op, :http_serve, pos} | rest],
+         [{:block, block_tokens, block_env}, port, options | stack],
+         env
+       )
+       when is_integer(port) and is_map(options) do
+    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, options, stack, env)
+  end
+
+  defp run(
+         [{:op, :http_serve, pos} | rest],
+         [options, port, {:block, block_tokens, block_env} | stack],
+         env
+       )
+       when is_integer(port) and is_map(options) do
+    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, options, stack, env)
+  end
+
   defp run(
          [{:op, :http_serve, pos} | rest],
          [{:block, block_tokens, block_env}, port, bind_host | stack],
          env
        )
        when is_integer(port) and is_binary(bind_host) do
-    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, stack, env)
+    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, %{}, stack, env)
   end
 
   defp run(
@@ -172,17 +210,17 @@ defmodule Cairn.Evaluator do
          env
        )
        when is_integer(port) and is_binary(bind_host) do
-    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, stack, env)
+    run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, %{}, stack, env)
   end
 
   defp run([{:op, :http_serve, pos} | rest], [{:block, block_tokens, block_env}, port | stack], env)
        when is_integer(port) do
-    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, stack, env)
+    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, %{}, stack, env)
   end
 
   defp run([{:op, :http_serve, pos} | rest], [port, {:block, block_tokens, block_env} | stack], env)
        when is_integer(port) do
-    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, stack, env)
+    run_http_serve(rest, pos, block_tokens, block_env, "127.0.0.1", port, %{}, stack, env)
   end
 
   defp run([{:op, :http_serve, pos} | _], [top, under | _], _env) do
@@ -496,10 +534,10 @@ defmodule Cairn.Evaluator do
   defp normalize_down_reason(reason) when is_binary(reason), do: reason
   defp normalize_down_reason(reason), do: inspect(reason)
 
-  defp run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, stack, env) do
+  defp run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, options, stack, env) do
     handler_env = Map.merge(block_env, env)
 
-    Cairn.HTTP.serve(bind_host, port, fn method, path, query ->
+    Cairn.HTTP.serve(bind_host, port, options, fn method, path, query ->
       case eval_tokens(block_tokens, [path, method, query], handler_env) do
         [body, content_type, status] when is_binary(body) and is_binary(content_type) and is_integer(status) ->
           {status, content_type, body}

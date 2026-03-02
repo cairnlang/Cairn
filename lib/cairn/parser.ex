@@ -7,6 +7,7 @@ defmodule Cairn.Parser do
   2. Function definitions — `DEF name : type -> type body [POST condition] END`
   3. TYPE declarations — `TYPE name = Ctor1 [types...] | Ctor2 [types...] ...`
   4. VERIFY/PROVE statements
+  5. TEST blocks — `TEST "name" ... END`
 
   POST comes after the body, before END.
   """
@@ -18,7 +19,7 @@ defmodule Cairn.Parser do
   Returns `{:ok, items}` where each item is a `%Function{}`, `%TypeDef{}`, or `{:expr, tokens}`.
   """
   @spec parse([Cairn.Types.token()]) ::
-          {:ok, [Function.t() | TypeDef.t() | ProtocolDef.t() | {:expr, [Cairn.Types.token()]}]}
+          {:ok, [Function.t() | TypeDef.t() | ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}]}
           | {:error, String.t()}
   def parse(tokens) do
     parse_top(tokens, [])
@@ -48,6 +49,13 @@ defmodule Cairn.Parser do
     end
   end
 
+  defp parse_top([{:test_kw, _, _} | rest], acc) do
+    case parse_test(rest) do
+      {:ok, test_item, remaining} -> parse_top(remaining, [test_item | acc])
+      {:error, _} = err -> err
+    end
+  end
+
   defp parse_top([{:import_kw, _, _} | rest], acc) do
     case parse_import(rest) do
       {:ok, import_item, remaining} -> parse_top(remaining, [import_item | acc])
@@ -71,7 +79,7 @@ defmodule Cairn.Parser do
 
   defp parse_top(tokens, acc) do
     {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} ->
-      type not in [:fn_def, :verify_kw, :prove_kw, :import_kw, :type_kw, :protocol_kw]
+      type not in [:fn_def, :verify_kw, :prove_kw, :test_kw, :import_kw, :type_kw, :protocol_kw]
     end)
 
     if expr_tokens == [] do
@@ -178,7 +186,7 @@ defmodule Cairn.Parser do
 
   # Stop at any top-level boundary token
   defp collect_variants([{type, _, _} | _] = rest, variants, current_ctor, current_types)
-       when type in [:fn_def, :verify_kw, :prove_kw, :type_kw, :protocol_kw] do
+       when type in [:fn_def, :verify_kw, :prove_kw, :test_kw, :type_kw, :protocol_kw] do
     variants = finish_variant(variants, current_ctor, current_types)
     {:ok, variants, rest}
   end
@@ -212,6 +220,43 @@ defmodule Cairn.Parser do
 
   defp parse_prove(_) do
     {:error, "PROVE requires a function name"}
+  end
+
+  # TEST "name" ... END
+  defp parse_test([{:str_lit, name, _} | rest]) do
+    collect_test_body(rest, [], 0, name)
+  end
+
+  defp parse_test(_) do
+    {:error, "TEST requires a quoted name string"}
+  end
+
+  defp collect_test_body([], _acc, _depth, _name) do
+    {:error, "expected END after TEST, got end of input"}
+  end
+
+  defp collect_test_body([{:fn_end, _, _} | rest], acc, 0, name) do
+    {:ok, {:test, name, Enum.reverse(acc)}, rest}
+  end
+
+  defp collect_test_body([{:fn_end, _, _} = t | rest], acc, depth, name) do
+    collect_test_body(rest, [t | acc], depth - 1, name)
+  end
+
+  defp collect_test_body([{:if_kw, _, _} = t | rest], acc, depth, name) do
+    collect_test_body(rest, [t | acc], depth + 1, name)
+  end
+
+  defp collect_test_body([{:match_kw, _, _} = t | rest], acc, depth, name) do
+    collect_test_body(rest, [t | acc], depth + 1, name)
+  end
+
+  defp collect_test_body([{:receive_kw, _, _} = t | rest], acc, depth, name) do
+    collect_test_body(rest, [t | acc], depth + 1, name)
+  end
+
+  defp collect_test_body([token | rest], acc, depth, name) do
+    collect_test_body(rest, [token | acc], depth, name)
   end
 
   # IMPORT "path.crn"

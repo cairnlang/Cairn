@@ -378,6 +378,13 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Kept the serving path production-shaped while making the decision logic the center of the example
 - Added `VERIFY` coverage for score ranges, monotonicity, and label validity, plus `PROVE` coverage for bounded score/risk invariants
 
+### v0.9.0a — Native Cairn Test Harness
+- Added top-level `TEST "name" ... END` blocks for concrete Cairn-native test cases
+- Added bounded assertions: `ASSERT_EQ`, `ASSERT_TRUE`, and `ASSERT_FALSE`
+- Added `./cairn --test <file.crn>` / `mix cairn.run --test <file.crn>` to run a single native test file with pass/fail summaries and non-zero exit on failure
+- Kept the harness complementary to `VERIFY` and `PROVE`: `TEST` is concrete, `VERIFY` is randomized, `PROVE` is solver-backed
+- Added `examples/web/afford_test.crn` as the first native test-file example for real business logic
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

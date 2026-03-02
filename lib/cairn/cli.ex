@@ -110,6 +110,7 @@ defmodule Cairn.CLI do
       OptionParser.parse_head(args,
         strict: [
           help: :boolean,
+          test: :string,
           show_prelude: :boolean,
           verbose: :boolean,
           json_errors: :boolean,
@@ -130,6 +131,14 @@ defmodule Cairn.CLI do
       parsed_opts[:examples] ->
         print_examples()
         :ok
+
+      parsed_opts[:test] && rest != [] ->
+        IO.puts(:stderr, "Do not combine --test <file.crn> with a positional script path.")
+        :error
+
+      parsed_opts[:test] ->
+        maybe_print_prelude_banner(parsed_opts)
+        run_test_file(parsed_opts[:test], halt_on_error)
 
       rest == [] and no_args == :repl ->
         repl.()
@@ -173,6 +182,61 @@ defmodule Cairn.CLI do
       e in Cairn.ContractError ->
         emit_diagnostic(e, path, opts)
         halt_or_error(:contract, started_at_ms, halt_on_error)
+    end
+  end
+
+  defp run_test_file(path, halt_on_error) do
+    started_at_ms = System.monotonic_time(:millisecond)
+
+    try do
+      {_stack, env} = Cairn.eval_file(path, %{"__test_mode__" => true})
+      results = Map.get(env, "__test_results__", [])
+      {passed, failed} = Enum.split_with(results, &(&1.status == :ok))
+
+      Enum.each(passed, fn %{name: name} ->
+        IO.puts("PASS #{name}")
+      end)
+
+      Enum.each(failed, fn %{name: name, message: message} ->
+        IO.puts("FAIL #{name}")
+        IO.puts("  #{message}")
+      end)
+
+      elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
+      IO.puts(:stderr, "TEST SUMMARY: total=#{length(results)} passed=#{length(passed)} failed=#{length(failed)} elapsed_ms=#{elapsed_ms}")
+
+      if failed == [] do
+        :ok
+      else
+        if halt_on_error do
+          System.halt(1)
+        else
+          :error
+        end
+      end
+    rescue
+      e in Cairn.StaticError ->
+        Enum.each(Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)), &IO.puts(:stderr, &1))
+        maybe_halt_test_error(started_at_ms, halt_on_error)
+
+      e in Cairn.RuntimeError ->
+        Enum.each(Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)), &IO.puts(:stderr, &1))
+        maybe_halt_test_error(started_at_ms, halt_on_error)
+
+      e in Cairn.ContractError ->
+        Enum.each(Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)), &IO.puts(:stderr, &1))
+        maybe_halt_test_error(started_at_ms, halt_on_error)
+    end
+  end
+
+  defp maybe_halt_test_error(started_at_ms, halt_on_error) do
+    elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
+    IO.puts(:stderr, "TEST SUMMARY: status=error elapsed_ms=#{elapsed_ms}")
+
+    if halt_on_error do
+      System.halt(1)
+    else
+      :error
     end
   end
 
@@ -227,6 +291,7 @@ defmodule Cairn.CLI do
 
     Options:
       --help            Show this help text
+      --test <file.crn> Run Cairn-native TEST blocks in a single file
       --examples        Show categorized runnable example files
       --show-prelude    Print loaded prelude modules/functions to stderr before running
       --verbose         Alias for --show-prelude

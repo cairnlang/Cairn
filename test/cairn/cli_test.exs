@@ -100,4 +100,25 @@ defmodule Cairn.CLITest do
     assert stderr =~ "\"kind\":\"static\""
     assert stderr =~ "RUN SUMMARY: status=error kind=static"
   end
+
+  test "native test mode runs Cairn TEST blocks and prints a summary" do
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        stderr =
+          ExUnit.CaptureIO.capture_io(:stderr, fn ->
+            assert :ok = Cairn.CLI.run(["--test", "examples/web/afford_test.crn"], halt_on_error: false)
+          end)
+
+        send(self(), {:test_stderr, stderr})
+      end)
+
+    stderr =
+      receive do
+        {:test_stderr, captured} -> captured
+      end
+
+    assert output =~ "PASS safe one-time purchase remains safe"
+    assert output =~ "PASS score 2 maps to the strongest warning"
+    assert stderr =~ "TEST SUMMARY: total=6 passed=6 failed=0"
+  end
 end

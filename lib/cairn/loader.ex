@@ -11,6 +11,7 @@ defmodule Cairn.Loader do
           | {:expr, [Cairn.Types.token()]}
           | {:verify, String.t(), pos_integer()}
           | {:prove, String.t()}
+          | {:test, String.t(), [Cairn.Types.token()]}
 
   @spec load_items(String.t()) :: {:ok, [parsed_item()]} | {:error, String.t()}
   def load_items(path) do

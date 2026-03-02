@@ -1,0 +1,33 @@
+IMPORT "lib/afford_rules.crn"
+
+TEST "safe one-time purchase remains safe"
+  "one_time" 5000 3000 1000 500 affordability_score
+  0 ASSERT_EQ
+END
+
+TEST "large one-time purchase becomes not safe"
+  "one_time" 1000 3000 1000 2500 affordability_score
+  2 ASSERT_EQ
+END
+
+TEST "oversized recurring cost becomes not safe"
+  "recurring" 1000 3000 2800 500 affordability_score
+  2 ASSERT_EQ
+END
+
+TEST "risk label for score 1 is caution"
+  1 risk_label_for_score
+  "caution" ASSERT_EQ
+END
+
+TEST "score 2 maps to the strongest warning"
+  2 recommendation_for_score
+  "Not safe: delay or reduce the cost" ASSERT_EQ
+END
+
+TEST "concrete affordability scores stay in range"
+  "one_time" 5000 3000 1000 3500 affordability_score
+  DUP 0 GTE
+  SWAP 2 LTE AND
+  ASSERT_TRUE
+END

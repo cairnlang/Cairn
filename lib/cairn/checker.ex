@@ -22,7 +22,7 @@ defmodule Cairn.Checker do
   The `env` parameter provides previously-defined function signatures
   for cross-expression checking (e.g., in the REPL).
   """
-  @spec check([Cairn.Types.Function.t() | Cairn.Types.TypeDef.t() | Cairn.Types.ProtocolDef.t() | {:expr, [Cairn.Types.token()]}], map()) ::
+  @spec check([Cairn.Types.Function.t() | Cairn.Types.TypeDef.t() | Cairn.Types.ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}], map()) ::
           :ok | {:error, [Error.t()]}
   def check(items, env \\ %{}) do
     {type_env, types, protocols} = build_checker_env(env)
@@ -266,6 +266,19 @@ defmodule Cairn.Checker do
 
   defp check_item({:expr, tokens}, state) do
     check_tokens(tokens, state)
+  end
+
+  defp check_item({:test, _name, tokens}, state) do
+    test_state = %{state | stack: Stack.new()}
+    test_state = check_tokens(tokens, test_state)
+
+    %{
+      test_state
+      | stack: state.stack,
+        current_actor_type: state.current_actor_type,
+        current_protocol_steps: state.current_protocol_steps,
+        current_state_type: state.current_state_type
+    }
   end
 
   # VERIFY items are runtime-only, skip in static checker

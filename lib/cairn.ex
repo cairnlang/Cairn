@@ -156,6 +156,26 @@ defmodule Cairn do
     System.get_env("CAIRN_SKIP_ASSURANCE") in ["1", "true", "TRUE"]
   end
 
+  defp test_mode?(env), do: Map.get(env, "__test_mode__", false) == true
+
+  defp append_test_result(env, result) do
+    results = Map.get(env, "__test_results__", [])
+    Map.put(env, "__test_results__", results ++ [result])
+  end
+
+  defp run_test_block(name, body, env) do
+    try do
+      {_stack, _env} = Evaluator.eval_tokens_with_env(body, [], env)
+      append_test_result(env, %{name: name, status: :ok})
+    rescue
+      e in [Cairn.RuntimeError, Cairn.ContractError, Cairn.StaticError] ->
+        append_test_result(env, %{name: name, status: :error, message: Exception.message(e)})
+
+      e ->
+        append_test_result(env, %{name: name, status: :error, message: Exception.message(e)})
+    end
+  end
+
   defp prove_unknown_hint(reason) do
     cond do
       String.contains?(reason, "not supported") ->
@@ -222,6 +242,16 @@ defmodule Cairn do
           unless skip_assurance?() do
             run_prove(name, env)
           end
+
+          {stack, env}
+
+        {:test, name, body}, {stack, env} ->
+          env =
+            if test_mode?(env) do
+              run_test_block(name, body, env)
+            else
+              env
+            end
 
           {stack, env}
 

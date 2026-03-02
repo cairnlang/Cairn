@@ -18,11 +18,36 @@ defmodule Mix.Tasks.Cairn.RunTest do
 
     assert output =~ "Usage:"
     assert output =~ "--show-prelude"
+    assert output =~ "--test <file.crn>"
     assert output =~ "--examples"
     assert output =~ "--json-errors"
     assert output =~ "CAIRN_NO_PRELUDE=1"
     assert output =~ "CAIRN_SKIP_ASSURANCE=1"
     assert output =~ "CAIRN_PROVE_TRACE=summary|verbose|json"
+  end
+
+  test "native test mode runs through the Mix task wrapper" do
+    Mix.Task.reenable("cairn.run")
+
+    parent = self()
+
+    stdout =
+      ExUnit.CaptureIO.capture_io(fn ->
+        stderr =
+          ExUnit.CaptureIO.capture_io(:stderr, fn ->
+            Mix.Tasks.Cairn.Run.run(["--test", "examples/web/afford_test.crn"])
+          end)
+
+        send(parent, {:captured_stderr, stderr})
+      end)
+
+    stderr =
+      receive do
+        {:captured_stderr, captured} -> captured
+      end
+
+    assert stdout =~ "PASS safe one-time purchase remains safe"
+    assert stderr =~ "TEST SUMMARY: total=6 passed=6 failed=0"
   end
 
   test "prints categorized examples index" do

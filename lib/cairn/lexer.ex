@@ -6,6 +6,7 @@ defmodule Cairn.Lexer do
   """
 
   @operators ~w(ADD SUB MUL DIV MOD EQ NEQ GT LT GTE LTE AND OR NOT
+                ASSERT_EQ ASSERT_TRUE ASSERT_FALSE
                 DUP DROP SWAP OVER ROT ROT4
                 FILTER MAP FLAT_MAP REDUCE FIND GROUP_BY SUM LEN HEAD TAIL CONS CONCAT ZIP ENUMERATE TAKE
                 SORT REVERSE MIN MAX
@@ -94,6 +95,7 @@ defmodule Cairn.Lexer do
   defp classify("ELSE"), do: {:ok, {:else_kw, "ELSE"}}
   defp classify("VERIFY"), do: {:ok, {:verify_kw, "VERIFY"}}
   defp classify("PROVE"), do: {:ok, {:prove_kw, "PROVE"}}
+  defp classify("TEST"), do: {:ok, {:test_kw, "TEST"}}
   defp classify("IMPORT"), do: {:ok, {:import_kw, "IMPORT"}}
   defp classify("TYPE"), do: {:ok, {:type_kw, "TYPE"}}
   defp classify("MATCH"), do: {:ok, {:match_kw, "MATCH"}}

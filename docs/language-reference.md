@@ -109,6 +109,8 @@ TO_FLOAT                       # parse string as float -> result (Ok float | Err
 TO_INT! TO_FLOAT!              # unsafe parse variants (raise on failure)
 JOIN                           # pop separator, pop list of strings, push joined
 FMT                            # pop format string, pop values for {} placeholders, push result
+ASSERT_EQ                      # pop expected, pop actual, fail if they differ
+ASSERT_TRUE ASSERT_FALSE       # pop bool, fail if it is not the expected value
 
 # I/O
 PRINT                          # non-destructive debug output (with label)
@@ -360,6 +362,25 @@ To print MATCH pruning diagnostics, run with `CAIRN_PROVE_TRACE=summary`, `CAIRN
 For production-style runs that should ignore inline assurance directives in loaded code, set `CAIRN_SKIP_ASSURANCE=1` to skip both `VERIFY` and `PROVE` during evaluation.
 
 For the full proof surface, trace modes, and solver details, see [`prove.md`](prove.md).
+
+### Native Tests
+
+Use `TEST ... END` to declare concrete Cairn-native test cases:
+
+```
+TEST "safe one-time purchase remains safe"
+  "one_time" 5000 3000 1000 500 affordability_score
+  0 ASSERT_EQ
+END
+```
+
+Run a test file with:
+
+```
+./cairn --test examples/web/afford_test.crn
+```
+
+`TEST` blocks are ignored during normal file evaluation and only execute in explicit `--test` mode.
 
 ### Higher-Order Operations
 

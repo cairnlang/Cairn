@@ -51,6 +51,9 @@ defmodule Cairn.Checker.Effects do
 
     # Logic — unary
     not: %{pops: [:bool], pushes: [:bool]},
+    assert_eq: %{pops: [:any, :any], pushes: []},
+    assert_true: %{pops: [:bool], pushes: []},
+    assert_false: %{pops: [:bool], pushes: []},
 
     # List operations
     sum: %{pops: [{:list, :num}], pushes: [:num]},

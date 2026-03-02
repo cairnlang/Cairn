@@ -58,6 +58,12 @@ mix escript.build
 
 If you want a production-style run to ignore inline `VERIFY` and `PROVE` directives, set `CAIRN_SKIP_ASSURANCE=1`.
 
+Run native Cairn test files with:
+
+```bash
+./cairn --test examples/web/afford_test.crn
+```
+
 For the guided first pass, see [Getting Started](docs/getting-started.md).
 
 Good first programs to run:
@@ -77,6 +83,7 @@ Good first programs to run:
 - Typed, contract-checked functions with readable diagnostics
 - Property-based regression checking with `VERIFY`
 - Bounded compile-time proof checks with `PROVE` on the supported sequential subset
+- Native concrete test cases with `TEST ... END` and basic assertions
 - Practical scripting with argv, file I/O, imports, and an auto-loaded prelude
 - Bounded but usable actor workflows with explicit local state (`WITH_STATE`, `STEP`, `REPEAT`)
 

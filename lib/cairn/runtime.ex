@@ -53,6 +53,29 @@ defmodule Cairn.Runtime do
   def execute(:and, [a, b | rest]) when is_boolean(a) and is_boolean(b), do: [b and a | rest]
   def execute(:or, [a, b | rest]) when is_boolean(a) and is_boolean(b), do: [b or a | rest]
   def execute(:not, [a | rest]) when is_boolean(a), do: [not a | rest]
+  def execute(:assert_eq, [expected, actual | rest]) do
+    if actual == expected do
+      rest
+    else
+      raise(Cairn.RuntimeError, "ASSERT_EQ failed: expected #{inspect(expected)}, got #{inspect(actual)}")
+    end
+  end
+
+  def execute(:assert_true, [value | rest]) do
+    if value === true do
+      rest
+    else
+      raise(Cairn.RuntimeError, "ASSERT_TRUE failed: expected T, got #{inspect(value)}")
+    end
+  end
+
+  def execute(:assert_false, [value | rest]) do
+    if value === false do
+      rest
+    else
+      raise(Cairn.RuntimeError, "ASSERT_FALSE failed: expected F, got #{inspect(value)}")
+    end
+  end
 
   # Stack manipulation
   def execute(:dup, [a | rest]), do: [a, a | rest]

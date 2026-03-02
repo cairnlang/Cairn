@@ -388,12 +388,18 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ### v0.9.1a — Access Control Policy Gate
 - Added a new typed policy-engine example under `examples/policy/approval/`
 - Split it into:
+  - `types.crn` for the shared domain ADTs
   - `kernel.crn` for the small PROVE-friendly rank helpers
-  - `rules.crn` for the readable policy layer plus the domain ADTs
+  - `rules.crn` for the readable policy layer
   - `verify.crn` for `VERIFY` and `PROVE`
   - `test.crn` for native `TEST` scenarios
   - `main.crn` for a simple runnable demonstration
 - This is the first example built specifically to maximize the combined Types + TEST + VERIFY + PROVE story without leaning on web or transport code
+
+### v0.9.1b — Imported User Types In Signatures
+- Fixed the parser/loader boundary so function signatures can reference user-defined types declared in imported files
+- Kept the existing signature/body boundary logic by pre-scanning local and imported `TYPE` names before parsing functions
+- Restored `examples/policy/approval/types.crn` as a proper separate domain-types file instead of forcing the ADTs back into `rules.crn`
 
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)

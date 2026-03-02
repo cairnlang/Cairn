@@ -1,0 +1,9 @@
+TYPE role = Viewer | Operator | Admin
+
+TYPE action = Read | Deploy | Delete | RotateSecrets | ExportData
+
+TYPE env = Dev | Staging | Prod
+
+TYPE decision = Allow | RequireApproval | Deny
+
+TYPE workflow = Draft | Submitted | Approved | Rejected | Executed

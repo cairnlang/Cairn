@@ -131,6 +131,11 @@ defmodule Cairn.Checker do
   end
 
   defp check_item(%Cairn.Types.Function{} = func, state) do
+    state =
+      state
+      |> validate_declared_types(func.param_types, "function '#{func.name}' parameter")
+      |> validate_declared_types(func.return_types, "function '#{func.name}' return")
+
     # Register function in type env
     protocol_effect_steps = protocol_helper_effect_for(func, state.actor_required, compute_protocol_effect_functions([func]))
 
@@ -247,6 +252,13 @@ defmodule Cairn.Checker do
   end
 
   defp check_item(%Cairn.Types.TypeDef{} = typedef, state) do
+    state = %{state | types: Map.put(state.types, typedef.name, typedef)}
+
+    state =
+      Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
+        validate_declared_types(st, field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field")
+      end)
+
     # Register each constructor as a pseudo-function in the checker env
     state =
       Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
@@ -257,7 +269,7 @@ defmodule Cairn.Checker do
       end)
 
     # Register the type definition for MATCH exhaustiveness checking
-    %{state | types: Map.put(state.types, typedef.name, typedef)}
+    state
   end
 
   defp check_item(%Cairn.Types.ProtocolDef{} = protocol, state) do
@@ -2396,6 +2408,43 @@ defmodule Cairn.Checker do
 
   defp resolve_protocol_steps(protocol_name, _msg_type, state, pos) do
     {nil, add_error(state, pos, "protocol '#{protocol_name}' requires a user-defined sum type message channel")}
+  end
+
+  defp validate_declared_types(state, types, context) do
+    Enum.reduce(types, state, fn type, st -> validate_declared_type(st, type, context) end)
+  end
+
+  defp validate_declared_type(state, type, _context) when type in [:int, :float, :bool, :str, :any, :void],
+    do: state
+
+  defp validate_declared_type(state, {:user_type, name}, context) do
+    if Map.has_key?(state.types, name) do
+      state
+    else
+      add_error(state, nil, "#{context} references unknown type #{name}")
+    end
+  end
+
+  defp validate_declared_type(state, {:list, inner}, context),
+    do: validate_declared_type(state, inner, context)
+
+  defp validate_declared_type(state, {:map, key_type, value_type}, context) do
+    state
+    |> validate_declared_type(key_type, context)
+    |> validate_declared_type(value_type, context)
+  end
+
+  defp validate_declared_type(state, {:block, inner}, context),
+    do: validate_declared_type(state, inner, context)
+
+  defp validate_declared_type(state, {:pid, inner}, context),
+    do: validate_declared_type(state, inner, context)
+
+  defp validate_declared_type(state, {:monitor, inner}, context),
+    do: validate_declared_type(state, inner, context)
+
+  defp validate_declared_type(state, other, context) do
+    add_error(state, nil, "#{context} uses unsupported declared type #{format_type(other)}")
   end
 
   defp resolve_protocol_ctor(type_name, ctor_name, state, pos, protocol_name) do

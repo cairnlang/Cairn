@@ -18,6 +18,12 @@ defmodule Cairn.CheckerTest do
     errors
   end
 
+  defp temp_dir(prefix) do
+    path = Path.join(System.tmp_dir!(), "#{prefix}_#{System.unique_integer([:positive])}")
+    File.mkdir_p!(path)
+    path
+  end
+
   # ── Stack module ──
 
   describe "Stack" do
@@ -189,6 +195,38 @@ defmodule Cairn.CheckerTest do
 
     test "multiple literals" do
       check_ok("1 2 3")
+    end
+  end
+
+  describe "imported user-defined types in signatures" do
+    test "checker accepts signatures that reference imported types" do
+      dir = temp_dir("cairn_imported_types")
+      types_path = Path.join(dir, "types.crn")
+      rules_path = Path.join(dir, "rules.crn")
+
+      File.write!(types_path, "TYPE widget = Widget\n")
+
+      File.write!(rules_path, """
+      IMPORT "types.crn"
+
+      DEF same : widget -> widget
+        DUP DROP
+      END
+      """)
+
+      assert {:ok, items} = Cairn.Loader.load_items(rules_path)
+      assert :ok = Checker.check(items)
+    end
+
+    test "parser still rejects unknown user types in signatures" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF same : ghost -> ghost
+                 DUP DROP
+               END
+               """)
+
+      assert {:error, "invalid type signature"} = Cairn.Parser.parse(tokens)
     end
   end
 

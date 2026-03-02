@@ -36,20 +36,20 @@ defmodule Cairn.Loader do
       true ->
         with {:ok, source} <- read_source(path),
              {:ok, tokens} <- wrap(Lexer.tokenize(source), path, "tokenize"),
-             {:ok, items} <- wrap(Parser.parse(tokens), path, "parse"),
-             {:ok, loaded, imported_items} <- load_imports(items, path, loaded, [path | loading]) do
+             {:ok, loaded, imported_items} <- load_imports_from_tokens(tokens, path, loaded, [path | loading]),
+             {:ok, items} <- wrap(Parser.parse(tokens, collect_imported_type_names(imported_items)), path, "parse") do
           local_items = Enum.reject(items, &match?({:import, _}, &1))
           {:ok, MapSet.put(loaded, path), imported_items ++ local_items}
         end
     end
   end
 
-  defp load_imports(items, current_path, loaded, loading) do
+  defp load_imports_from_tokens(tokens, current_path, loaded, loading) do
     current_dir = Path.dirname(current_path)
 
-    items
-    |> Enum.filter(&match?({:import, _}, &1))
-    |> Enum.reduce_while({:ok, loaded, []}, fn {:import, import_path}, {:ok, loaded_acc, items_acc} ->
+    tokens
+    |> collect_import_paths()
+    |> Enum.reduce_while({:ok, loaded, []}, fn import_path, {:ok, loaded_acc, items_acc} ->
       resolved = resolve_import_path(import_path, current_dir)
 
       case load_recursive(resolved, loaded_acc, loading) do
@@ -59,6 +59,22 @@ defmodule Cairn.Loader do
         {:error, _} = err ->
           {:halt, err}
       end
+    end)
+  end
+
+  defp collect_import_paths(tokens) do
+    tokens
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.reduce([], fn
+      [{:import_kw, _, _}, {:str_lit, path, _}], acc -> acc ++ [path]
+      _, acc -> acc
+    end)
+  end
+
+  defp collect_imported_type_names(items) do
+    Enum.reduce(items, MapSet.new(), fn
+      %Cairn.Types.TypeDef{name: name}, acc -> MapSet.put(acc, name)
+      _, acc -> acc
     end)
   end
 

@@ -18,66 +18,69 @@ defmodule Cairn.Parser do
   Parses a token list into a list of parsed items.
   Returns `{:ok, items}` where each item is a `%Function{}`, `%TypeDef{}`, or `{:expr, tokens}`.
   """
-  @spec parse([Cairn.Types.token()]) ::
+  @spec parse([Cairn.Types.token()], MapSet.t(String.t())) ::
           {:ok, [Function.t() | TypeDef.t() | ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}]}
           | {:error, String.t()}
-  def parse(tokens) do
-    parse_top(tokens, [])
+  def parse(tokens, external_known_types \\ MapSet.new()) do
+    known_types =
+      external_known_types
+      |> MapSet.union(collect_declared_type_names(tokens))
+
+    parse_top(tokens, [], known_types)
   end
 
-  defp parse_top([], acc), do: {:ok, Enum.reverse(acc)}
+  defp parse_top([], acc, _known_types), do: {:ok, Enum.reverse(acc)}
 
-  defp parse_top([{:fn_def, _, _} | rest], acc) do
-    known_types = collect_known_types(acc)
+  defp parse_top([{:fn_def, _, _} | rest], acc, known_types) do
     case parse_function(rest, known_types) do
-      {:ok, func, remaining} -> parse_top(remaining, [func | acc])
+      {:ok, func, remaining} -> parse_top(remaining, [func | acc], known_types)
       {:error, _} = err -> err
     end
   end
 
-  defp parse_top([{:verify_kw, _, _} | rest], acc) do
+  defp parse_top([{:verify_kw, _, _} | rest], acc, known_types) do
     case parse_verify(rest) do
-      {:ok, verify_item, remaining} -> parse_top(remaining, [verify_item | acc])
+      {:ok, verify_item, remaining} -> parse_top(remaining, [verify_item | acc], known_types)
       {:error, _} = err -> err
     end
   end
 
-  defp parse_top([{:prove_kw, _, _} | rest], acc) do
+  defp parse_top([{:prove_kw, _, _} | rest], acc, known_types) do
     case parse_prove(rest) do
-      {:ok, prove_item, remaining} -> parse_top(remaining, [prove_item | acc])
+      {:ok, prove_item, remaining} -> parse_top(remaining, [prove_item | acc], known_types)
       {:error, _} = err -> err
     end
   end
 
-  defp parse_top([{:test_kw, _, _} | rest], acc) do
+  defp parse_top([{:test_kw, _, _} | rest], acc, known_types) do
     case parse_test(rest) do
-      {:ok, test_item, remaining} -> parse_top(remaining, [test_item | acc])
+      {:ok, test_item, remaining} -> parse_top(remaining, [test_item | acc], known_types)
       {:error, _} = err -> err
     end
   end
 
-  defp parse_top([{:import_kw, _, _} | rest], acc) do
+  defp parse_top([{:import_kw, _, _} | rest], acc, known_types) do
     case parse_import(rest) do
-      {:ok, import_item, remaining} -> parse_top(remaining, [import_item | acc])
+      {:ok, import_item, remaining} -> parse_top(remaining, [import_item | acc], known_types)
       {:error, _} = err -> err
     end
   end
 
-  defp parse_top([{:type_kw, _, _} | rest], acc) do
+  defp parse_top([{:type_kw, _, _} | rest], acc, known_types) do
     case parse_type_def(rest) do
-      {:ok, typedef, remaining} -> parse_top(remaining, [typedef | acc])
+      {:ok, typedef, remaining} -> parse_top(remaining, [typedef | acc], known_types)
       {:error, _} = err -> err
     end
   end
 
-  defp parse_top([{:protocol_kw, _, _} | rest], acc) do
+  defp parse_top([{:protocol_kw, _, _} | rest], acc, known_types) do
     case parse_protocol_def(rest) do
-      {:ok, protocol, remaining} -> parse_top(remaining, [protocol | acc])
+      {:ok, protocol, remaining} -> parse_top(remaining, [protocol | acc], known_types)
       {:error, _} = err -> err
     end
   end
 
-  defp parse_top(tokens, acc) do
+  defp parse_top(tokens, acc, known_types) do
     {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} ->
       type not in [:fn_def, :verify_kw, :prove_kw, :test_kw, :import_kw, :type_kw, :protocol_kw]
     end)
@@ -85,7 +88,7 @@ defmodule Cairn.Parser do
     if expr_tokens == [] do
       {:error, "unexpected token: #{inspect(hd(remaining))}"}
     else
-      parse_top(remaining, [{:expr, expr_tokens} | acc])
+      parse_top(remaining, [{:expr, expr_tokens} | acc], known_types)
     end
   end
 
@@ -309,8 +312,6 @@ defmodule Cairn.Parser do
   defp collect_type_tokens([{:arrow, _, _} = t | rest], acc, known_types),
     do: collect_type_tokens(rest, [t | acc], known_types)
 
-  # User-defined type names in signatures — only accepted if the name is a known TYPE declaration.
-  # This prevents function call idents at the start of a body from being consumed as return types.
   defp collect_type_tokens([{:ident, name, pos} | rest], acc, known_types) do
     if MapSet.member?(known_types, name) do
       collect_type_tokens(rest, [{:user_type_tok, name, pos} | acc], known_types)
@@ -481,11 +482,14 @@ defmodule Cairn.Parser do
     collect_post(rest, body, [token | post_acc], depth)
   end
 
-  # Build the set of user-defined type names from already-parsed top-level items
-  defp collect_known_types(items) do
-    Enum.reduce(items, MapSet.new(["result"]), fn
-      %TypeDef{name: n}, set -> MapSet.put(set, n)
-      _, set -> set
+  # Pre-scan the file for local TYPE declarations so function signatures can
+  # reference types before their declaration order.
+  defp collect_declared_type_names(tokens) do
+    tokens
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.reduce(MapSet.new(["result"]), fn
+      [{:type_kw, _, _}, {:ident, name, _}], acc -> MapSet.put(acc, name)
+      _, acc -> acc
     end)
   end
 end

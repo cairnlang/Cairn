@@ -116,6 +116,7 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/practical/mini_env.crn`: bounded `.env` query utility
 - `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
+- `examples/policy/approval/main.crn`: typed access-control policy gate with a paired `verify.crn` runner and native `test.crn` scenarios
 - `examples/web/hello_static.crn`: tiny multi-route server with Cairn-owned `GET` route helpers, parsed query visibility, explicit bind address support, bounded transport defaults, and a safe dynamic HTML greeting route that escapes user input (`HTTP_SERVE`)
 - `examples/web/todo_app.crn`: Mnesia-backed web todo app with escaped HTML rendering plus bounded `POST /add` and `POST /done` form mutations
 - `examples/web/afford_app.crn`: affordability decision web app with a clean `POST` form shell and a paired `examples/web/afford_verify.crn` runner that proves the core policy helpers

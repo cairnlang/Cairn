@@ -1,7 +1,7 @@
 defmodule Cairn.ExamplesSmokeTest do
   use ExUnit.Case, async: false
 
-  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/prelude/env_parse.crn", "examples/prelude/ini_parse.crn", "examples/prelude/web_helpers.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/practical/mini_env.crn", "examples/practical/mini_ini.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn", "examples/ambitious/orchestrator.crn", "examples/web/afford_verify.crn"]
+  @examples ["examples/hello_world.crn", "examples/collections.crn", "examples/math.crn", "examples/strings.crn", "examples/interop.crn", "examples/imports/main.crn", "examples/prelude/result_flow.crn", "examples/prelude/env_parse.crn", "examples/prelude/ini_parse.crn", "examples/prelude/web_helpers.crn", "examples/practical/all_practical.crn", "examples/practical/main.crn", "examples/practical/ledger.crn", "examples/practical/todo.crn", "examples/practical/expenses.crn", "examples/practical/cashflow.crn", "examples/practical/cashflow_alerts.crn", "examples/practical/mini_grep.crn", "examples/practical/mini_grep_verify.crn", "examples/practical/mini_env.crn", "examples/practical/mini_ini.crn", "examples/concurrency/ping_pong_types.crn", "examples/concurrency/traffic_light_types.crn", "examples/concurrency/guess_binary.crn", "examples/ambitious/orchestrator.crn", "examples/policy/approval/main.crn", "examples/policy/approval/verify.crn", "examples/web/afford_verify.crn"]
 
   test "curated examples run end-to-end" do
     Enum.each(@examples, fn path ->
@@ -170,6 +170,26 @@ defmodule Cairn.ExamplesSmokeTest do
       "reporter: failed=1",
       "reporter: restarted=1",
       "reporter: run finished"
+    ])
+
+    assert_output_markers("examples/policy/approval/main.crn", [
+      "viewer_dev_read=allow",
+      "operator_prod_deploy=require_approval",
+      "viewer_rotate_staging=deny",
+      "admin_emergency_delete=require_approval",
+      "draft_to_submitted=T",
+      "draft_to_executed=F",
+      "prod_export_reason=customer data access is denied by policy"
+    ])
+
+    assert_output_markers("examples/policy/approval/verify.crn", [
+      "VERIFY prod_never_less_strict_than_dev: OK",
+      "VERIFY viewer_never_less_strict_than_admin: OK",
+      "VERIFY customer_data_never_reduces_strictness: OK",
+      "VERIFY prod_delete_never_auto_allows: OK",
+      "PROVE stricter_rank_example: PROVEN",
+      "PROVE prod_delete_floor_proven: PROVEN",
+      "PROVE dev_read_floor_proven: PROVEN"
     ])
 
     assert_output_markers("examples/web/afford_verify.crn", [

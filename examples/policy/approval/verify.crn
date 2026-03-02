@@ -1,0 +1,10 @@
+IMPORT "rules.crn"
+
+VERIFY prod_never_less_strict_than_dev 60
+VERIFY viewer_never_less_strict_than_admin 60
+VERIFY customer_data_never_reduces_strictness 60
+VERIFY prod_delete_never_auto_allows 40
+
+PROVE stricter_rank_example
+PROVE prod_delete_floor_proven
+PROVE dev_read_floor_proven

@@ -60,6 +60,11 @@ defmodule Cairn.CLI do
      [
        "examples/ambitious/orchestrator.crn"
      ]},
+    {"policy",
+     [
+       "examples/policy/approval/main.crn",
+       "examples/policy/approval/verify.crn"
+     ]},
     {"web",
      [
        "examples/web/hello_static.crn",

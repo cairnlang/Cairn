@@ -1,0 +1,77 @@
+DEF decision_rank_valid : int -> bool
+  DUP 0 GTE
+  SWAP 2 LTE AND
+END
+
+DEF env_action_pair_valid : int int -> bool
+  LET action
+  LET env
+  env 0 GTE
+  env 2 LTE AND
+  action 0 GTE AND
+  action 4 LTE AND
+END
+
+DEF decision_pair_valid : int int -> bool
+  LET b
+  LET a
+  a decision_rank_valid
+  b decision_rank_valid AND
+END
+
+DEF stricter_rank : int int -> int
+  PRE { decision_pair_valid }
+  MAX
+  POST decision_rank_valid
+END
+
+DEF prod_destructive_floor : int int -> int
+  PRE { env_action_pair_valid }
+  LET action
+  LET env
+  env 2 EQ
+  action 2 GTE AND
+  IF
+    2
+  ELSE
+    0
+  END
+  POST decision_rank_valid
+END
+
+DEF stricter_rank_example : -> int
+  1 2 stricter_rank
+  POST DUP 2 EQ
+END
+
+DEF prod_delete_floor_example : -> int
+  2 2 prod_destructive_floor
+  POST DUP 2 EQ
+END
+
+DEF prod_delete_floor_proven : -> int
+  2 2 GTE
+  2 2 EQ AND
+  IF
+    2
+  ELSE
+    0
+  END
+  POST DUP 2 EQ
+END
+
+DEF dev_read_floor_example : -> int
+  0 0 prod_destructive_floor
+  POST DUP 0 EQ
+END
+
+DEF dev_read_floor_proven : -> int
+  0 2 GTE
+  0 2 EQ AND
+  IF
+    2
+  ELSE
+    0
+  END
+  POST DUP 0 EQ
+END

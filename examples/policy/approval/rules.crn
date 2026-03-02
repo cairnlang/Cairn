@@ -1,0 +1,335 @@
+IMPORT "kernel.crn"
+
+TYPE role = Viewer | Operator | Admin
+
+TYPE action = Read | Deploy | Delete | RotateSecrets | ExportData
+
+TYPE env = Dev | Staging | Prod
+
+TYPE decision = Allow | RequireApproval | Deny
+
+TYPE workflow = Draft | Submitted | Approved | Rejected | Executed
+
+DEF role_rank : role -> int
+  MATCH
+    Viewer   { 0 }
+    Operator { 1 }
+    Admin    { 2 }
+  END
+END
+
+DEF action_rank : action -> int
+  MATCH
+    Read          { 0 }
+    Deploy        { 1 }
+    Delete        { 2 }
+    RotateSecrets { 3 }
+    ExportData    { 4 }
+  END
+END
+
+DEF env_rank : env -> int
+  MATCH
+    Dev     { 0 }
+    Staging { 1 }
+    Prod    { 2 }
+  END
+END
+
+DEF decision_from_rank : int -> decision
+  DUP 0 EQ
+  IF
+    DROP Allow
+  ELSE
+    DUP 1 EQ
+    IF
+      DROP RequireApproval
+    ELSE
+      DROP Deny
+    END
+  END
+END
+
+DEF decision_name : decision -> str
+  MATCH
+    Allow           { "allow" }
+    RequireApproval { "require_approval" }
+    Deny            { "deny" }
+  END
+END
+
+DEF role_floor_rank : bool action role -> int
+  LET customer
+  LET action
+
+  MATCH
+    Viewer {
+      action
+      MATCH
+        Read   { customer IF 1 ELSE 0 END }
+        Deploy { 1 }
+        Delete { 2 }
+        RotateSecrets { 2 }
+        ExportData { 2 }
+      END
+    }
+    Operator {
+      action
+      MATCH
+        Read          { 0 }
+        Deploy        { 0 }
+        Delete        { 1 }
+        RotateSecrets { 1 }
+        ExportData    { customer IF 2 ELSE 1 END }
+      END
+    }
+    Admin {
+      action
+      MATCH
+        Read          { 0 }
+        Deploy        { 0 }
+        Delete        { 1 }
+        RotateSecrets { 1 }
+        ExportData    { customer IF 1 ELSE 0 END }
+      END
+    }
+  END
+END
+
+DEF env_floor_rank : env action -> int
+  LET env
+  LET action
+
+  env
+  MATCH
+    Dev {
+      action
+      MATCH
+        Read   { 0 }
+        Deploy { 0 }
+        Delete { 1 }
+        RotateSecrets { 1 }
+        ExportData { 1 }
+      END
+    }
+    Staging {
+      action
+      MATCH
+        Read { 0 }
+        Deploy { 1 }
+        Delete { 1 }
+        RotateSecrets { 1 }
+        ExportData { 1 }
+      END
+    }
+    Prod {
+      action action_rank LET rank
+      rank 1 LTE
+      IF
+        rank
+      ELSE
+        2
+      END
+    }
+  END
+END
+
+DEF customer_data_floor : bool action -> int
+  LET customer
+  LET action
+
+  customer
+  IF
+    action
+    MATCH
+      ExportData { 2 }
+      _          { 1 }
+    END
+  ELSE
+    0
+  END
+END
+
+DEF apply_emergency_rank : int bool env action role -> int
+  LET current
+  LET emergency
+  LET env
+  LET action
+  LET role
+
+  emergency
+  IF
+    role
+    MATCH
+      Admin {
+        env
+        MATCH
+          Prod {
+            action
+            MATCH
+              Delete {
+                current 2 EQ
+                IF
+                  1
+                ELSE
+                  current
+                END
+              }
+              _ { current }
+            END
+          }
+          _ { current }
+        END
+      }
+      _ { current }
+    END
+  ELSE
+    current
+  END
+END
+
+DEF approval_rank : bool bool env action role -> int
+  LET customer
+  LET emergency
+  LET env
+  LET action
+  LET role
+
+  role action customer role_floor_rank LET role_floor
+  action env env_floor_rank LET env_floor
+  action customer customer_data_floor LET data_floor
+
+  role_floor env_floor stricter_rank
+  data_floor stricter_rank
+  LET base_rank
+
+  role action env emergency base_rank apply_emergency_rank
+END
+
+DEF approval_decision : bool bool env action role -> decision
+  approval_rank
+  decision_from_rank
+END
+
+DEF approval_reason : bool bool env action role -> str
+  LET customer
+  LET emergency
+  LET env
+  LET action
+  LET role
+
+  role action env emergency customer approval_rank LET rank
+
+  rank 0 EQ
+  IF
+    "policy allows this request"
+  ELSE
+    rank 2 EQ
+    IF
+      role
+      MATCH
+        Viewer { "viewer cannot perform this operation" }
+        _ {
+          customer
+          IF
+            "customer data access is denied by policy"
+          ELSE
+            "policy denies this request"
+          END
+        }
+      END
+    ELSE
+      env
+      MATCH
+        Prod { "production change requires approval" }
+        _ {
+          customer
+          IF
+            "customer data requires approval"
+          ELSE
+            "manager approval required"
+          END
+        }
+      END
+    END
+  END
+END
+
+DEF valid_transition : workflow workflow -> bool
+  LET to
+
+  MATCH
+    Draft {
+      to
+      MATCH
+        Submitted { T }
+        _         { F }
+      END
+    }
+    Submitted {
+      to
+      MATCH
+        Approved { T }
+        Rejected { T }
+        _        { F }
+      END
+    }
+    Approved {
+      to
+      MATCH
+        Executed { T }
+        _        { F }
+      END
+    }
+    Rejected { F }
+    Executed { F }
+  END
+END
+
+DEF prod_never_less_strict_than_dev : bool bool action role -> bool
+  LET customer
+  LET emergency
+  LET action
+  LET role
+
+  role action Dev emergency customer approval_rank LET dev_rank
+  role action Prod emergency customer approval_rank LET prod_rank
+
+  prod_rank dev_rank GTE
+  POST DUP EQ T
+END
+
+DEF viewer_never_less_strict_than_admin : bool bool env action -> bool
+  LET customer
+  LET emergency
+  LET env
+  LET action
+
+  Viewer action env emergency customer approval_rank LET viewer_rank
+  Admin action env emergency customer approval_rank LET admin_rank
+
+  viewer_rank admin_rank GTE
+  POST DUP EQ T
+END
+
+DEF customer_data_never_reduces_strictness : bool env action role -> bool
+  LET emergency
+  LET env
+  LET action
+  LET role
+
+  role action env emergency F approval_rank LET plain_rank
+  role action env emergency T approval_rank LET data_rank
+
+  data_rank plain_rank GTE
+  POST DUP EQ T
+END
+
+DEF prod_delete_never_auto_allows : bool role -> bool
+  LET customer
+  LET role
+
+  role Delete Prod T customer approval_rank
+  0 NEQ
+  POST DUP EQ T
+END

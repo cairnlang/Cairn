@@ -385,6 +385,16 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Kept the harness complementary to `VERIFY` and `PROVE`: `TEST` is concrete, `VERIFY` is randomized, `PROVE` is solver-backed
 - Added `examples/web/afford_test.crn` as the first native test-file example for real business logic
 
+### v0.9.1a — Access Control Policy Gate
+- Added a new typed policy-engine example under `examples/policy/approval/`
+- Split it into:
+  - `kernel.crn` for the small PROVE-friendly rank helpers
+  - `rules.crn` for the readable policy layer plus the domain ADTs
+  - `verify.crn` for `VERIFY` and `PROVE`
+  - `test.crn` for native `TEST` scenarios
+  - `main.crn` for a simple runnable demonstration
+- This is the first example built specifically to maximize the combined Types + TEST + VERIFY + PROVE story without leaning on web or transport code
+
 ### v0.6.0ad — Tactical PRE Freeze
 - Marked `Cairn.Solver.PreNormalize` as tactical-freeze target (feature expansion gated; bugfix/refactor by default)
 - Added explicit rule-admission process doc: `docs/prove-rule-admission.md`

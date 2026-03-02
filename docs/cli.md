@@ -102,12 +102,16 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `./cairn examples/practical/mini_ini.crn [--sections <file> | <file> <section> <key> [fallback]]`
 6. Run the first application-shaped stress test:
    - `./cairn examples/ambitious/orchestrator.crn [optional/jobs.txt]`
-7. Run the first bounded web-serving example:
+7. Run the typed policy-engine showcase:
+   - `./cairn examples/policy/approval/main.crn`
+   - `./cairn examples/policy/approval/verify.crn`
+   - `./cairn --test examples/policy/approval/test.crn`
+8. Run the first bounded web-serving example:
    - `./cairn examples/web/hello_static.crn`
    - `./cairn examples/web/todo_app.crn`
    - `./cairn examples/web/afford_app.crn`
    - `./cairn examples/web/afford_verify.crn`
-8. Load typed-concurrency examples:
+9. Load typed-concurrency examples:
    - `./cairn examples/concurrency/ping_pong_types.crn`
    - `./cairn examples/concurrency/protocol_ping_pong.crn`
    - `./cairn examples/concurrency/traffic_light_types.crn`
@@ -120,9 +124,9 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `./cairn examples/concurrency/restart_once.crn`
    - `./cairn examples/concurrency/supervisor_worker.crn`
    - `./cairn examples/concurrency/guess_binary.crn`
-9. Inspect loaded prelude: `./cairn --show-prelude examples/prelude/web_helpers.crn`
-10. Try diagnostics JSON: `./cairn --json-errors examples/diagnostics/runtime_div_zero.crn`
-11. Run practical-only tests: `mix test.practical`
+10. Inspect loaded prelude: `./cairn --show-prelude examples/prelude/web_helpers.crn`
+11. Try diagnostics JSON: `./cairn --json-errors examples/diagnostics/runtime_div_zero.crn`
+12. Run practical-only tests: `mix test.practical`
 
 `collections.crn` is the focused collection-helper showcase for `ZIP`, `ENUMERATE`, `TAKE`, `FIND`, `FLAT_MAP`, and `GROUP_BY`. `math.crn` is the focused explicit-float math showcase for `PI`, `E`, `SIN`, `COS`, `FLOOR`, `CEIL`, `ROUND`, `EXP`, `POW`, `LOG`, and `SQRT`. `strings.crn` is the focused native string-helper showcase for `UPPER`, `LOWER`, `REVERSE_STR`, `REPLACE`, and `ENDS_WITH`. `interop.crn` is the focused typed-whitelist host interop showcase for the still-narrow `HOST_CALL` escape hatch. `env_parse.crn` is the focused `.env` config-prelude showcase for `env_map`, `env_keys`, `env_fetch`, and `map_get_or`, `ini_parse.crn` is the matching INI-prelude showcase for `ini_map`, `ini_sections`, and `ini_fetch`, and `web_helpers.crn` is the matching web-prelude showcase for `http_html_ok`, `html_escape`, `http_text_method_not_allowed`, `route_get_html_file`, `route_get_text`, and `route_finish_get`. `mini_grep.crn` is the first utility-style CLI stress test, using argv + file I/O + list/string pipelines with native string normalization instead of host case-folding, `mini_grep_verify.crn` is its paired practical `VERIFY` runner for a pure helper property, `mini_env.crn` is the bounded `.env` query utility, and `mini_ini.crn` is the matching bounded INI query utility that exercises section-aware parsing without needing new core syntax. `examples/ambitious/orchestrator.crn` is the first application-shaped stress test: a verbose local orchestrator that narrates a bounded actor run, observes one worker failure, and restarts once. `ping_pong_types.crn`, `protocol_ping_pong.crn`, and `traffic_light_types.crn` are type-focused. `protocol_ping_pong.crn` is the first bounded protocol-conformance example and now demonstrates protocol-aware helper-function calls inside protocol-bound actors. `ping_once.crn` exercises the current minimal runtime, `self_boot.crn` demonstrates `SELF` through a helper function, `two_pings.crn` demonstrates repeated actor-local `RECEIVE`, `counter.crn`, `traffic_light.crn`, and `guess_binary.crn` now demonstrate the current preferred actor-state pattern: `WITH_STATE` plus `STEP`-driven `REPEAT` loops, `notifier.crn` is a more practical actor-shaped workflow, `restart_once.crn` is the first supervision-oriented restart example, and `supervisor_worker.crn` is the first explicit supervisor/worker split example. Shared actor/state/supervision helpers live under `examples/concurrency/lib/`; the supervision helper layer now exposes `watch_exit`, `await_exit`, and a reusable `restart_once` helper built on `block[T]` plus `MONITOR`/`AWAIT`. Lifecycle-only examples such as `examples/concurrency/linked_failure.crn` and `examples/concurrency/protocol_mismatch.crn` intentionally fail and are not listed under `--examples`.
 
@@ -132,6 +136,6 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 
 `examples/web/afford_app.crn` is the first web app where the business rule engine is the point: it accepts a `POST /evaluate` form, computes whether a proposed purchase or subscription is safe, and renders a simple risk + recommendation panel. Its paired `examples/web/afford_verify.crn` runner keeps the `VERIFY`/`PROVE` story separate from the serving path so the live app stays production-shaped while the policy helpers remain explicitly checked.
 
-`examples/web/afford_test.crn` is the first native Cairn test harness example: run it with `./cairn --test examples/web/afford_test.crn` to execute concrete scenario checks using `TEST`, `ASSERT_EQ`, and `ASSERT_TRUE` directly in Cairn source.
+`examples/policy/approval/` is the first typed policy-engine showcase built specifically to stress the full assurance stack: `main.crn` demonstrates the domain behavior, `verify.crn` runs the `VERIFY` and `PROVE` checks, and `test.crn` runs concrete native `TEST` scenarios. `examples/web/afford_test.crn` remains the first web-facing native test harness example.
 
 See `docs/practical-pipeline.md` for stage-by-stage inputs, outputs, and invariants.

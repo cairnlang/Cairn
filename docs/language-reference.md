@@ -62,6 +62,61 @@ When in doubt, read signatures as:
 top_of_stack ... deeper_values -> top_of_stack_after ...
 ```
 
+### Common Gotchas
+
+These are the mistakes users make most often when reading or writing Cairn:
+
+1. **Reading signatures left-to-right like normal arguments**
+   - Cairn signatures are not “first argument, second argument” in source-order.
+   - The leftmost type is the value on top of the stack.
+   - If a helper says `A B C -> D`, the value of type `C` is pushed first, then `B`, then `A` last.
+
+2. **Forgetting that `LET` consumes the top value**
+   - `LET name` pops the top of the stack and binds it.
+   - If you write several `LET`s in a row, they bind from the top downward.
+   - Example:
+
+   ```text
+   before: [top, below]
+   LET first
+   LET second
+   ```
+
+   leaves:
+
+   ```text
+   first = top
+   second = below
+   ```
+
+3. **Reversing “container first” helpers**
+   - Operators like `CONS`, `PUT`, and `GET` are easy to invert mentally.
+   - Examples:
+     - `CONS`: list first, then element
+     - `PUT`: map first, then key, then value
+     - `GET`: map first, then key
+   - Use the before/after stack diagrams below instead of guessing.
+
+4. **Forgetting that `FMT` takes the format string on top**
+   - The format string is pushed last, so it sits on top of the stack.
+   - The values that fill `{}` placeholders sit underneath it.
+
+5. **Assuming callback blocks see the same stack shape as ordinary helpers**
+   - `FILTER`, `MAP`, and `FIND` callback blocks start with only the current element.
+   - `REDUCE` callback blocks start with:
+     - element on top
+     - accumulator underneath
+   - `HTTP_SERVE` handler blocks start with:
+     - `path` on top
+     - then `method`
+     - then `query`
+     - then `form`
+
+6. **Assuming convenience runtime forms are the canonical stack order**
+   - Some operators accept alternate forms for convenience (`REDUCE`, `FILTER`, `MAP`).
+   - The reference documents the canonical stack order first.
+   - Write helpers and examples against the canonical order unless there is a strong reason not to.
+
 ### Operators
 
 ```

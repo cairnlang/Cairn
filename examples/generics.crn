@@ -14,3 +14,4 @@ END
 "hello" id "str_id={}" FMT SAID
 7 7 keep_left "keep_left={}" FMT SAID
 [] keep_list LEN "list_len={}" FMT SAID
+"name" M[ "name" "cairn" ] "friend" map_get_or "map_get_or={}" FMT SAID

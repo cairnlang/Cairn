@@ -50,7 +50,8 @@ defmodule Cairn.ExamplesSmokeTest do
       "int_id=42",
       "str_id=hello",
       "keep_left=7",
-      "list_len=0"
+      "list_len=0",
+      "map_get_or=cairn"
     ])
 
     assert_output_markers("examples/practical/main.crn", [

@@ -345,6 +345,24 @@ defmodule Cairn.CheckerTest do
       [] keep_list
       """)
     end
+
+    test "checker instantiates generic wrappers through map types" do
+      check_ok("""
+      DEF get_or[T] : T map[str T] str -> T
+        LET fallback
+        LET source
+        LET key
+        source key HAS
+        IF
+          source key GET
+        ELSE
+          fallback
+        END
+      END
+
+      "name" M[ "name" "cairn" ] "friend" get_or
+      """)
+    end
   end
 
   # ── Arithmetic and type errors ──

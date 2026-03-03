@@ -44,7 +44,7 @@ DEF env_fetch : str str -> result
   END
 END
 
-DEF map_get_or : str map[str any] any -> any
+DEF map_get_or[T] : T map[str T] str -> T
   LET fallback
   LET source
   LET key

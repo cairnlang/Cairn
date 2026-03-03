@@ -92,3 +92,10 @@ Step 4 is now in place:
 
 - generic functions instantiate from the actual stack types at the call site
 - simple generic examples like `id[T] : T -> T` now type-check and run
+
+Step 5 has begun:
+
+- the first real helper migration is in place
+- `map_get_or` now has a real generic signature:
+  - `DEF map_get_or[T] : T map[str T] str -> T`
+- the public generics example now demonstrates that practical payoff directly

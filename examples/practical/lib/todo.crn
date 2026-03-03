@@ -21,7 +21,7 @@ END
 
 DEF todo_partition_ok : [str] -> bool
   DUP LEN SWAP DUP count_open SWAP count_done ADD GTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF todo_report_has_metrics : str -> bool

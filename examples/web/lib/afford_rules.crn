@@ -188,7 +188,7 @@ DEF score_one_time_in_range : int int int -> bool
   score_one_time
   DUP 0 GTE
   SWAP 2 LTE AND
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF score_recurring_in_range : int int int -> bool
@@ -196,7 +196,7 @@ DEF score_recurring_in_range : int int int -> bool
   score_recurring
   DUP 0 GTE
   SWAP 2 LTE AND
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF higher_one_time_cost_not_better : int int int int -> bool
@@ -210,7 +210,7 @@ DEF higher_one_time_cost_not_better : int int int int -> bool
   cash baseline high score_one_time LET high_score
 
   high_score low_score GTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF higher_recurring_cost_not_better : int int int int -> bool
@@ -224,7 +224,7 @@ DEF higher_recurring_cost_not_better : int int int int -> bool
   income baseline high score_recurring LET high_score
 
   high_score low_score GTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF risk_label_known : int -> bool
@@ -234,7 +234,7 @@ DEF risk_label_known : int -> bool
   SWAP DUP "caution" EQ
   SWAP "not safe" EQ
   OR OR
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF reserve_breach_not_safe : int int int -> int

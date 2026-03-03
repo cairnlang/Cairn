@@ -12,8 +12,8 @@ END
 
 DEF is_circle_bool : shape -> bool
   MATCH
-    Circle { DROP T }
-    Square { DROP F }
+    Circle { DROP TRUE }
+    Square { DROP FALSE }
   END
   POST DUP NOT OR
 END

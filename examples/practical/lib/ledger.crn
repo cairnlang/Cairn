@@ -12,7 +12,7 @@ END
 
 DEF ledger_balance_bounded : [int] -> bool
   DUP tx_balance ABS SWAP tx_volume LTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF report_has_metrics : str -> bool

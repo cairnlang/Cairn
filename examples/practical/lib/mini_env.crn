@@ -5,7 +5,7 @@ DEF args_is_keys_mode : [str] -> bool
   IF
     HEAD "--keys" EQ
   ELSE
-    DROP F
+    DROP FALSE
   END
 END
 

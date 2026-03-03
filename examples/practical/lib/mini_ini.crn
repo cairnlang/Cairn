@@ -5,7 +5,7 @@ DEF args_is_sections_mode : [str] -> bool
   IF
     HEAD "--sections" EQ
   ELSE
-    DROP F
+    DROP FALSE
   END
 END
 

@@ -13,14 +13,14 @@
 
   guess secret EQ IF
     DUP "Got it in {} tries!" FMT SAID
-    F
+    FALSE
   ELSE
     guess secret LT IF
       "Too low!" SAID
     ELSE
       "Too high!" SAID
     END
-    T
+    TRUE
   END
 } { } WHILE
 

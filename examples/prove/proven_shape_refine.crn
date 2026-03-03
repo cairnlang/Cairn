@@ -4,15 +4,15 @@ TYPE shape = Circle int | Square int
 
 DEF is_square : shape -> bool
   MATCH
-    Circle { DROP F }
-    Square { DROP T }
+    Circle { DROP FALSE }
+    Square { DROP TRUE }
   END
 END
 
 # PRE uses helper boolean equality. PROVE now normalizes this shape and
 # infers that only the Square branch is reachable.
 DEF square_only_abs_eq_true : shape -> int
-  PRE { is_square T EQ }
+  PRE { is_square TRUE EQ }
   MATCH
     Circle { LEN }
     Square { ABS }

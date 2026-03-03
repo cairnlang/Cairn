@@ -1,11 +1,11 @@
 IMPORT "rules.crn"
 
-Viewer Read Dev F F approval_decision decision_name "viewer_dev_read={}" FMT SAID
-Operator Deploy Prod F F approval_decision decision_name "operator_prod_deploy={}" FMT SAID
-Viewer RotateSecrets Staging F F approval_decision decision_name "viewer_rotate_staging={}" FMT SAID
-Admin Delete Prod T F approval_decision decision_name "admin_emergency_delete={}" FMT SAID
+Viewer Read Dev FALSE FALSE approval_decision decision_name "viewer_dev_read={}" FMT SAID
+Operator Deploy Prod FALSE FALSE approval_decision decision_name "operator_prod_deploy={}" FMT SAID
+Viewer RotateSecrets Staging FALSE FALSE approval_decision decision_name "viewer_rotate_staging={}" FMT SAID
+Admin Delete Prod TRUE FALSE approval_decision decision_name "admin_emergency_delete={}" FMT SAID
 
 Draft Submitted valid_transition "draft_to_submitted={}" FMT SAID
 Draft Executed valid_transition "draft_to_executed={}" FMT SAID
 
-Admin ExportData Prod F T approval_reason "prod_export_reason={}" FMT SAID
+Admin ExportData Prod FALSE TRUE approval_reason "prod_export_reason={}" FMT SAID

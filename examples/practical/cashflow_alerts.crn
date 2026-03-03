@@ -54,7 +54,7 @@ line1 "\n" CONCAT line2 CONCAT "\n" CONCAT line3 CONCAT "\n" CONCAT line4 CONCAT
 report "/tmp/cairn_cashflow_alerts_report.txt" WRITE_FILE!
 "/tmp/cairn_cashflow_alerts_report.txt" READ_FILE! LET saved
 saved alerts_report_has_metrics assert_true
-"report_ok=T" SAID
+"report_ok=TRUE" SAID
 
 VERIFY abs_total_nonneg 60
 VERIFY ledger_balance_bounded 60

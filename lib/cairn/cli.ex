@@ -258,8 +258,8 @@ defmodule Cairn.CLI do
   end
 
   defp format_value(list) when is_list(list), do: inspect(list)
-  defp format_value(true), do: "T"
-  defp format_value(false), do: "F"
+  defp format_value(true), do: "TRUE"
+  defp format_value(false), do: "FALSE"
   defp format_value(val) when is_binary(val), do: val
   defp format_value(val) when is_number(val), do: to_string(val)
   defp format_value(val) when is_atom(val), do: to_string(val)

@@ -76,5 +76,5 @@ DEF parsed_job_count_matches : [str] -> bool
   LEN
   SWAP LEN
   EQ
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END

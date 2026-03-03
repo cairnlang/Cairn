@@ -46,11 +46,11 @@ DEF str_list_has : str [str] -> bool
   LET items
   items LEN 0 EQ
   IF
-    F
+    FALSE
   ELSE
     items HEAD needle EQ
     IF
-      T
+      TRUE
     ELSE
       items TAIL needle str_list_has
     END

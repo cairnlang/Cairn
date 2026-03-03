@@ -1783,7 +1783,7 @@ defmodule Cairn.Checker do
 
   defp infer_list_element_type(tokens, state) do
     # Walk body on a fresh stack so constructors and operators are handled correctly.
-    # e.g. [ JNull T JBool ] — JBool consumes T, leaving two json values.
+    # e.g. [ JNull TRUE JBool ] — JBool consumes TRUE, leaving two json values.
     sub_state = walk(tokens, %{state | stack: Stack.new()})
     state = %{state | errors: sub_state.errors, next_tvar: sub_state.next_tvar}
     depth = Stack.depth(sub_state.stack)

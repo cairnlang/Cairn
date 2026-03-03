@@ -35,6 +35,6 @@ line1 "\n" CONCAT line2 CONCAT "\n" CONCAT line3 CONCAT "\n" CONCAT line4 CONCAT
 
 report "/tmp/cairn_expenses_report.txt" WRITE_FILE!
 "/tmp/cairn_expenses_report.txt" READ_FILE! report_has_expense_metrics assert_true
-"report_ok=T" SAID
+"report_ok=TRUE" SAID
 
 VERIFY abs_total_nonneg 60

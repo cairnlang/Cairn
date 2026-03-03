@@ -23,7 +23,7 @@ DEF ref_step : ref_state -> ref_state
             IF
               DROP
               peer Correct SEND
-              peer target T RefState
+              peer target TRUE RefState
             ELSE
               DUP target LT
               IF
@@ -64,7 +64,7 @@ DEF search_step : search_state -> search_state
           TooHigh { peer low guess 1 SUB done SearchState }
           Correct {
             guess "solved={}" FMT SAID
-            peer low high T SearchState
+            peer low high TRUE SearchState
           }
           _ { peer low high done SearchState }
         END
@@ -85,7 +85,7 @@ SPAWN msg {
 
   peer
   100 RANDOM
-  F
+  FALSE
   RefState
   {
     7 {
@@ -109,7 +109,7 @@ SPAWN msg {
   peer
   1
   100
-  F
+  FALSE
   SearchState
   {
     7 {

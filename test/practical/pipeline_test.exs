@@ -18,7 +18,7 @@ defmodule Cairn.PracticalPipelineTest do
       "risk_level=2",
       "risk_label=high",
       "action=reduce_costs",
-      "report_ok=T",
+      "report_ok=TRUE",
       "VERIFY risk_level: OK"
     ]
 

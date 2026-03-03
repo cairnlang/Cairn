@@ -60,7 +60,7 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ### v0.5.1 — FMT + SAID
 - `FMT` operator: pop format string, pop one value per `{}` placeholder, auto-convert, push result
-- Auto-conversion: int/float→to_string, bool→"T"/"F", else→inspect
+- Auto-conversion: int/float→to_string, bool→"TRUE"/"FALSE", else→inspect
 - Literal braces via `{{` and `}}`
 - Type checker special-cases literal format strings (counts placeholders, pops that many values)
 - `SAID` operator: destructive SAY — prints value then drops it (replaces ubiquitous `SAY DROP` pattern)
@@ -163,7 +163,7 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added solver coverage for lifecycle event presence and UNKNOWN-run metadata behavior
 
 ### v0.6.0l — Helper-Boolean Refinement Inference
-- Broadened PRE inference by normalizing boolean-equivalence forms used by helper predicates (e.g. `helper_bool T EQ`)
+- Broadened PRE inference by normalizing boolean-equivalence forms used by helper predicates (e.g. `helper_bool TRUE EQ`)
 - This allows MATCH pruning from helper-derived booleans beyond direct tag comparisons
 - Added `examples/prove/proven_shape_refine.crn` and coverage for helper-equality narrowing proofs
 

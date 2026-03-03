@@ -318,16 +318,6 @@ defmodule Cairn.Parser do
   defp collect_type_tokens([{:arrow, _, _} = t | rest], acc, known_types, type_params),
     do: collect_type_tokens(rest, [t | acc], known_types, type_params)
 
-  defp collect_type_tokens([{:bool_lit, bool, pos} | rest], acc, known_types, type_params) do
-    name = if(bool, do: "T", else: "F")
-
-    if MapSet.member?(type_params, name) do
-      collect_type_tokens(rest, [{:type_var_tok, name, pos} | acc], known_types, type_params)
-    else
-      {Enum.reverse(acc), [{:bool_lit, bool, pos} | rest]}
-    end
-  end
-
   defp collect_type_tokens([{:ident, name, pos} | rest], acc, known_types, type_params) do
     cond do
       MapSet.member?(type_params, name) ->

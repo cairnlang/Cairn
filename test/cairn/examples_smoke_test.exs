@@ -38,7 +38,7 @@ defmodule Cairn.ExamplesSmokeTest do
       "lower=one two",
       "reverse=cba",
       "replace=xo xo",
-      "ends=T"
+      "ends=TRUE"
     ])
 
     assert_output_markers("examples/interop.crn", [
@@ -65,7 +65,7 @@ defmodule Cairn.ExamplesSmokeTest do
       "balance=65",
       "volume=115",
       "count=5",
-      "report_ok=T",
+      "report_ok=TRUE",
       "VERIFY ledger_balance_bounded: OK"
     ])
 
@@ -75,7 +75,7 @@ defmodule Cairn.ExamplesSmokeTest do
       "done=2",
       "total=5",
       "done_pct=40",
-      "report_ok=T",
+      "report_ok=TRUE",
       "VERIFY todo_partition_ok: OK"
     ])
 
@@ -85,7 +85,7 @@ defmodule Cairn.ExamplesSmokeTest do
       "max=1200",
       "avg=392",
       "over_100=4",
-      "report_ok=T",
+      "report_ok=TRUE",
       "VERIFY abs_total_nonneg: OK"
     ])
 
@@ -98,7 +98,7 @@ defmodule Cairn.ExamplesSmokeTest do
       "volume=115",
       "capacity=2075",
       "cashflow_score=9",
-      "report_ok=T",
+      "report_ok=TRUE",
       "VERIFY cashflow_score: OK"
     ])
 
@@ -109,7 +109,7 @@ defmodule Cairn.ExamplesSmokeTest do
       "risk_level=2",
       "risk_label=high",
       "action=reduce_costs",
-      "report_ok=T",
+      "report_ok=TRUE",
       "VERIFY risk_level: OK"
     ])
 
@@ -184,8 +184,8 @@ defmodule Cairn.ExamplesSmokeTest do
       "operator_prod_deploy=require_approval",
       "viewer_rotate_staging=deny",
       "admin_emergency_delete=require_approval",
-      "draft_to_submitted=T",
-      "draft_to_executed=F",
+      "draft_to_submitted=TRUE",
+      "draft_to_executed=FALSE",
       "prod_export_reason=customer data access is denied by policy"
     ])
 

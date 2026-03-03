@@ -25,7 +25,7 @@ DEF reporter_step : bool -> bool
         failed "reporter: failed={}" FMT SAID
         restarted "reporter: restarted={}" FMT SAID
         "reporter: run finished" SAID
-        T
+        TRUE
       }
       _ {
         done

@@ -21,8 +21,8 @@ END
 # is_some: check if option holds a value
 DEF is_some : option -> bool
   MATCH
-    None { F }
-    Some { DROP T }
+    None { FALSE }
+    Some { DROP TRUE }
   END
 END
 

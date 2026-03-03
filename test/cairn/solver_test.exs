@@ -1202,8 +1202,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_some_bool : option -> bool
         MATCH
-          None { F }
-          Some { DROP T }
+          None { FALSE }
+          Some { DROP TRUE }
         END
         POST DUP NOT OR
       END
@@ -1239,8 +1239,8 @@ defmodule Cairn.SolverTest do
       source = """
       DEF is_ok_bool : result -> bool
         MATCH
-          Ok  { DROP T }
-          Err { DROP F }
+          Ok  { DROP TRUE }
+          Err { DROP FALSE }
         END
         POST DUP NOT OR
       END
@@ -1280,8 +1280,8 @@ defmodule Cairn.SolverTest do
       DEF square_only_abs : shape -> int
         PRE {
           MATCH
-            Circle { DROP F }
-            Square { DROP T }
+            Circle { DROP FALSE }
+            Square { DROP TRUE }
           END
         }
         MATCH
@@ -1305,8 +1305,8 @@ defmodule Cairn.SolverTest do
       DEF square_only_abs_or : shape -> int
         PRE {
           MATCH
-            Circle { DROP F }
-            Square { DROP T }
+            Circle { DROP FALSE }
+            Square { DROP TRUE }
           END
           DUP OR
         }
@@ -1331,8 +1331,8 @@ defmodule Cairn.SolverTest do
       DEF square_only_abs_not : shape -> int
         PRE {
           MATCH
-            Circle { DROP T }
-            Square { DROP F }
+            Circle { DROP TRUE }
+            Square { DROP FALSE }
           END
           NOT
         }
@@ -1356,13 +1356,13 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
       DEF square_only_abs_eq_true : shape -> int
-        PRE { is_square T EQ }
+        PRE { is_square TRUE EQ }
         MATCH
           Circle { LEN }
           Square { ABS }
@@ -1383,8 +1383,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1422,8 +1422,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1456,8 +1456,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1505,8 +1505,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1543,8 +1543,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1579,8 +1579,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1625,8 +1625,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1663,8 +1663,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1703,8 +1703,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1756,8 +1756,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1806,8 +1806,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1853,8 +1853,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 
@@ -1996,8 +1996,8 @@ defmodule Cairn.SolverTest do
       DEF square_only_abs_trace : shape -> int
         PRE {
           MATCH
-            Circle { DROP T }
-            Square { DROP F }
+            Circle { DROP TRUE }
+            Square { DROP FALSE }
           END
           NOT
         }
@@ -2042,8 +2042,8 @@ defmodule Cairn.SolverTest do
       DEF square_only_abs_trace_verbose : shape -> int
         PRE {
           MATCH
-            Circle { DROP T }
-            Square { DROP F }
+            Circle { DROP TRUE }
+            Square { DROP FALSE }
           END
           NOT
         }
@@ -2074,8 +2074,8 @@ defmodule Cairn.SolverTest do
       DEF square_only_abs_trace_default : shape -> int
         PRE {
           MATCH
-            Circle { DROP T }
-            Square { DROP F }
+            Circle { DROP TRUE }
+            Square { DROP FALSE }
           END
           NOT
         }
@@ -2104,8 +2104,8 @@ defmodule Cairn.SolverTest do
       DEF square_only_abs_trace_json : shape -> int
         PRE {
           MATCH
-            Circle { DROP T }
-            Square { DROP F }
+            Circle { DROP TRUE }
+            Square { DROP FALSE }
           END
           NOT
         }
@@ -2181,8 +2181,8 @@ defmodule Cairn.SolverTest do
 
       DEF is_square : shape -> bool
         MATCH
-          Circle { DROP F }
-          Square { DROP T }
+          Circle { DROP FALSE }
+          Square { DROP TRUE }
         END
       END
 

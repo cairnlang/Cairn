@@ -14,8 +14,10 @@ defmodule CairnTest do
     end
 
     test "tokenizes boolean literals" do
-      assert {:ok, [{:bool_lit, true, 0}]} = Cairn.Lexer.tokenize("T")
-      assert {:ok, [{:bool_lit, false, 0}]} = Cairn.Lexer.tokenize("F")
+      assert {:ok, [{:bool_lit, true, 0}]} = Cairn.Lexer.tokenize("TRUE")
+      assert {:ok, [{:bool_lit, false, 0}]} = Cairn.Lexer.tokenize("FALSE")
+      assert {:ok, [{:constructor, "T", 0}]} = Cairn.Lexer.tokenize("T")
+      assert {:ok, [{:constructor, "F", 0}]} = Cairn.Lexer.tokenize("F")
     end
 
     test "tokenizes operators" do
@@ -234,10 +236,10 @@ defmodule CairnTest do
     end
 
     test "logic" do
-      assert Cairn.eval("T T AND") == [true]
-      assert Cairn.eval("T F AND") == [false]
-      assert Cairn.eval("T F OR") == [true]
-      assert Cairn.eval("T NOT") == [false]
+      assert Cairn.eval("TRUE TRUE AND") == [true]
+      assert Cairn.eval("TRUE FALSE AND") == [false]
+      assert Cairn.eval("TRUE FALSE OR") == [true]
+      assert Cairn.eval("TRUE NOT") == [false]
     end
 
     test "stack manipulation" do
@@ -326,7 +328,7 @@ defmodule CairnTest do
     test "constructors accept mixed fields in declaration order" do
       assert Cairn.eval("""
              TYPE mixed = Mixed str int bool
-             "peer" 1 T Mixed
+             "peer" 1 TRUE Mixed
              MATCH
                Mixed { }
              END
@@ -376,16 +378,16 @@ defmodule CairnTest do
     end
 
     test "if/end true branch" do
-      assert Cairn.eval("T IF 42 END") == [42]
+      assert Cairn.eval("TRUE IF 42 END") == [42]
     end
 
     test "if/end false branch (no else)" do
-      assert Cairn.eval("F IF 42 END") == []
+      assert Cairn.eval("FALSE IF 42 END") == []
     end
 
     test "if/else/end" do
-      assert Cairn.eval("T IF 1 ELSE 2 END") == [1]
-      assert Cairn.eval("F IF 1 ELSE 2 END") == [2]
+      assert Cairn.eval("TRUE IF 1 ELSE 2 END") == [1]
+      assert Cairn.eval("FALSE IF 1 ELSE 2 END") == [2]
     end
 
     test "function definition and call" do
@@ -610,7 +612,7 @@ defmodule CairnTest do
 
       source = """
       DEF result_is_ok : result -> bool
-        DROP F
+        DROP FALSE
       END
       123 Ok result_is_ok
       """
@@ -1042,7 +1044,7 @@ defmodule CairnTest do
     end
 
     test "JBool wraps a bool" do
-      result = Cairn.eval(@json_type <> "T JBool")
+      result = Cairn.eval(@json_type <> "TRUE JBool")
       assert result == [{:variant, "json", "JBool", [true]}]
     end
 
@@ -1057,7 +1059,7 @@ defmodule CairnTest do
     end
 
     test "JArr wraps a list of json values (recursive)" do
-      result = Cairn.eval(@json_type <> "[ JNull T JBool ] JArr")
+      result = Cairn.eval(@json_type <> "[ JNull TRUE JBool ] JArr")
       assert [{:variant, "json", "JArr", [[jnull, jbool]]}] = result
       assert jnull == {:variant, "json", "JNull", []}
       assert jbool == {:variant, "json", "JBool", [true]}
@@ -1073,12 +1075,12 @@ defmodule CairnTest do
       source = @json_type <> """
       DEF is_null : json -> bool
         MATCH
-          JNull { T }
-          JBool { DROP F }
-          JNum  { DROP F }
-          JStr  { DROP F }
-          JArr  { DROP F }
-          JObj  { DROP F }
+          JNull { TRUE }
+          JBool { DROP FALSE }
+          JNum  { DROP FALSE }
+          JStr  { DROP FALSE }
+          JArr  { DROP FALSE }
+          JObj  { DROP FALSE }
         END
       END
       JNull is_null
@@ -1090,15 +1092,15 @@ defmodule CairnTest do
       source = @json_type <> """
       DEF unwrap_bool : json -> bool
         MATCH
-          JNull { F }
+          JNull { FALSE }
           JBool { }
-          JNum  { DROP F }
-          JStr  { DROP F }
-          JArr  { DROP F }
-          JObj  { DROP F }
+          JNum  { DROP FALSE }
+          JStr  { DROP FALSE }
+          JArr  { DROP FALSE }
+          JObj  { DROP FALSE }
         END
       END
-      T JBool unwrap_bool
+      TRUE JBool unwrap_bool
       """
       assert Cairn.eval(source) == [true]
     end
@@ -1115,7 +1117,7 @@ defmodule CairnTest do
           JObj  { DROP 0 }
         END
       END
-      [ JNull T JBool 1.0 JNum ] JArr json_len
+      [ JNull TRUE JBool 1.0 JNum ] JArr json_len
       """
       assert Cairn.eval(source) == [3]
     end
@@ -1315,11 +1317,11 @@ defmodule CairnTest do
     end
 
     test "encode JBool true" do
-      assert Cairn.eval(@json_full <> " T JBool encode") == ["true"]
+      assert Cairn.eval(@json_full <> " TRUE JBool encode") == ["true"]
     end
 
     test "encode JBool false" do
-      assert Cairn.eval(@json_full <> " F JBool encode") == ["false"]
+      assert Cairn.eval(@json_full <> " FALSE JBool encode") == ["false"]
     end
 
     test "encode JNum" do
@@ -1475,7 +1477,7 @@ defmodule CairnTest do
       source = "DEF id : any -> any END"
       assert Cairn.eval(source <> " 42 id") == [42]
       assert Cairn.eval(source <> " \"hello\" id") == ["hello"]
-      assert Cairn.eval(source <> " T id") == [true]
+      assert Cairn.eval(source <> " TRUE id") == [true]
     end
   end
 
@@ -1532,7 +1534,7 @@ defmodule CairnTest do
       source = "DEF id : any -> any END"
       assert Cairn.eval(source <> " 42 id") == [42]
       assert Cairn.eval(source <> " \"hello\" id") == ["hello"]
-      assert Cairn.eval(source <> " T id") == [true]
+      assert Cairn.eval(source <> " TRUE id") == [true]
     end
 
     test "string to int function raises type error" do
@@ -1579,7 +1581,7 @@ defmodule CairnTest do
     end
 
     test "bool to int function raises type error" do
-      source = "DEF double : int -> int DUP ADD END T double"
+      source = "DEF double : int -> int DUP ADD END TRUE double"
       assert_raise Cairn.StaticError, ~r/expected int.*got bool/, fn ->
         Cairn.eval(source)
       end
@@ -1653,8 +1655,8 @@ defmodule CairnTest do
       TYPE color = Red | Green | Blue
       DEF is_red : color -> bool
         MATCH
-          Red { T }
-          _ { F }
+          Red { TRUE }
+          _ { FALSE }
         END
       END
       Red is_red
@@ -1667,8 +1669,8 @@ defmodule CairnTest do
       TYPE color = Red | Green | Blue
       DEF is_red : color -> bool
         MATCH
-          Red { T }
-          _ { F }
+          Red { TRUE }
+          _ { FALSE }
         END
       END
       Blue is_red
@@ -1693,8 +1695,8 @@ defmodule CairnTest do
       source = @json_type <> """
       DEF is_null : json -> bool
         MATCH
-          JNull { T }
-          _ { F }
+          JNull { TRUE }
+          _ { FALSE }
         END
       END
       3.14 JNum is_null
@@ -1708,8 +1710,8 @@ defmodule CairnTest do
       TYPE shape = Point | Circle float | Rect float float
       DEF is_point : shape -> bool
         MATCH
-          Point { T }
-          _ { F }
+          Point { TRUE }
+          _ { FALSE }
         END
       END
       3.0 4.0 Rect is_point
@@ -1722,8 +1724,8 @@ defmodule CairnTest do
       source = @json_type <> """
       DEF is_null : json -> bool
         MATCH
-          JNull { T }
-          _ { F }
+          JNull { TRUE }
+          _ { FALSE }
         END
       END
       """
@@ -1919,7 +1921,7 @@ defmodule CairnTest do
     end
 
     test "LET with booleans" do
-      assert Cairn.eval("T LET flag flag") == [true]
+      assert Cairn.eval("TRUE LET flag flag") == [true]
     end
 
     test "LET inside function body" do
@@ -2036,7 +2038,7 @@ defmodule CairnTest do
     end
 
     test "auto-converts bool" do
-      assert Cairn.eval(~s|T "flag: {}" FMT|) == ["flag: T"]
+      assert Cairn.eval(~s|TRUE "flag: {}" FMT|) == ["flag: TRUE"]
     end
 
     test "auto-converts float" do

@@ -5,7 +5,7 @@
 ```
 42                          # int
 3.14                        # float
-T F                         # bool
+TRUE FALSE                         # bool
 "hello world"               # string
 [ 1 2 3 ]                   # list
 M[ "a" 1 "b" 2 ]           # map (key-value pairs)
@@ -165,14 +165,14 @@ END
 "use {{}} for placeholders" FMT               # => "use {} for placeholders"
 ```
 
-Values are auto-converted: integers and floats become their string representation, booleans become `"T"` / `"F"`, and everything else uses `inspect`.
+Values are auto-converted: integers and floats become their string representation, booleans become `"TRUE"` / `"FALSE"`, and everything else uses `inspect`.
 
 ### Control Flow
 
 ```
 # Conditional
-T IF 42 END                     # pushes 42
-F IF 1 ELSE 2 END              # pushes 2
+TRUE IF 42 END                     # pushes 42
+FALSE IF 1 ELSE 2 END              # pushes 2
 
 # Repeat N times
 1 10 { DUP ADD } TIMES         # 1 doubled 10 times = 1024
@@ -725,14 +725,14 @@ An interactive game using LET, ASK!, and RANDOM (`examples/guess.crn`):
   1 ADD
   guess secret EQ IF
     DUP "Got it in {} tries!" FMT SAID
-    F
+    FALSE
   ELSE
     guess secret LT IF
       "Too low!" SAID
     ELSE
       "Too high!" SAID
     END
-    T
+    TRUE
   END
 } { } WHILE
 DROP

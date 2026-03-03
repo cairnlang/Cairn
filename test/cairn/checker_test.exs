@@ -181,8 +181,8 @@ defmodule Cairn.CheckerTest do
     end
 
     test "boolean literal" do
-      check_ok("T")
-      check_ok("F")
+      check_ok("TRUE")
+      check_ok("FALSE")
     end
 
     test "string literal" do
@@ -369,7 +369,7 @@ defmodule Cairn.CheckerTest do
     end
 
     test "bool + bool is type error" do
-      errors = check_errors("T F ADD")
+      errors = check_errors("TRUE FALSE ADD")
       assert length(errors) >= 1
     end
 
@@ -483,9 +483,9 @@ defmodule Cairn.CheckerTest do
     end
 
     test "boolean logic" do
-      check_ok("T F AND")
-      check_ok("T F OR")
-      check_ok("T NOT")
+      check_ok("TRUE FALSE AND")
+      check_ok("TRUE FALSE OR")
+      check_ok("TRUE NOT")
     end
 
     test "AND with non-booleans is error" do
@@ -531,11 +531,11 @@ defmodule Cairn.CheckerTest do
 
   describe "IF/ELSE branches" do
     test "simple IF with bool condition" do
-      check_ok("T IF 42 END")
+      check_ok("TRUE IF 42 END")
     end
 
     test "IF/ELSE with matching branches" do
-      check_ok("T IF 1 ELSE 2 END")
+      check_ok("TRUE IF 1 ELSE 2 END")
     end
 
     test "non-bool IF condition is error" do
@@ -549,7 +549,7 @@ defmodule Cairn.CheckerTest do
     end
 
     test "nested IF" do
-      check_ok("T IF T IF 1 ELSE 2 END ELSE 3 END")
+      check_ok("TRUE IF TRUE IF 1 ELSE 2 END ELSE 3 END")
     end
 
     test "IF inside function body" do
@@ -697,7 +697,7 @@ defmodule Cairn.CheckerTest do
     test "constructors accept mixed fields in declaration order" do
       check_ok("""
       TYPE mixed = Mixed str int bool
-      "peer" 1 T Mixed
+      "peer" 1 TRUE Mixed
       MATCH
         Mixed { DROP DROP DROP }
       END
@@ -1079,7 +1079,7 @@ defmodule Cairn.CheckerTest do
 
     test "constructing JNull, JBool, JNum, JStr type-checks" do
       # 0 DROP terminates the TYPE declaration so bare JNull is an expression
-      check_ok(@json_type <> "0 DROP JNull  T JBool  3.14 JNum  \"hi\" JStr")
+      check_ok(@json_type <> "0 DROP JNull  TRUE JBool  3.14 JNum  \"hi\" JStr")
     end
 
     test "JArr constructor accepts [json]" do
@@ -1110,12 +1110,12 @@ defmodule Cairn.CheckerTest do
       check_ok(@json_type <> """
       DEF is_null : json -> bool
         MATCH
-          JNull { T }
-          JBool { DROP F }
-          JNum  { DROP F }
-          JStr  { DROP F }
-          JArr  { DROP F }
-          JObj  { DROP F }
+          JNull { TRUE }
+          JBool { DROP FALSE }
+          JNum  { DROP FALSE }
+          JStr  { DROP FALSE }
+          JArr  { DROP FALSE }
+          JObj  { DROP FALSE }
         END
       END
       """)
@@ -1125,8 +1125,8 @@ defmodule Cairn.CheckerTest do
       errors = check_errors(@json_type <> """
       DEF bad : json -> bool
         MATCH
-          JNull { T }
-          JBool { DROP F }
+          JNull { TRUE }
+          JBool { DROP FALSE }
         END
       END
       """)

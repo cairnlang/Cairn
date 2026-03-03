@@ -11,8 +11,8 @@ TYPE shape = Circle int | Square int
 DEF square_only_abs_trace : shape -> int
   PRE {
     MATCH
-      Circle { DROP T }
-      Square { DROP F }
+      Circle { DROP TRUE }
+      Square { DROP FALSE }
     END
     NOT
   }

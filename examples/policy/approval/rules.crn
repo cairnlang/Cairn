@@ -253,27 +253,27 @@ DEF valid_transition : workflow workflow -> bool
     Draft {
       to
       MATCH
-        Submitted { T }
-        _         { F }
+        Submitted { TRUE }
+        _         { FALSE }
       END
     }
     Submitted {
       to
       MATCH
-        Approved { T }
-        Rejected { T }
-        _        { F }
+        Approved { TRUE }
+        Rejected { TRUE }
+        _        { FALSE }
       END
     }
     Approved {
       to
       MATCH
-        Executed { T }
-        _        { F }
+        Executed { TRUE }
+        _        { FALSE }
       END
     }
-    Rejected { F }
-    Executed { F }
+    Rejected { FALSE }
+    Executed { FALSE }
   END
 END
 
@@ -287,7 +287,7 @@ DEF prod_never_less_strict_than_dev : bool bool action role -> bool
   role action Prod emergency customer approval_rank LET prod_rank
 
   prod_rank dev_rank GTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF viewer_never_less_strict_than_admin : bool bool env action -> bool
@@ -300,7 +300,7 @@ DEF viewer_never_less_strict_than_admin : bool bool env action -> bool
   Admin action env emergency customer approval_rank LET admin_rank
 
   viewer_rank admin_rank GTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF customer_data_never_reduces_strictness : bool env action role -> bool
@@ -309,18 +309,18 @@ DEF customer_data_never_reduces_strictness : bool env action role -> bool
   LET action
   LET role
 
-  role action env emergency F approval_rank LET plain_rank
-  role action env emergency T approval_rank LET data_rank
+  role action env emergency FALSE approval_rank LET plain_rank
+  role action env emergency TRUE approval_rank LET data_rank
 
   data_rank plain_rank GTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF prod_delete_never_auto_allows : bool role -> bool
   LET customer
   LET role
 
-  role Delete Prod T customer approval_rank
+  role Delete Prod TRUE customer approval_rank
   0 NEQ
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END

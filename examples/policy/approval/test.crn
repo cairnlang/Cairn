@@ -1,25 +1,25 @@
 IMPORT "rules.crn"
 
 TEST "viewer read in dev is allowed"
-  Viewer Read Dev F F approval_decision
+  Viewer Read Dev FALSE FALSE approval_decision
   decision_name
   "allow" ASSERT_EQ
 END
 
 TEST "operator deploy in prod requires approval"
-  Operator Deploy Prod F F approval_decision
+  Operator Deploy Prod FALSE FALSE approval_decision
   decision_name
   "require_approval" ASSERT_EQ
 END
 
 TEST "viewer cannot rotate secrets"
-  Viewer RotateSecrets Staging F F approval_decision
+  Viewer RotateSecrets Staging FALSE FALSE approval_decision
   decision_name
   "deny" ASSERT_EQ
 END
 
 TEST "admin emergency delete in prod still needs approval"
-  Admin Delete Prod T F approval_decision
+  Admin Delete Prod TRUE FALSE approval_decision
   decision_name
   "require_approval" ASSERT_EQ
 END

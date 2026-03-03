@@ -8,8 +8,8 @@ TYPE shape = Circle int | Square int
 DEF square_only_abs : shape -> int
   PRE {
     MATCH
-      Circle { DROP F }
-      Square { DROP T }
+      Circle { DROP FALSE }
+      Square { DROP TRUE }
     END
   }
   MATCH

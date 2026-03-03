@@ -70,10 +70,10 @@ DEF parse_bool : [str] -> [str] json
   DUP HEAD "t" EQ
   IF
     TAIL TAIL TAIL TAIL   # consume 't','r','u','e'
-    T JBool
+    TRUE JBool
   ELSE
     TAIL TAIL TAIL TAIL TAIL  # consume 'f','a','l','s','e'
-    F JBool
+    FALSE JBool
   END
   SWAP
 END

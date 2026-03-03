@@ -67,7 +67,7 @@ defmodule Cairn.MapTest do
     end
 
     test "map with boolean values" do
-      assert [%{"x" => true, "y" => false}] = eval("M[ \"x\" T \"y\" F ]")
+      assert [%{"x" => true, "y" => false}] = eval("M[ \"x\" TRUE \"y\" FALSE ]")
     end
 
     test "map with float values" do

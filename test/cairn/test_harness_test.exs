@@ -40,7 +40,7 @@ defmodule Cairn.TestHarnessTest do
       1 2 ASSERT_EQ
     END
     TEST "still runs"
-      T ASSERT_TRUE
+      TRUE ASSERT_TRUE
     END
     )
 

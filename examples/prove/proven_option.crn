@@ -12,8 +12,8 @@ END
 
 DEF is_some_bool : option -> bool
   MATCH
-    None { F }
-    Some { DROP T }
+    None { FALSE }
+    Some { DROP TRUE }
   END
   POST DUP NOT OR
 END

@@ -11,8 +11,8 @@ END
 
 DEF is_ok_bool : result -> bool
   MATCH
-    Ok  { DROP T }
-    Err { DROP F }
+    Ok  { DROP TRUE }
+    Err { DROP FALSE }
   END
   POST DUP NOT OR
 END

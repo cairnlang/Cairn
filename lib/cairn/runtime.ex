@@ -65,7 +65,7 @@ defmodule Cairn.Runtime do
     if value === true do
       rest
     else
-      raise(Cairn.RuntimeError, "ASSERT_TRUE failed: expected T, got #{inspect(value)}")
+      raise(Cairn.RuntimeError, "ASSERT_TRUE failed: expected TRUE, got #{inspect(value)}")
     end
   end
 
@@ -73,7 +73,7 @@ defmodule Cairn.Runtime do
     if value === false do
       rest
     else
-      raise(Cairn.RuntimeError, "ASSERT_FALSE failed: expected F, got #{inspect(value)}")
+      raise(Cairn.RuntimeError, "ASSERT_FALSE failed: expected FALSE, got #{inspect(value)}")
     end
   end
 
@@ -524,8 +524,8 @@ defmodule Cairn.Runtime do
   defp format_value(v) when is_binary(v), do: v
   defp format_value(v) when is_integer(v), do: Integer.to_string(v)
   defp format_value(v) when is_float(v), do: Float.to_string(v)
-  defp format_value(true), do: "T"
-  defp format_value(false), do: "F"
+  defp format_value(true), do: "TRUE"
+  defp format_value(false), do: "FALSE"
   defp format_value(v), do: inspect(v)
 
   defp ok(value), do: {:variant, "result", "Ok", [value]}

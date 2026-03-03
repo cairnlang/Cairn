@@ -24,7 +24,7 @@ END
 
 DEF leading_flag_count_bounded : [str] -> bool
   DUP leading_flag_count SWAP LEN LTE
-  POST DUP EQ T
+  POST DUP EQ TRUE
 END
 
 DEF drop_n : int [str] -> [str]
@@ -40,14 +40,14 @@ DEF flag_enabled : str [str] -> bool
   SWAP
   DUP LEN 0 EQ
   IF
-    DROP DROP F
+    DROP DROP FALSE
   ELSE
     DUP HEAD LET current
     TAIL LET rest
     LET needle
     current needle EQ
     IF
-      T
+      TRUE
     ELSE
       rest needle flag_enabled
     END

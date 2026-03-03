@@ -26,7 +26,7 @@ names_of
 # --- Demo: encoder ---
 
 JNull encode SAID
-T JBool encode SAID
+TRUE JBool encode SAID
 42.5 JNum encode SAID
 "hello" JStr encode SAID
 [ 1.0 JNum 2.0 JNum 3.0 JNum ] JArr encode SAID

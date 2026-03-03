@@ -108,8 +108,8 @@ defmodule Cairn.Lexer do
   defp classify("LET"), do: {:ok, {:let_kw, "LET"}}
   defp classify("|"), do: {:ok, {:pipe, "|"}}
   defp classify("="), do: {:ok, {:equals, "="}}
-  defp classify("T"), do: {:ok, {:bool_lit, true}}
-  defp classify("F"), do: {:ok, {:bool_lit, false}}
+  defp classify("TRUE"), do: {:ok, {:bool_lit, true}}
+  defp classify("FALSE"), do: {:ok, {:bool_lit, false}}
   defp classify("block"), do: {:ok, {:type, {:block, :opaque}}}
   defp classify("[]"), do: {:ok, {:list_lit, []}}
   defp classify("M["), do: {:ok, {:map_open, "M["}}

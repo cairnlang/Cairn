@@ -2,15 +2,15 @@
 
 DEF result_is_ok : result -> bool
   MATCH
-    Ok  { DROP T }
-    Err { DROP F }
+    Ok  { DROP TRUE }
+    Err { DROP FALSE }
   END
 END
 
 DEF result_is_err : result -> bool
   MATCH
-    Ok  { DROP F }
-    Err { DROP T }
+    Ok  { DROP FALSE }
+    Err { DROP TRUE }
   END
 END
 

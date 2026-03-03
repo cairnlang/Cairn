@@ -2,7 +2,7 @@
 
 IMPORT "messages.crn"
 
-DEF report_log : pid[any] str -> void
+DEF report_log : pid[orch_msg] str -> void
   SWAP
   Log
   SEND

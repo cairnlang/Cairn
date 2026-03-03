@@ -1,16 +1,16 @@
 # Small supervision helpers for actor lifecycle examples.
 
-DEF watch_exit : pid[any] -> monitor[any]
+DEF watch_exit[T] : pid[T] -> monitor[T]
   MONITOR
 END
 
-DEF await_exit : pid[any] -> str
+DEF await_exit[T] : pid[T] -> str
   MONITOR AWAIT
 END
 
 # Expects two blocks that each produce a pid when applied:
 #   { failing_worker } { replacement_worker } restart_once
-DEF restart_once : block[pid[any]] block[pid[any]] -> void
+DEF restart_once[T] : block[pid[T]] block[pid[T]] -> void
   SWAP
   APPLY
   watch_exit AWAIT

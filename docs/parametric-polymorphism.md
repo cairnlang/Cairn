@@ -99,3 +99,11 @@ Step 5 has begun:
 - `map_get_or` now has a real generic signature:
   - `DEF map_get_or[T] : T map[str T] str -> T`
 - the public generics example now demonstrates that practical payoff directly
+- several reusable helper functions now also use explicit generics where they were
+  previously forced into `any`:
+  - `send_self[T]`
+  - `emit_keep[T]`
+  - `watch_exit[T]`
+  - `await_exit[T]`
+  - `restart_once[T]`
+  - `usage_line[T]` in the bounded config CLIs

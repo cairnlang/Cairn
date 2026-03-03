@@ -20,6 +20,6 @@ DEF emit_lines : [str] -> void
   DROP
 END
 
-DEF usage_line : any -> str
+DEF usage_line[T] : T -> str
   DROP "usage: mini_env [--keys <file> | <file> <key> [fallback]]"
 END

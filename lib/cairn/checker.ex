@@ -2465,6 +2465,9 @@ defmodule Cairn.Checker do
     |> validate_declared_type(value_type, context, type_params)
   end
 
+  defp validate_declared_type(state, {:returns, inner}, context, type_params),
+    do: validate_declared_type(state, inner, context, type_params)
+
   defp validate_declared_type(state, {:block, inner}, context, type_params),
     do: validate_declared_type(state, inner, context, type_params)
 

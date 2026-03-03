@@ -363,6 +363,14 @@ defmodule Cairn.CheckerTest do
       "name" M[ "name" "cairn" ] "friend" get_or
       """)
     end
+
+    test "checker accepts generic block return wrappers" do
+      check_ok("""
+      DEF restart_once[T] : block[pid[T]] block[pid[T]] -> void
+        DROP DROP
+      END
+      """)
+    end
   end
 
   # ── Arithmetic and type errors ──

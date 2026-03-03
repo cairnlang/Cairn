@@ -1,6 +1,6 @@
 # examples/concurrency/lib/state.crn
 # Small helpers for stack-carried actor state.
 
-DEF emit_keep : any -> any
+DEF emit_keep[T] : T -> T
   DUP SAY DROP
 END

@@ -34,6 +34,34 @@ DEF divmod : int int -> int int
 END
 ```
 
+### Reading Stack Effects
+
+Cairn signatures are written from the top of the stack outward:
+
+- the **leftmost parameter type** is the value on top of the stack before the call
+- the **leftmost return type** is the value on top of the stack after the call
+
+So this signature:
+
+```crn
+DEF map_get_or[T] : T map[str T] str -> T
+```
+
+means:
+
+```text
+before: [key:str, source:map[str T], fallback:T]
+after:  [value:T]
+```
+
+You push the fallback first, then the map, then the key last.
+
+When in doubt, read signatures as:
+
+```text
+top_of_stack ... deeper_values -> top_of_stack_after ...
+```
+
 ### Operators
 
 ```
@@ -133,6 +161,64 @@ DB_DEL                         # pop key, delete record
 DB_PAIRS                       # push list of [key, value] string pairs
 ```
 
+### Common Before/After Stack Shapes
+
+These are the operators and helper patterns that are easiest to misread.
+
+```text
+ADD
+before: [right:int, left:int]
+after:  [sum:int]
+
+PUT
+before: [value:V, key:K, map:map[K V]]
+after:  [updated_map:map[K V]]
+
+GET
+before: [key:K, map:map[K V]]
+after:  [value:V]
+
+HAS
+before: [key:K, map:map[K V]]
+after:  [present:bool]
+
+FMT
+before: [format:str, value_n, ..., value_1]
+after:  [formatted:str]
+note: the format string is on top; placeholder values sit underneath it
+
+ASSERT_EQ
+before: [expected, actual]
+after:  []
+
+WITH_STATE
+before: [block, initial_state]
+after:  [final_state]
+
+STATE
+before: [...]
+after:  [current_state, ...]
+
+SET_STATE
+before: [next_state, ...]
+after:  [...]
+
+STEP helper
+before: [...]
+after:  [...]
+note: inside WITH_STATE, applies a helper of shape state -> state
+
+HTTP_SERVE
+before (default): [handler_block, port]
+before (explicit bind): [handler_block, port, bind_addr]
+before (with options): [handler_block, port, options]
+after:  blocks forever serving requests (no normal stack result)
+
+HTTP_SERVE handler block
+before: [path:str, method:str, query:map[str str], form:map[str str]]
+after:  [body:str, content_type:str, status:int]
+```
+
 ### LET Bindings
 
 `LET` names a value for readability. It pops the top of the stack and binds it to a name. The binding is scoped to the enclosing function body (or top-level expression). Rebinding the same name shadows the previous value.
@@ -221,6 +307,20 @@ None           # pushes None — no fields
 
 ```
 0 42 Some unwrap_or    # stack before call: [Some(42), 0] (option on top)
+```
+
+Some high-value helper examples:
+
+```text
+result_unwrap_or
+signature: result any -> any
+before: [result, fallback]
+after:  [value_or_fallback]
+
+map_get_or[T]
+signature: T map[str T] str -> T
+before: [key:str, source:map[str T], fallback:T]
+after:  [value_or_fallback:T]
 ```
 
 ### MATCH — Pattern Dispatch

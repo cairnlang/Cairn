@@ -225,6 +225,16 @@ ADD
 before: [right:int, left:int]
 after:  [sum:int]
 
+SUB
+before: [right:int, left:int]
+after:  [difference:int]
+note: computes left - right
+
+DIV
+before: [right:int, left:int]
+after:  [quotient:int]
+note: computes left / right using integer division
+
 PUT
 before: [value:V, key:K, map:map[K V]]
 after:  [updated_map:map[K V]]
@@ -272,6 +282,11 @@ after:  blocks forever serving requests (no normal stack result)
 HTTP_SERVE handler block
 before: [path:str, method:str, query:map[str str], form:map[str str]]
 after:  [body:str, content_type:str, status:int]
+
+POW
+before: [exponent:float, base:float]
+after:  [result:float]
+note: computes base ^ exponent
 ```
 
 ### LET Bindings
@@ -595,9 +610,9 @@ These operators are compact, but their operand order is easy to misread. Read th
 
 ```text
 CONS
-before: [elem:T, list:[T]]
+before: [list:[T], elem:T]
 after:  [new_list:[T]]
-note: push the list first, then the element last
+note: push the element first, then the list last
 
 ZIP
 before: [right:[B], left:[A]]
@@ -651,6 +666,26 @@ APPLY
 before: [value_1, ..., value_n, block]
 after:  [result_1, ..., result_m]
 note: APPLY executes the block on the current visible stack; it does not create a fresh stack the way FILTER/MAP/REDUCE callbacks do
+
+TIMES
+canonical before: [count:int, block]
+canonical after:  [updated_stack...]
+note: runs the block exactly count times
+note: the runtime also accepts the convenience form [block, count]
+
+REPEAT
+canonical before: [count:int, block]
+canonical after:  [updated_stack...]
+note: same stack semantics as TIMES; it exists as the readability-oriented sibling used in newer state-machine style code
+
+WHILE
+before: [body:block, condition:block]
+after:  [updated_stack...]
+condition block input stack: [current_stack...]
+condition block output stack: [continue?:bool, current_stack...]
+body block input stack: [current_stack...]
+body block output stack: [next_stack...]
+note: write it in source as { condition } { body } WHILE, which leaves the body block on top when WHILE runs
 
 RANGE
 before: [n:int]

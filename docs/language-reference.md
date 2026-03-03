@@ -482,6 +482,38 @@ Run a test file with:
 
 `TEST` blocks are ignored during normal file evaluation and only execute in explicit `--test` mode.
 
+### Native Test Stack Shapes
+
+`TEST` bodies start from a clean stack. Assertions consume the values they check:
+
+```text
+ASSERT_EQ
+before: [expected, actual]
+after:  []
+note: push the expected value first, then the actual value last
+
+ASSERT_TRUE
+before: [value:bool]
+after:  []
+
+ASSERT_FALSE
+before: [value:bool]
+after:  []
+```
+
+That means this pattern is correct:
+
+```crn
+2 3 ADD
+5 ASSERT_EQ
+```
+
+because the stack just before `ASSERT_EQ` is:
+
+```text
+[expected:5, actual:5]
+```
+
 ### Higher-Order Operations
 
 ```
@@ -570,6 +602,79 @@ LET form
 "todo:1" DB_GET
 DB_PAIRS
 # Set CAIRN_DB_DIR to use a different on-disk Mnesia directory
+```
+
+### Web Helper Stack Shapes
+
+The web prelude is deliberately small, but the route helpers are easiest to use when you read them as exact stack transforms:
+
+```text
+http_html_ok
+before: [body:str]
+after:  [body:str, content_type:str, status:int]
+
+http_text_ok
+before: [body:str]
+after:  [body:str, content_type:str, status:int]
+
+http_text_not_found
+before: [body:str]
+after:  [body:str, content_type:str, status:int]
+
+http_text_method_not_allowed
+before: [body:str]
+after:  [body:str, content_type:str, status:int]
+
+http_html_file_ok
+before: [path:str]
+after:  [body:str, content_type:str, status:int]
+
+html_escape
+before: [raw:str]
+after:  [escaped:str]
+
+http_pack_response
+before: [status:int, content_type:str, body:str]
+after:  [packed:[any]]
+note: this packs the HTTP_SERVE response triple into one value for route chaining
+
+http_unpack_response
+before: [packed:[any]]
+after:  [body:str, content_type:str, status:int]
+
+route_get_html_file
+before: [path:str, method:str, route:str, file:str]
+after:  [candidate:result]
+
+route_get_text
+before: [path:str, method:str, route:str, body:str]
+after:  [candidate:result]
+
+route_or
+before: [preferred:result, fallback:result]
+after:  [chosen:result]
+
+route_finish_get
+before: [candidate:result, method:str]
+after:  [body:str, content_type:str, status:int]
+```
+
+So a typical GET route chain reads like this:
+
+```crn
+path method "/" "<p>Home</p>" route_get_text
+path method "/about" "<p>About</p>" route_get_text
+route_or
+method route_finish_get
+```
+
+with the stack evolving as:
+
+```text
+after first route:  [candidate_for_/]
+after second route: [candidate_for_/about, candidate_for_/]
+after route_or:     [best_candidate]
+after route_finish_get: [body, content_type, status]
 ```
 
 ## Examples

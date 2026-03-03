@@ -81,10 +81,11 @@ defmodule Cairn.Types do
     @moduledoc """
     An Cairn function definition.
     """
-    defstruct [:name, :param_types, :return_types, :body, :pre_condition, :post_condition]
+    defstruct [:name, :type_params, :param_types, :return_types, :body, :pre_condition, :post_condition]
 
     @type t :: %__MODULE__{
             name: String.t(),
+            type_params: [String.t()],
             param_types: [Cairn.Types.cairn_type()],
             return_types: [Cairn.Types.cairn_type()],
             body: [Cairn.Types.token()],

@@ -100,6 +100,7 @@ defmodule Cairn.Parser do
       {:ok,
        %Function{
          name: name,
+         type_params: [],
          param_types: param_types,
          return_types: return_types,
          body: body,

@@ -16,6 +16,7 @@ defmodule Cairn.CLI do
     {"basics",
      [
        "examples/hello_world.crn",
+       "examples/generics.crn",
        "examples/collatz.crn",
        "examples/recur.crn",
        "examples/bank.crn",

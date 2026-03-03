@@ -128,16 +128,13 @@ defmodule Cairn.Lexer do
       word in @type_names ->
         {:ok, {:type, String.to_atom(word)}}
 
-      # list type like [int], [str], or [json] (user-defined)
+      # list type like [int], [str], [msg], or [T]
       Regex.match?(~r/^\[.+\]$/, word) ->
         inner = String.slice(word, 1..-2)
-        cond do
-          inner in @type_names ->
-            {:ok, {:type, {:list, String.to_atom(inner)}}}
-          Regex.match?(~r/^[a-z_][a-z0-9_]*$/, inner) ->
-            {:ok, {:type, {:list, {:user_type, inner}}}}
-          true ->
-            {:error, "unknown list type: #{word}"}
+
+        case parse_map_inner_type(inner) do
+          {:ok, t} -> {:ok, {:type, {:list, t}}}
+          :error -> {:error, "unknown list type: #{word}"}
         end
 
       # pid type like pid[int], pid[msg], or pid[map[str int]]
@@ -253,7 +250,7 @@ defmodule Cairn.Lexer do
             :error -> :error
           end
 
-        Regex.match?(~r/^[a-z_][a-z0-9_]*$/, s) ->
+        Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*$/, s) ->
           {:ok, {:user_type, s}}
 
         true ->

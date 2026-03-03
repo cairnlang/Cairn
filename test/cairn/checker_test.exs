@@ -304,6 +304,47 @@ defmodule Cairn.CheckerTest do
 
       assert Enum.any?(errors, fn e -> e.message =~ "duplicate type params T" end)
     end
+
+    test "checker instantiates a generic identity call from the actual stack type" do
+      check_ok("""
+      DEF id[T] : T -> T
+        DUP DROP
+      END
+
+      42 id
+      """)
+
+      check_ok("""
+      DEF id[T] : T -> T
+        DUP DROP
+      END
+
+      "hello" id
+      """)
+    end
+
+    test "checker rejects inconsistent generic bindings at call sites" do
+      errors =
+        check_errors("""
+        DEF keep_left[T] : T T -> T
+          DROP
+        END
+
+        1 "x" keep_left
+        """)
+
+      assert Enum.any?(errors, fn e -> e.message =~ "binds type variable T inconsistently" end)
+    end
+
+    test "checker instantiates generic wrappers through list types" do
+      check_ok("""
+      DEF keep_list[T] : [T] -> [T]
+        DUP DROP
+      END
+
+      [] keep_list
+      """)
+    end
   end
 
   # ── Arithmetic and type errors ──

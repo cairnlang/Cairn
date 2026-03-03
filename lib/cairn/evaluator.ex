@@ -758,9 +758,11 @@ defmodule Cairn.Evaluator do
   """
   def eval_function_call(%Cairn.Types.Function{} = func, stack, env) do
     {args, rest} = pop_args(stack, length(func.param_types))
+    param_types = erase_type_vars(func.param_types)
+    return_types = erase_type_vars(func.return_types)
 
     # Check arg types against declared param_types
-    check_arg_types(func, args)
+    check_arg_types(func.name, param_types, args)
 
     if func.pre_condition do
       check_pre(func, args, env)
@@ -772,7 +774,7 @@ defmodule Cairn.Evaluator do
       check_post(func, result_stack, env)
     end
 
-    check_return_types(func, result_stack)
+    check_return_types(func.name, return_types, result_stack)
 
     result_stack ++ rest
   end
@@ -787,18 +789,19 @@ defmodule Cairn.Evaluator do
     raise Cairn.RuntimeError, "stack underflow: need #{n} args, have #{length(stack)}"
   end
 
-  defp check_arg_types(func, args) do
-    func.param_types
+  defp check_arg_types(func_name, param_types, args) do
+    param_types
     |> Enum.zip(args)
     |> Enum.each(fn {type, value} ->
       unless matches_type?(value, type) do
         raise Cairn.RuntimeError,
-          "type error in '#{func.name}': expected #{format_type(type)}, got #{inspect(value)}"
+          "type error in '#{func_name}': expected #{format_type(type)}, got #{inspect(value)}"
       end
     end)
   end
 
   defp matches_type?(_, :any), do: true
+  defp matches_type?(_, {:type_var, _}), do: true
   defp matches_type?(v, :int) when is_integer(v), do: true
   defp matches_type?(v, :float) when is_float(v), do: true
   defp matches_type?(v, :bool) when is_boolean(v), do: true
@@ -818,6 +821,7 @@ defmodule Cairn.Evaluator do
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
   defp format_type({:user_type, name}), do: name
+  defp format_type({:type_var, name}), do: name
   defp format_type(type), do: to_string(type)
 
   defp type_descriptor_matches?(:any, _), do: true
@@ -900,34 +904,43 @@ defmodule Cairn.Evaluator do
     end
   end
 
-  defp check_return_types(%{return_types: [:void]} = func, result_stack) do
+  defp check_return_types(func_name, [:void], result_stack) do
     if result_stack != [] do
       raise Cairn.RuntimeError,
-        "type error in '#{func.name}': declared -> void but left #{length(result_stack)} value(s) on stack"
+        "type error in '#{func_name}': declared -> void but left #{length(result_stack)} value(s) on stack"
     end
   end
 
-  defp check_return_types(func, result_stack) do
-    expected = length(func.return_types)
+  defp check_return_types(func_name, return_types, result_stack) do
+    expected = length(return_types)
     actual = length(result_stack)
 
     if actual != expected do
       raise Cairn.RuntimeError,
-        "type error in '#{func.name}': declared -> #{format_return_types(func.return_types)} " <>
+        "type error in '#{func_name}': declared -> #{format_return_types(return_types)} " <>
           "(#{expected} value(s)) but got #{actual}"
     end
 
-    func.return_types
+    return_types
     |> Enum.zip(result_stack)
     |> Enum.each(fn {type, value} ->
       unless matches_type?(value, type) do
         raise Cairn.RuntimeError,
-          "type error in '#{func.name}': expected return type #{format_type(type)}, got #{inspect(value)}"
+          "type error in '#{func_name}': expected return type #{format_type(type)}, got #{inspect(value)}"
       end
     end)
   end
 
   defp format_return_types(types), do: Enum.map_join(types, " ", &format_type/1)
+
+  defp erase_type_vars(types) when is_list(types), do: Enum.map(types, &erase_type_vars/1)
+  defp erase_type_vars({:type_var, _}), do: :any
+  defp erase_type_vars({:list, inner}), do: {:list, erase_type_vars(inner)}
+  defp erase_type_vars({:map, key_type, value_type}), do: {:map, erase_type_vars(key_type), erase_type_vars(value_type)}
+  defp erase_type_vars({:pid, inner}), do: {:pid, erase_type_vars(inner)}
+  defp erase_type_vars({:monitor, inner}), do: {:monitor, erase_type_vars(inner)}
+  defp erase_type_vars({:block, {:returns, inner}}), do: {:block, {:returns, erase_type_vars(inner)}}
+  defp erase_type_vars(other), do: other
 
   defp check_post(func, result_stack, env) do
     check_stack = eval_tokens(func.post_condition, result_stack, env)

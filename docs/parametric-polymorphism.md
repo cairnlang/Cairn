@@ -79,8 +79,7 @@ Steps 1 and 2 are now in place:
 
 What is still missing:
 
-- call-site generic instantiation in the checker
-- real generic function calls in user code
+- broader generic coverage in real helpers
 
 Step 3 is now in place:
 
@@ -88,3 +87,8 @@ Step 3 is now in place:
 - those type variables are represented explicitly in parsed types
 - the checker validates that every type variable used in a signature is declared
   by the function
+
+Step 4 is now in place:
+
+- generic functions instantiate from the actual stack types at the call site
+- simple generic examples like `id[T] : T -> T` now type-check and run

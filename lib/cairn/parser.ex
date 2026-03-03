@@ -291,6 +291,8 @@ defmodule Cairn.Parser do
 
     case split_on_last_arrow(type_tokens) do
       {:ok, param_types, return_types} ->
+        param_types = Enum.map(param_types, &normalize_signature_type(&1, type_params))
+        return_types = Enum.map(return_types, &normalize_signature_type(&1, type_params))
         {:ok, param_types, return_types, rest}
 
       :error ->
@@ -391,6 +393,32 @@ defmodule Cairn.Parser do
         end
     end
   end
+
+  defp normalize_signature_type({:user_type, name}, type_params) do
+    if MapSet.member?(type_params, name) do
+      {:type_var, name}
+    else
+      {:user_type, name}
+    end
+  end
+
+  defp normalize_signature_type({:list, inner}, type_params),
+    do: {:list, normalize_signature_type(inner, type_params)}
+
+  defp normalize_signature_type({:map, key_type, value_type}, type_params) do
+    {:map, normalize_signature_type(key_type, type_params), normalize_signature_type(value_type, type_params)}
+  end
+
+  defp normalize_signature_type({:pid, inner}, type_params),
+    do: {:pid, normalize_signature_type(inner, type_params)}
+
+  defp normalize_signature_type({:monitor, inner}, type_params),
+    do: {:monitor, normalize_signature_type(inner, type_params)}
+
+  defp normalize_signature_type({:block, {:returns, inner}}, type_params),
+    do: {:block, {:returns, normalize_signature_type(inner, type_params)}}
+
+  defp normalize_signature_type(other, _type_params), do: other
 
   # Collects body tokens until END, splitting on PRE/POST if present.
   # Tracks IF and MATCH nesting depth so inner IF...END / MATCH...END

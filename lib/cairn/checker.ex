@@ -48,6 +48,7 @@ defmodule Cairn.Checker do
           protocol_effect_steps = protocol_helper_effect_for(func, actor_required, raw_protocol_effects)
 
           {Map.put(te, func.name, %{
+             type_params: func.type_params,
              param_types: func.param_types,
              return_types: func.return_types,
              actor_required: MapSet.member?(actor_required, func.name),
@@ -93,7 +94,7 @@ defmodule Cairn.Checker do
       env
       |> Enum.filter(fn {_, v} -> match?(%Cairn.Types.Function{}, v) end)
       |> Enum.reduce(type_env, fn {name, func}, acc ->
-        {name, %{param_types: func.param_types, return_types: func.return_types}}
+        {name, %{type_params: func.type_params || [], param_types: func.param_types, return_types: func.return_types}}
         |> then(fn {k, v} -> Map.put(acc, k, v) end)
       end)
 
@@ -142,6 +143,7 @@ defmodule Cairn.Checker do
     protocol_effect_steps = protocol_helper_effect_for(func, state.actor_required, compute_protocol_effect_functions([func]))
 
     state = put_in(state.env[func.name], %{
+      type_params: func.type_params,
       param_types: func.param_types,
       return_types: func.return_types,
       actor_required: MapSet.member?(state.actor_required, func.name),
@@ -691,6 +693,15 @@ defmodule Cairn.Checker do
             state
           end
 
+        {param_type, return_type} =
+          case instantiate_signature(Map.get(entry, :type_params, []), [param_type], [return_type], [state_type]) do
+            {:ok, [inst_param], [inst_return]} ->
+              {inst_param, inst_return}
+
+            {:error, _} ->
+              {param_type, return_type}
+          end
+
         state =
           case Unify.unify(param_type, state_type) do
             {:ok, _} -> state
@@ -984,18 +995,19 @@ defmodule Cairn.Checker do
 
         case Stack.pop_n(state.stack, arity) do
           {arg_types, base} ->
-            # Check arg types match
+            {param_types, return_types, generic_error} =
+              case instantiate_signature(Map.get(entry, :type_params, []), param_types, return_types, arg_types) do
+                {:ok, inst_params, inst_returns} ->
+                  {inst_params, inst_returns, nil}
+
+                {:error, message} ->
+                  {param_types, substitute_type_vars(return_types, %{}), message}
+              end
+
             state =
-              arg_types
-              |> Enum.zip(param_types)
-              |> Enum.reduce(%{state | stack: base}, fn {actual, expected}, st ->
-                case Unify.unify(actual, expected) do
-                  {:ok, _} -> st
-                  :error ->
-                    add_error(st, pos,
-                      "function '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}")
-                end
-              end)
+              %{state | stack: base}
+              |> maybe_add_generic_error(pos, generic_error)
+              |> check_arg_types(name, pos, arg_types, param_types)
 
             # Push return types — reverse so return_types[0] lands on top
             state =
@@ -1014,6 +1026,8 @@ defmodule Cairn.Checker do
             # Push return types as best-effort recovery
             state = add_error(state, pos,
               "function '#{name}' requires #{arity} argument(s) (stack underflow)")
+
+            return_types = substitute_type_vars(return_types, %{})
 
             state =
               if return_types == [:void] do
@@ -2470,6 +2484,101 @@ defmodule Cairn.Checker do
     |> Enum.filter(fn {_item, count} -> count > 1 end)
     |> Enum.map(fn {item, _count} -> item end)
   end
+
+  defp maybe_add_generic_error(state, _pos, nil), do: state
+  defp maybe_add_generic_error(state, pos, message), do: add_error(state, pos, message)
+
+  defp check_arg_types(state, name, pos, arg_types, param_types) do
+    arg_types
+    |> Enum.zip(param_types)
+    |> Enum.reduce(state, fn {actual, expected}, st ->
+      case Unify.unify(actual, expected) do
+        {:ok, _} -> st
+        :error ->
+          add_error(st, pos,
+            "function '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}")
+      end
+    end)
+  end
+
+  defp instantiate_signature([], param_types, return_types, _actual_types),
+    do: {:ok, param_types, return_types}
+
+  defp instantiate_signature(_type_params, param_types, return_types, actual_types) do
+    with {:ok, bindings} <- bind_type_vars(param_types, actual_types, %{}) do
+      {:ok, substitute_type_vars(param_types, bindings), substitute_type_vars(return_types, bindings)}
+    end
+  end
+
+  defp bind_type_vars([], [], bindings), do: {:ok, bindings}
+
+  defp bind_type_vars([expected | expected_rest], [actual | actual_rest], bindings) do
+    with {:ok, bindings} <- bind_type_vars_in_type(expected, actual, bindings),
+         {:ok, bindings} <- bind_type_vars(expected_rest, actual_rest, bindings) do
+      {:ok, bindings}
+    end
+  end
+
+  defp bind_type_vars(_expected, _actual, _bindings), do: {:error, "generic argument arity mismatch"}
+
+  defp bind_type_vars_in_type({:type_var, name}, actual, bindings) do
+    case Map.get(bindings, name) do
+      nil ->
+        {:ok, Map.put(bindings, name, actual)}
+
+      bound ->
+        case Unify.unify(bound, actual) do
+          {:ok, unified} -> {:ok, Map.put(bindings, name, unified)}
+          :error -> {:error, "function call binds type variable #{name} inconsistently"}
+        end
+    end
+  end
+
+  defp bind_type_vars_in_type(expected, _actual, bindings)
+       when expected in [:int, :float, :bool, :str, :any, :void, :num],
+       do: {:ok, bindings}
+
+  defp bind_type_vars_in_type({:user_type, _name}, _actual, bindings), do: {:ok, bindings}
+  defp bind_type_vars_in_type({:tagged_variant, _type_name, _ctor}, _actual, bindings), do: {:ok, bindings}
+
+  defp bind_type_vars_in_type({:list, expected_inner}, {:list, actual_inner}, bindings),
+    do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
+
+  defp bind_type_vars_in_type({:map, expected_k, expected_v}, {:map, actual_k, actual_v}, bindings) do
+    with {:ok, bindings} <- bind_type_vars_in_type(expected_k, actual_k, bindings),
+         {:ok, bindings} <- bind_type_vars_in_type(expected_v, actual_v, bindings) do
+      {:ok, bindings}
+    end
+  end
+
+  defp bind_type_vars_in_type({:pid, expected_inner}, {:pid, actual_inner}, bindings),
+    do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
+
+  defp bind_type_vars_in_type({:monitor, expected_inner}, {:monitor, actual_inner}, bindings),
+    do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
+
+  defp bind_type_vars_in_type({:block, {:returns, expected_inner}}, {:block, {:returns, actual_inner}}, bindings),
+    do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
+
+  defp bind_type_vars_in_type({:block, _}, {:block, _}, bindings), do: {:ok, bindings}
+  defp bind_type_vars_in_type(_expected, _actual, bindings), do: {:ok, bindings}
+
+  defp substitute_type_vars(types, bindings) when is_list(types),
+    do: Enum.map(types, &substitute_type_vars(&1, bindings))
+
+  defp substitute_type_vars({:type_var, name}, bindings), do: Map.get(bindings, name, :any)
+  defp substitute_type_vars({:list, inner}, bindings), do: {:list, substitute_type_vars(inner, bindings)}
+
+  defp substitute_type_vars({:map, key_type, value_type}, bindings),
+    do: {:map, substitute_type_vars(key_type, bindings), substitute_type_vars(value_type, bindings)}
+
+  defp substitute_type_vars({:pid, inner}, bindings), do: {:pid, substitute_type_vars(inner, bindings)}
+  defp substitute_type_vars({:monitor, inner}, bindings), do: {:monitor, substitute_type_vars(inner, bindings)}
+
+  defp substitute_type_vars({:block, {:returns, inner}}, bindings),
+    do: {:block, {:returns, substitute_type_vars(inner, bindings)}}
+
+  defp substitute_type_vars(other, _bindings), do: other
 
   defp resolve_protocol_ctor(type_name, ctor_name, state, pos, protocol_name) do
     typedef = Map.get(state.types, type_name)

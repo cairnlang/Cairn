@@ -60,6 +60,7 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert output =~ "Examples:"
     assert output =~ "basics:"
     assert output =~ "examples/hello_world.crn"
+    assert output =~ "examples/generics.crn"
     assert output =~ "examples/collections.crn"
     assert output =~ "examples/math.crn"
     assert output =~ "examples/strings.crn"

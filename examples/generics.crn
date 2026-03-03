@@ -1,0 +1,16 @@
+DEF id[T] : T -> T
+  DUP DROP
+END
+
+DEF keep_left[T] : T T -> T
+  DROP
+END
+
+DEF keep_list[T] : [T] -> [T]
+  DUP DROP
+END
+
+42 id "int_id={}" FMT SAID
+"hello" id "str_id={}" FMT SAID
+7 7 keep_left "keep_left={}" FMT SAID
+[] keep_list LEN "list_len={}" FMT SAID

@@ -7,6 +7,7 @@ defmodule Cairn.Types do
           :int
           | :float
           | :bool
+          | {:type_var, String.t()}
           | {:list, cairn_type}
           | {:map, cairn_type, cairn_type}
           | {:pid, cairn_type}

@@ -95,7 +95,7 @@ defmodule Cairn.Parser do
   defp parse_function(tokens, known_types) do
     with {:ok, name, type_params, rest} <- parse_function_name(tokens),
          {:ok, _colon, rest} <- expect(:colon, rest),
-         {:ok, param_types, return_types, rest} <- parse_type_signature(rest, known_types),
+         {:ok, param_types, return_types, rest} <- parse_type_signature(rest, known_types, MapSet.new(type_params)),
          {:ok, pre_condition, post_condition, body, rest} <- parse_body(rest) do
       {:ok,
        %Function{
@@ -286,8 +286,8 @@ defmodule Cairn.Parser do
 
   defp expect(type, []), do: {:error, "expected #{type}, got end of input"}
 
-  defp parse_type_signature(tokens, known_types) do
-    {type_tokens, rest} = collect_type_tokens(tokens, [], known_types)
+  defp parse_type_signature(tokens, known_types, type_params) do
+    {type_tokens, rest} = collect_type_tokens(tokens, [], known_types, type_params)
 
     case split_on_last_arrow(type_tokens) do
       {:ok, param_types, return_types} ->
@@ -301,27 +301,53 @@ defmodule Cairn.Parser do
           [{:user_type_tok, name, _}] ->
             {:ok, [], [{:user_type, name}], rest}
 
+          [{:type_var_tok, name, _}] ->
+            {:ok, [], [{:type_var, name}], rest}
+
           _ ->
             {:error, "invalid type signature"}
         end
     end
   end
 
-  defp collect_type_tokens([{:type, _, _} = t | rest], acc, known_types),
-    do: collect_type_tokens(rest, [t | acc], known_types)
+  defp collect_type_tokens([{:type, _, _} = t | rest], acc, known_types, type_params),
+    do: collect_type_tokens(rest, [t | acc], known_types, type_params)
 
-  defp collect_type_tokens([{:arrow, _, _} = t | rest], acc, known_types),
-    do: collect_type_tokens(rest, [t | acc], known_types)
+  defp collect_type_tokens([{:arrow, _, _} = t | rest], acc, known_types, type_params),
+    do: collect_type_tokens(rest, [t | acc], known_types, type_params)
 
-  defp collect_type_tokens([{:ident, name, pos} | rest], acc, known_types) do
-    if MapSet.member?(known_types, name) do
-      collect_type_tokens(rest, [{:user_type_tok, name, pos} | acc], known_types)
+  defp collect_type_tokens([{:bool_lit, bool, pos} | rest], acc, known_types, type_params) do
+    name = if(bool, do: "T", else: "F")
+
+    if MapSet.member?(type_params, name) do
+      collect_type_tokens(rest, [{:type_var_tok, name, pos} | acc], known_types, type_params)
     else
-      {Enum.reverse(acc), [{:ident, name, pos} | rest]}
+      {Enum.reverse(acc), [{:bool_lit, bool, pos} | rest]}
     end
   end
 
-  defp collect_type_tokens(rest, acc, _known_types), do: {Enum.reverse(acc), rest}
+  defp collect_type_tokens([{:ident, name, pos} | rest], acc, known_types, type_params) do
+    cond do
+      MapSet.member?(type_params, name) ->
+        collect_type_tokens(rest, [{:type_var_tok, name, pos} | acc], known_types, type_params)
+
+      MapSet.member?(known_types, name) ->
+        collect_type_tokens(rest, [{:user_type_tok, name, pos} | acc], known_types, type_params)
+
+      true ->
+        {Enum.reverse(acc), [{:ident, name, pos} | rest]}
+    end
+  end
+
+  defp collect_type_tokens([{:constructor, name, pos} | rest], acc, known_types, type_params) do
+    if MapSet.member?(type_params, name) do
+      collect_type_tokens(rest, [{:type_var_tok, name, pos} | acc], known_types, type_params)
+    else
+      {Enum.reverse(acc), [{:constructor, name, pos} | rest]}
+    end
+  end
+
+  defp collect_type_tokens(rest, acc, _known_types, _type_params), do: {Enum.reverse(acc), rest}
 
   defp split_on_last_arrow(type_tokens) do
     indices =
@@ -341,10 +367,11 @@ defmodule Cairn.Parser do
 
         param_types =
           before
-          |> Enum.filter(fn {type, _, _} -> type in [:type, :user_type_tok] end)
+          |> Enum.filter(fn {type, _, _} -> type in [:type, :user_type_tok, :type_var_tok] end)
           |> Enum.map(fn
             {:type, val, _} -> val
             {:user_type_tok, name, _} -> {:user_type, name}
+            {:type_var_tok, name, _} -> {:type_var, name}
           end)
 
         case after_arrow do
@@ -356,6 +383,7 @@ defmodule Cairn.Parser do
               Enum.map(types, fn
                 {:type, val, _} -> val
                 {:user_type_tok, name, _} -> {:user_type, name}
+                {:type_var_tok, name, _} -> {:type_var, name}
                 other -> throw({:bad_return_type, other})
               end)
 

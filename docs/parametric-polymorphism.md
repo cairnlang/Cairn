@@ -79,5 +79,12 @@ Steps 1 and 2 are now in place:
 
 What is still missing:
 
-- user-facing type variables in signatures
 - call-site generic instantiation in the checker
+- real generic function calls in user code
+
+Step 3 is now in place:
+
+- signatures can use declared type variables like `T`
+- those type variables are represented explicitly in parsed types
+- the checker validates that every type variable used in a signature is declared
+  by the function

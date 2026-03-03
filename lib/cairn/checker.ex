@@ -131,10 +131,12 @@ defmodule Cairn.Checker do
   end
 
   defp check_item(%Cairn.Types.Function{} = func, state) do
+    state = validate_type_params(state, func)
+
     state =
       state
-      |> validate_declared_types(func.param_types, "function '#{func.name}' parameter")
-      |> validate_declared_types(func.return_types, "function '#{func.name}' return")
+      |> validate_declared_types(func.param_types, "function '#{func.name}' parameter", func.type_params)
+      |> validate_declared_types(func.return_types, "function '#{func.name}' return", func.type_params)
 
     # Register function in type env
     protocol_effect_steps = protocol_helper_effect_for(func, state.actor_required, compute_protocol_effect_functions([func]))
@@ -256,7 +258,7 @@ defmodule Cairn.Checker do
 
     state =
       Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
-        validate_declared_types(st, field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field")
+        validate_declared_types(st, field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field", [])
       end)
 
     # Register each constructor as a pseudo-function in the checker env
@@ -2410,14 +2412,29 @@ defmodule Cairn.Checker do
     {nil, add_error(state, pos, "protocol '#{protocol_name}' requires a user-defined sum type message channel")}
   end
 
-  defp validate_declared_types(state, types, context) do
-    Enum.reduce(types, state, fn type, st -> validate_declared_type(st, type, context) end)
+  defp validate_type_params(state, %Cairn.Types.Function{name: name, type_params: type_params}) do
+    case duplicates(type_params) do
+      [] -> state
+      dupes -> add_error(state, nil, "function '#{name}' declares duplicate type params #{Enum.join(dupes, ", ")}")
+    end
   end
 
-  defp validate_declared_type(state, type, _context) when type in [:int, :float, :bool, :str, :any, :void],
+  defp validate_declared_types(state, types, context, type_params) do
+    Enum.reduce(types, state, fn type, st -> validate_declared_type(st, type, context, type_params) end)
+  end
+
+  defp validate_declared_type(state, type, _context, _type_params) when type in [:int, :float, :bool, :str, :any, :void],
     do: state
 
-  defp validate_declared_type(state, {:user_type, name}, context) do
+  defp validate_declared_type(state, {:type_var, name}, context, type_params) do
+    if name in type_params do
+      state
+    else
+      add_error(state, nil, "#{context} references undeclared type variable #{name}")
+    end
+  end
+
+  defp validate_declared_type(state, {:user_type, name}, context, _type_params) do
     if Map.has_key?(state.types, name) do
       state
     else
@@ -2425,26 +2442,33 @@ defmodule Cairn.Checker do
     end
   end
 
-  defp validate_declared_type(state, {:list, inner}, context),
-    do: validate_declared_type(state, inner, context)
+  defp validate_declared_type(state, {:list, inner}, context, type_params),
+    do: validate_declared_type(state, inner, context, type_params)
 
-  defp validate_declared_type(state, {:map, key_type, value_type}, context) do
+  defp validate_declared_type(state, {:map, key_type, value_type}, context, type_params) do
     state
-    |> validate_declared_type(key_type, context)
-    |> validate_declared_type(value_type, context)
+    |> validate_declared_type(key_type, context, type_params)
+    |> validate_declared_type(value_type, context, type_params)
   end
 
-  defp validate_declared_type(state, {:block, inner}, context),
-    do: validate_declared_type(state, inner, context)
+  defp validate_declared_type(state, {:block, inner}, context, type_params),
+    do: validate_declared_type(state, inner, context, type_params)
 
-  defp validate_declared_type(state, {:pid, inner}, context),
-    do: validate_declared_type(state, inner, context)
+  defp validate_declared_type(state, {:pid, inner}, context, type_params),
+    do: validate_declared_type(state, inner, context, type_params)
 
-  defp validate_declared_type(state, {:monitor, inner}, context),
-    do: validate_declared_type(state, inner, context)
+  defp validate_declared_type(state, {:monitor, inner}, context, type_params),
+    do: validate_declared_type(state, inner, context, type_params)
 
-  defp validate_declared_type(state, other, context) do
+  defp validate_declared_type(state, other, context, _type_params) do
     add_error(state, nil, "#{context} uses unsupported declared type #{format_type(other)}")
+  end
+
+  defp duplicates(items) do
+    items
+    |> Enum.frequencies()
+    |> Enum.filter(fn {_item, count} -> count > 1 end)
+    |> Enum.map(fn {item, _count} -> item end)
   end
 
   defp resolve_protocol_ctor(type_name, ctor_name, state, pos, protocol_name) do

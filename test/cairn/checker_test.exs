@@ -260,6 +260,52 @@ defmodule Cairn.CheckerTest do
     end
   end
 
+  describe "signature type variable foundations" do
+    test "parser accepts declared type variables in signatures" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF id[T] : T -> T
+                 DUP DROP
+               END
+               """)
+
+      assert {:ok, [%Cairn.Types.Function{} = func]} = Cairn.Parser.parse(tokens)
+      assert func.type_params == ["T"]
+      assert func.param_types == [{:type_var, "T"}]
+      assert func.return_types == [{:type_var, "T"}]
+    end
+
+    test "checker accepts a simple generic identity definition" do
+      check_ok("""
+      DEF id[T] : T -> T
+        DUP DROP
+      END
+      """)
+    end
+
+    test "parser still rejects unknown signature type names that are neither declared vars nor known types" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF bad[T] : U -> U
+                 DUP DROP
+               END
+               """)
+
+      assert {:error, "invalid type signature"} = Cairn.Parser.parse(tokens)
+    end
+
+    test "checker rejects duplicate function type params" do
+      errors =
+        check_errors("""
+        DEF bad[T T] : T -> T
+          DUP DROP
+        END
+        """)
+
+      assert Enum.any?(errors, fn e -> e.message =~ "duplicate type params T" end)
+    end
+  end
+
   # ── Arithmetic and type errors ──
 
   describe "arithmetic operators" do

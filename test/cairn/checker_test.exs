@@ -230,6 +230,36 @@ defmodule Cairn.CheckerTest do
     end
   end
 
+  describe "generic function name parsing foundations" do
+    test "parser records explicit function type params" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF id[T U] : int -> int
+                 DUP DROP
+               END
+               """)
+
+      assert {:ok, [%Cairn.Types.Function{} = func]} = Cairn.Parser.parse(tokens)
+      assert func.name == "id"
+      assert func.type_params == ["T", "U"]
+      assert func.param_types == [:int]
+      assert func.return_types == [:int]
+    end
+
+    test "ordinary function names still parse with empty type params" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF plain : int -> int
+                 DUP DROP
+               END
+               """)
+
+      assert {:ok, [%Cairn.Types.Function{} = func]} = Cairn.Parser.parse(tokens)
+      assert func.name == "plain"
+      assert func.type_params == []
+    end
+  end
+
   # ── Arithmetic and type errors ──
 
   describe "arithmetic operators" do

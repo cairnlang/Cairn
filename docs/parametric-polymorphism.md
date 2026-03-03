@@ -71,8 +71,13 @@ The biggest immediate wins should be:
 
 ## Current Status
 
-Step 1 is now started:
+Steps 1 and 2 are now in place:
 
 - `Cairn.Types.Function` carries a `type_params` field
-- the parser currently initializes it as an empty list until generic syntax is
-  added
+- the parser accepts `DEF name[T U]`
+- function definitions now record declared type parameters
+
+What is still missing:
+
+- user-facing type variables in signatures
+- call-site generic instantiation in the checker

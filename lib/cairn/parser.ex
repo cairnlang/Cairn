@@ -93,14 +93,14 @@ defmodule Cairn.Parser do
   end
 
   defp parse_function(tokens, known_types) do
-    with {:ok, name, rest} <- expect_ident(tokens),
+    with {:ok, name, type_params, rest} <- parse_function_name(tokens),
          {:ok, _colon, rest} <- expect(:colon, rest),
          {:ok, param_types, return_types, rest} <- parse_type_signature(rest, known_types),
          {:ok, pre_condition, post_condition, body, rest} <- parse_body(rest) do
       {:ok,
        %Function{
          name: name,
-         type_params: [],
+         type_params: type_params,
          param_types: param_types,
          return_types: return_types,
          body: body,
@@ -109,6 +109,10 @@ defmodule Cairn.Parser do
        }, rest}
     end
   end
+
+  defp parse_function_name([{:ident, name, _} | rest]), do: {:ok, name, [], rest}
+  defp parse_function_name([{:generic_ident, {name, type_params}, _} | rest]), do: {:ok, name, type_params, rest}
+  defp parse_function_name(_), do: {:error, "expected function name after DEF"}
 
   # TYPE name = Ctor1 type1 type2 | Ctor2 type3 | Ctor3
   defp parse_type_def([{:ident, name, _}, {:equals, _, _} | rest]) do
@@ -271,10 +275,6 @@ defmodule Cairn.Parser do
   defp parse_import(_) do
     {:error, "IMPORT requires a quoted path string, e.g. IMPORT \"lib.crn\""}
   end
-
-  defp expect_ident([{:ident, name, _} | rest]), do: {:ok, name, rest}
-  defp expect_ident([{_, val, _} | _]), do: {:error, "expected identifier, got #{inspect(val)}"}
-  defp expect_ident([]), do: {:error, "expected identifier, got end of input"}
 
   defp expect(type, [{token_type, val, _} | rest]) do
     if token_type == type do

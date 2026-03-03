@@ -27,6 +27,7 @@ defmodule Cairn.Types do
           | :map_lit
           | :op
           | :ident
+          | :generic_ident
           | :fn_def
           | :fn_end
           | :post

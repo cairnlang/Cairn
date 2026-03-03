@@ -53,7 +53,10 @@ defmodule Cairn.Lexer do
 
   # Scan words respecting quoted strings (with \" escapes) and map types
   defp scan_words(source) do
-    Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|"(?:[^"\\]|\\.)*"|[^\s]+/, source)
+    Regex.scan(
+      ~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|[a-z_][a-z0-9_]*\[(?:[^\[\]]|\[[^\]]*\])*\]|"(?:[^"\\]|\\.)*"|[^\s]+/,
+      source
+    )
     |> Enum.map(fn [match] -> match end)
   end
 
@@ -186,6 +189,16 @@ defmodule Cairn.Lexer do
       # variant constructor — starts with uppercase, not already matched as keyword/operator
       Regex.match?(~r/^[A-Z][a-zA-Z0-9_]*$/, word) ->
         {:ok, {:constructor, word}}
+
+      # generic function name like fn_name[T U]
+      Regex.match?(~r/^[a-z_][a-z0-9_]*\[[A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)*\]$/, word) ->
+        [name, params_str] = String.split(word, "[", parts: 2)
+        params =
+          params_str
+          |> String.trim_trailing("]")
+          |> String.split(~r/\s+/, trim: true)
+
+        {:ok, {:generic_ident, {name, params}}}
 
       # identifier (short semantic tag)
       Regex.match?(~r/^[a-z_][a-z0-9_]*$/, word) ->

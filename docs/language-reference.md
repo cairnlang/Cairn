@@ -534,6 +534,74 @@ because the stack just before `ASSERT_EQ` is:
 5 RANGE                                    # [1, 2, 3, 4, 5]
 ```
 
+### Higher-Order and Collection Stack Shapes
+
+These operators are compact, but their operand order is easy to misread. Read them as exact stack transforms:
+
+```text
+CONS
+before: [elem:T, list:[T]]
+after:  [new_list:[T]]
+note: push the list first, then the element last
+
+ZIP
+before: [right:[B], left:[A]]
+after:  [zipped:[[A B]]]
+note: each pair is encoded as a two-element list [left, right]
+
+ENUMERATE
+before: [list:[T]]
+after:  [indexed:[[int T]]]
+note: indices start at 1, and each pair is [index, element]
+
+FILTER
+before: [list:[T], block:block[bool]]
+after:  [filtered:[T]]
+block input stack: [element:T]
+block output stack: [keep?:bool]
+
+MAP
+before: [list:[T], block:block[U]]
+after:  [mapped:[U]]
+block input stack: [element:T]
+block output stack: [mapped_value:U]
+
+FLAT_MAP
+before: [list:[T], block:block[[U]]]
+after:  [flattened:[U]]
+block input stack: [element:T]
+block output stack: [mapped_list:[U]]
+
+FIND
+before: [list:[T], block:block[bool]]
+after:  [result]
+block input stack: [element:T]
+block output stack: [match?:bool]
+note: returns Ok element or Err \"not found\"
+
+GROUP_BY
+before: [list:[T], block:block[K]]
+after:  [grouped:map[K [T]]]
+block input stack: [element:T]
+block output stack: [group_key:K]
+
+REDUCE
+canonical before: [list:[T], initial:U, block:block[U]]
+canonical after:  [result:U]
+block input stack: [element:T, accumulator:U]
+block output stack: [next_accumulator:U]
+note: the runtime also accepts the convenience form [block, initial, list] by reordering internally
+
+APPLY
+before: [value_1, ..., value_n, block]
+after:  [result_1, ..., result_m]
+note: APPLY executes the block on the current visible stack; it does not create a fresh stack the way FILTER/MAP/REDUCE callbacks do
+
+RANGE
+before: [n:int]
+after:  [values:[int]]
+```
+
 ### Comments
 
 ```

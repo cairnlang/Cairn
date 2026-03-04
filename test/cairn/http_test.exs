@@ -580,6 +580,13 @@ defmodule Cairn.HTTPTest do
     assert remembered_response =~ "HTTP/1.1 200 OK"
     assert remembered_response =~ "Hello, <strong>alice</strong>."
 
+    profile_response =
+      http_request(port, "GET", "/profile", [{"Cookie", "cairn_session=#{session_id}"}], "")
+
+    assert profile_response =~ "HTTP/1.1 200 OK"
+    assert profile_response =~ "Profile"
+    assert profile_response =~ "Signed in as <strong>alice</strong>."
+
     admin_response =
       http_request(port, "GET", "/admin", [{"Cookie", "cairn_session=#{session_id}"}], "")
 
@@ -607,6 +614,17 @@ defmodule Cairn.HTTPTest do
 
     assert forbidden_response =~ "HTTP/1.1 403 Forbidden"
     assert forbidden_response =~ "forbidden"
+
+    bob_profile_response =
+      http_request(port, "GET", "/profile", [{"Cookie", "cairn_session=#{bob_session_id}"}], "")
+
+    assert bob_profile_response =~ "HTTP/1.1 200 OK"
+    assert bob_profile_response =~ "Profile"
+    assert bob_profile_response =~ "Signed in as <strong>bob</strong>."
+
+    unauth_profile_response = http_get(port, "/profile")
+    assert unauth_profile_response =~ "HTTP/1.1 401 Unauthorized"
+    assert unauth_profile_response =~ "login required"
 
     unauth_response = http_get(port, "/admin")
     assert unauth_response =~ "HTTP/1.1 401 Unauthorized"

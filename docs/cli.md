@@ -50,6 +50,22 @@ mix cairn.run [options] <file.crn> [args...]
 - `CAIRN_PROVE_TRACE=summary|verbose|json`: enable PROVE trace diagnostics on stderr
 - `CAIRN_DB_DIR=/path/to/data`: override the on-disk Mnesia directory for the bounded `DB_*` storage layer and the web todo app
 
+### Effect annotations
+
+Function-level effects are part of the language, not a CLI feature:
+
+- `EFFECT pure`
+- `EFFECT io`
+- `EFFECT db`
+- `EFFECT http`
+
+If omitted, functions currently default to `io`.
+
+In v1, the important enforced rule is:
+- `pure` functions cannot call effectful functions or use effectful built-ins
+
+The non-`pure` effect labels are still useful because they document intent and make the "pure kernel + effectful shell" structure visible even before stricter cross-effect rules exist.
+
 ### Output conventions
 
 - Program values are printed to stdout (top of stack last)

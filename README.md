@@ -66,6 +66,12 @@ Functions can now also declare a bounded effect:
 
 The first enforced rule is simple and practical: `pure` functions cannot call effectful functions or use effectful built-ins.
 
+The current intended pattern is:
+- keep rule engines and data transforms `EFFECT pure`
+- keep HTTP, DB, and I/O shells effectful
+
+That lets Cairn make purity visible in production code without forcing a full effect calculus yet.
+
 Run native Cairn test files with:
 
 ```bash

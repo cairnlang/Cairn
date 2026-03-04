@@ -553,8 +553,39 @@ Current v1 rule:
 - `pure` functions may only call other `pure` functions
 - `pure` functions may not use effectful built-ins such as file I/O, database operators, HTTP serving, prompting, printing, host calls, or `RANDOM`
 
+In other words:
+- every function has an effect
+- explicit `EFFECT ...` annotations make that effect visible
+- only `pure` has a hard restriction in v1
+- `io`, `db`, and `http` are currently descriptive labels that document intent and prepare the codebase for future stricter effect relationships
+
+The intended architecture pattern is:
+- keep business rules and data transforms in `EFFECT pure` functions
+- keep shells, adapters, persistence, and serving code in `EFFECT io|db|http` functions
+
+This is the current "pure kernel + effectful shell" split used by the stronger examples:
+- `examples/web/lib/afford_rules.crn`: pure decision logic
+- `examples/web/lib/afford_web.crn`: still pure, because it only parses form data and renders responses
+- `examples/web/afford_app.crn`: effectful top-level script, because it calls `HTTP_SERVE`
+- `examples/web/lib/todo_web.crn`: mixed helper layer, with pure rendering helpers and `db` persistence helpers
+
 `PROVE` respects this boundary:
 - proving a non-`pure` function returns `UNKNOWN` with the reason `function is not pure`
+
+Example:
+
+```crn
+DEF reserve_threshold : int -> int EFFECT pure
+  3 MUL
+END
+
+DEF render_dashboard : str -> str str int EFFECT pure
+  "<p>{}</p>" FMT
+  http_html_ok
+END
+```
+
+The first helper is pure rule logic. The second is also pure because it only transforms values and uses pure response helpers. The effectful boundary is the code that actually serves requests, reads files, writes to the DB, or talks to the outside world.
 
 For the full proof surface, trace modes, and solver details, see [`prove.md`](prove.md).
 

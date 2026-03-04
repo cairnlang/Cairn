@@ -210,6 +210,9 @@ AND OR NOT
 # Stack manipulation
 DUP DROP SWAP OVER ROT ROT4
 
+# Tuple operations
+FST SND TRD
+
 # List operations
 SUM LEN HEAD TAIL CONS CONCAT SORT REVERSE RANGE ZIP ENUMERATE TAKE
 
@@ -235,7 +238,7 @@ KEYS                           # pop map, push list of keys
 VALUES                         # pop map, push list of values
 MLEN                           # pop map, push size
 MERGE                          # pop map2, pop map1, push merged (map2 wins)
-PAIRS                          # pop map, push list of [key, value] pairs
+PAIRS                          # pop map, push list of #(key value) pairs
 NUM_STR                        # pop number (int or float), push string
 
 # String operations
@@ -279,7 +282,7 @@ RANDOM                         # pop N, push random integer in [1, N]
 DB_PUT                         # pop key, pop value, persist a string record
 DB_GET                         # pop key, push result (Ok str | Err str)
 DB_DEL                         # pop key, delete record
-DB_PAIRS                       # push list of [key, value] string pairs
+DB_PAIRS                       # push list of #(key value) string pairs
 ```
 
 ### Common Before/After Stack Shapes
@@ -739,6 +742,20 @@ because the stack just before `ASSERT_EQ` is:
 These operators are compact, but their operand order is easy to misread. Read them as exact stack transforms:
 
 ```text
+FST
+before: [pair:tuple[T U]]
+after:  [first:T]
+
+SND
+before: [pair:tuple[T U]]
+after:  [second:U]
+
+TRD
+before: [triple:tuple[T U V]]
+after:  [third:V]
+```
+
+```text
 CONS
 before: [list:[T], elem:T]
 after:  [new_list:[T]]
@@ -746,13 +763,13 @@ note: push the element first, then the list last
 
 ZIP
 before: [right:[B], left:[A]]
-after:  [zipped:[[A B]]]
-note: each pair is encoded as a two-element list [left, right]
+after:  [zipped:[tuple[A B]]]
+note: each pair is encoded as a tuple #(left right)
 
 ENUMERATE
 before: [list:[T]]
-after:  [indexed:[[int T]]]
-note: indices start at 1, and each pair is [index, element]
+after:  [indexed:[tuple[int T]]]
+note: indices start at 1, and each pair is #(index element)
 
 FILTER
 before: [list:[T], block:block[bool]]
@@ -820,6 +837,11 @@ note: write it in source as { condition } { body } WHILE, which leaves the body 
 RANGE
 before: [n:int]
 after:  [values:[int]]
+
+DB_PAIRS
+before: []
+after:  [pairs:[tuple[str str]]]
+note: each entry is a tuple #(key value)
 ```
 
 ### Comments
@@ -897,6 +919,34 @@ DB_PAIRS
 # Set CAIRN_DB_DIR to use a different on-disk Mnesia directory
 ```
 
+### Tuples
+
+Tuples are fixed-size, heterogeneous values. They are distinct from lists.
+
+Tuple value syntax:
+
+```crn
+#( 1 "red" )
+#("body" "text/html; charset=utf-8" 200)
+```
+
+Tuple type syntax:
+
+```crn
+tuple[int str]
+tuple[str map[str str] int]
+tuple[T U]
+```
+
+Use tuples when the shape is:
+- fixed-size
+- positional
+- potentially heterogeneous
+
+Use lists when the shape is:
+- variable-length
+- homogeneous
+
 ### Web Helper Stack Shapes
 
 The web prelude is deliberately small, but the route helpers are easiest to use when you read them as exact stack transforms:
@@ -936,11 +986,11 @@ after:  [escaped:str]
 
 http_pack_response
 before: [body:str, headers:map[str str], status:int]
-after:  [packed:[any]]
+after:  [packed:tuple[str map[str str] int]]
 note: this packs the HTTP_SERVE response triple into one value for route chaining
 
 http_unpack_response
-before: [packed:[any]]
+before: [packed:tuple[str map[str str] int]]
 after:  [body:str, headers:map[str str], status:int]
 
 http_add_header

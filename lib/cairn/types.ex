@@ -8,6 +8,7 @@ defmodule Cairn.Types do
           | :float
           | :bool
           | {:type_var, String.t()}
+          | {:tuple, [cairn_type]}
           | {:list, cairn_type}
           | {:map, cairn_type, cairn_type}
           | {:pid, cairn_type}
@@ -24,6 +25,8 @@ defmodule Cairn.Types do
           :int_lit
           | :float_lit
           | :bool_lit
+          | :tuple_open
+          | :tuple_close
           | :list_open
           | :list_close
           | :map_open

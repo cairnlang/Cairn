@@ -55,6 +55,16 @@ defmodule CairnTest do
                Cairn.Lexer.tokenize("[ 1 ]")
     end
 
+    test "tokenizes tuple literals" do
+      assert {:ok,
+              [
+                {:tuple_open, "#(", 0},
+                {:int_lit, 1, 1},
+                {:str_lit, "x", 2},
+                {:tuple_close, ")", 3}
+              ]} = Cairn.Lexer.tokenize("#( 1 \"x\" )")
+    end
+
     test "tokenizes block braces" do
       assert {:ok, [{:block_open, "{", 0}, {:op, :dup, 1}, {:block_close, "}", 2}]} =
                Cairn.Lexer.tokenize("{ DUP }")
@@ -253,13 +263,20 @@ defmodule CairnTest do
       assert Cairn.eval("[ 1 2 3 ]") == [[1, 2, 3]]
     end
 
+    test "tuple construction and access" do
+      assert Cairn.eval("#( 1 \"x\" )") == [{:tuple, [1, "x"]}]
+      assert Cairn.eval("#( 1 \"x\" ) FST") == [1]
+      assert Cairn.eval("#( 1 \"x\" ) SND") == ["x"]
+      assert Cairn.eval("#( 1 \"x\" TRUE ) TRD") == [true]
+    end
+
     test "list operations" do
       assert Cairn.eval("[ 1 2 3 ] SUM") == [6]
       assert Cairn.eval("[ 1 2 3 ] LEN") == [3]
       assert Cairn.eval("[ 1 2 3 ] HEAD") == [1]
       assert Cairn.eval("[ 1 2 3 ] TAIL") == [[2, 3]]
-      assert Cairn.eval("[ 1 2 3 ] [ 10 20 30 ] ZIP") == [[[1, 10], [2, 20], [3, 30]]]
-      assert Cairn.eval("[ \"a\" \"b\" ] ENUMERATE") == [[[1, "a"], [2, "b"]]]
+      assert Cairn.eval("[ 1 2 3 ] [ 10 20 30 ] ZIP") == [[{:tuple, [1, 10]}, {:tuple, [2, 20]}, {:tuple, [3, 30]}]]
+      assert Cairn.eval("[ \"a\" \"b\" ] ENUMERATE") == [[{:tuple, [1, "a"]}, {:tuple, [2, "b"]}]]
       assert Cairn.eval("[ 1 2 3 4 ] 2 TAKE") == [[1, 2]]
     end
 
@@ -1765,7 +1782,7 @@ defmodule CairnTest do
   describe "PROVE with IF/ELSE" do
     test "PROVE function using IF (abs) is proven" do
       source = """
-      DEF my_abs : int -> int
+      DEF my_abs : int -> int EFFECT pure
         DUP 0 LT IF NEG END
         POST DUP 0 GTE
       END
@@ -1780,7 +1797,7 @@ defmodule CairnTest do
 
     test "PROVE function using IF/ELSE is proven" do
       source = """
-      DEF safe_abs : int -> int
+      DEF safe_abs : int -> int EFFECT pure
         DUP 0 GTE IF ELSE NEG END
         POST DUP 0 GTE
       END
@@ -1795,7 +1812,7 @@ defmodule CairnTest do
 
     test "PROVE function using IF/ELSE is disproven" do
       source = """
-      DEF bad_branch : int -> int
+      DEF bad_branch : int -> int EFFECT pure
         DUP 0 GT IF 1 ADD ELSE 1 SUB END
         POST DUP 0 GT
       END
@@ -1809,7 +1826,7 @@ defmodule CairnTest do
 
     test "PROVE function using ABS is proven" do
       source = """
-      DEF use_abs : int -> int
+      DEF use_abs : int -> int EFFECT pure
         ABS
         POST DUP 0 GTE
       END
@@ -1824,7 +1841,7 @@ defmodule CairnTest do
 
     test "PROVE function using MIN is proven" do
       source = """
-      DEF clamp_top : int int -> int
+      DEF clamp_top : int int -> int EFFECT pure
         PRE { OVER 0 GTE SWAP 0 GT AND }
         MIN
         POST DUP 0 GTE
@@ -1844,11 +1861,11 @@ defmodule CairnTest do
   describe "PROVE with function call inlining" do
     test "PROVE function that calls another function (distance via abs)" do
       source = """
-      DEF my_abs : int -> int
+      DEF my_abs : int -> int EFFECT pure
         DUP 0 LT IF NEG END
       END
 
-      DEF distance : int int -> int
+      DEF distance : int int -> int EFFECT pure
         SUB my_abs
         POST DUP 0 GTE
       END
@@ -1863,11 +1880,11 @@ defmodule CairnTest do
 
     test "PROVE chained function calls" do
       source = """
-      DEF double : int -> int
+      DEF double : int -> int EFFECT pure
         DUP ADD
       END
 
-      DEF quadruple : int -> int
+      DEF quadruple : int -> int EFFECT pure
         double double
         POST DUP 0 GTE
       END
@@ -1882,11 +1899,11 @@ defmodule CairnTest do
 
     test "PROVE with PRE makes chained calls provable" do
       source = """
-      DEF double : int -> int
+      DEF double : int -> int EFFECT pure
         DUP ADD
       END
 
-      DEF quadruple : int -> int
+      DEF quadruple : int -> int EFFECT pure
         PRE { DUP 0 GTE }
         double double
         POST DUP 0 GTE

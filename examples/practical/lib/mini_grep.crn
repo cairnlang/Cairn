@@ -79,15 +79,15 @@ DEF apply_invert : bool bool -> bool
   END
 END
 
-DEF pair_line : [any] -> str
-  TAIL HEAD
+DEF pair_line : tuple[int str] -> str
+  SND
 END
 
-DEF pair_number : [any] -> int
-  HEAD
+DEF pair_number : tuple[int str] -> int
+  FST
 END
 
-DEF pair_matches : bool bool str [any] -> bool
+DEF pair_matches : bool bool str tuple[int str] -> bool
   LET invert
   LET case_i
   LET pattern
@@ -96,7 +96,7 @@ DEF pair_matches : bool bool str [any] -> bool
   invert apply_invert
 END
 
-DEF format_pair : bool [any] -> str
+DEF format_pair : bool tuple[int str] -> str
   LET show_numbers
   LET pair
   show_numbers

@@ -54,6 +54,9 @@ defmodule Cairn.Checker.Effects do
     assert_eq: %{pops: [:any, :any], pushes: []},
     assert_true: %{pops: [:bool], pushes: []},
     assert_false: %{pops: [:bool], pushes: []},
+    fst: %{pops: [{:tuple, [:any, :any]}], pushes: [:any]},
+    snd: %{pops: [{:tuple, [:any, :any]}], pushes: [:any]},
+    trd: %{pops: [{:tuple, [:any, :any, :any]}], pushes: [:any]},
 
     # List operations
     sum: %{pops: [{:list, :num}], pushes: [:num]},
@@ -62,8 +65,8 @@ defmodule Cairn.Checker.Effects do
     tail: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
     cons: %{pops: [{:list, :any}, :any], pushes: [{:list, :any}]},
     concat: %{pops: [:any, :any], pushes: [:any]},
-    zip: %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:list, :any}}]},
-    enumerate: %{pops: [{:list, :any}], pushes: [{:list, {:list, :any}}]},
+    zip: %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:tuple, [:any, :any]}}]},
+    enumerate: %{pops: [{:list, :any}], pushes: [{:list, {:tuple, [:int, :any]}}]},
     take: %{pops: [:int, {:list, :any}], pushes: [{:list, :any}]},
     sort: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
     reverse: %{pops: [{:list, :any}], pushes: [{:list, :any}]},
@@ -109,7 +112,7 @@ defmodule Cairn.Checker.Effects do
     db_put: %{pops: [:str, :str], pushes: []},
     db_get: %{pops: [:str], pushes: [{:user_type, "result"}]},
     db_del: %{pops: [:str], pushes: []},
-    db_pairs: %{pops: [], pushes: [{:list, {:list, :str}}]},
+    db_pairs: %{pops: [], pushes: [{:list, {:tuple, [:str, :str]}}]},
     auth_check: %{pops: [:str, :str], pushes: [{:user_type, "result"}]},
 
     # Map operations
@@ -121,7 +124,7 @@ defmodule Cairn.Checker.Effects do
     has: %{pops: [:any, {:map, :any, :any}], pushes: [:bool]},
     mlen: %{pops: [{:map, :any, :any}], pushes: [:int]},
     merge:   %{pops: [{:map, :any, :any}, {:map, :any, :any}], pushes: [{:map, :any, :any}]},
-    pairs:   %{pops: [{:map, :any, :any}], pushes: [{:list, {:list, :any}}]},
+    pairs:   %{pops: [{:map, :any, :any}], pushes: [{:list, {:tuple, [:any, :any]}}]},
     num_str: %{pops: [:num], pushes: [:str]},
 
     # ASK: pop prompt string, push input string

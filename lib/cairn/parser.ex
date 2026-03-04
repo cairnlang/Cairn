@@ -413,6 +413,9 @@ defmodule Cairn.Parser do
   defp normalize_signature_type({:list, inner}, type_params),
     do: {:list, normalize_signature_type(inner, type_params)}
 
+  defp normalize_signature_type({:tuple, elems}, type_params),
+    do: {:tuple, Enum.map(elems, &normalize_signature_type(&1, type_params))}
+
   defp normalize_signature_type({:map, key_type, value_type}, type_params) do
     {:map, normalize_signature_type(key_type, type_params), normalize_signature_type(value_type, type_params)}
   end

@@ -8,6 +8,7 @@ defmodule Cairn.Lexer do
   @operators ~w(ADD SUB MUL DIV MOD EQ NEQ GT LT GTE LTE AND OR NOT
                 ASSERT_EQ ASSERT_TRUE ASSERT_FALSE
                 DUP DROP SWAP OVER ROT ROT4
+                FST SND TRD
                 FILTER MAP FLAT_MAP REDUCE FIND GROUP_BY SUM LEN HEAD TAIL CONS CONCAT ZIP ENUMERATE TAKE
                 SORT REVERSE MIN MAX
                 SQ ABS NEG SIN COS EXP LOG SQRT POW PI E FLOOR CEIL ROUND
@@ -48,13 +49,15 @@ defmodule Cairn.Lexer do
   defp strip_line_comment(<<?\\, ?", rest::binary>>, true, acc), do: strip_line_comment(rest, true, [?", ?\\ | acc])
   defp strip_line_comment(<<?", rest::binary>>, false, acc), do: strip_line_comment(rest, true, [?" | acc])
   defp strip_line_comment(<<?", rest::binary>>, true, acc), do: strip_line_comment(rest, false, [?" | acc])
+  defp strip_line_comment(<<?#, ?(, rest::binary>>, false, acc),
+    do: strip_line_comment(rest, false, [?(, ?# | acc])
   defp strip_line_comment(<<?#, _::binary>>, false, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
   defp strip_line_comment(<<c, rest::binary>>, in_str, acc), do: strip_line_comment(rest, in_str, [c | acc])
 
   # Scan words respecting quoted strings (with \" escapes) and map types
   defp scan_words(source) do
     Regex.scan(
-      ~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|[a-z_][a-z0-9_]*\[(?:[^\[\]]|\[[^\]]*\])*\]|"(?:[^"\\]|\\.)*"|[^\s]+/,
+      ~r/#\(|\)|tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|map\[(?:[^\[\]]|\[[^\]]*\])*\]|[a-z_][a-z0-9_]*\[(?:[^\[\]]|\[[^\]]*\])*\]|"(?:[^"\\]|\\.)*"|[^\s]+/,
       source
     )
     |> Enum.map(fn [match] -> match end)
@@ -83,6 +86,8 @@ defmodule Cairn.Lexer do
 
   defp classify("["), do: {:ok, {:list_open, "["}}
   defp classify("]"), do: {:ok, {:list_close, "]"}}
+  defp classify("#("), do: {:ok, {:tuple_open, "#("}}
+  defp classify(")"), do: {:ok, {:tuple_close, ")"}}
   defp classify("{"), do: {:ok, {:block_open, "{"}}
   defp classify("}"), do: {:ok, {:block_close, "}"}}
   defp classify(":"), do: {:ok, {:colon, ":"}}
@@ -136,6 +141,22 @@ defmodule Cairn.Lexer do
         case parse_map_inner_type(inner) do
           {:ok, t} -> {:ok, {:type, {:list, t}}}
           :error -> {:error, "unknown list type: #{word}"}
+        end
+
+      # tuple type like tuple[int str] or tuple[T U]
+      Regex.match?(~r/^tuple\[.+\]$/, word) ->
+        inner = String.slice(word, 6..-2)
+
+        parts =
+          Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|pid\[(?:[^\[\]]|\[[^\]]*\])*\]|monitor\[(?:[^\[\]]|\[[^\]]*\])*\]|block\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/, inner)
+          |> Enum.map(fn [match] -> match end)
+
+        parsed = Enum.map(parts, &parse_map_inner_type/1)
+
+        if parsed != [] and Enum.all?(parsed, &match?({:ok, _}, &1)) do
+          {:ok, {:type, {:tuple, Enum.map(parsed, fn {:ok, t} -> t end)}}}
+        else
+          {:error, "unknown tuple type: #{word}"}
         end
 
       # pid type like pid[int], pid[msg], or pid[map[str int]]
@@ -217,6 +238,21 @@ defmodule Cairn.Lexer do
           case parse_map_inner_type(inner) do
             {:ok, t} -> {:ok, {:list, t}}
             :error -> :error
+          end
+
+        Regex.match?(~r/^tuple\[.+\]$/, s) ->
+          inner = String.slice(s, 6..-2)
+
+          parts =
+            Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|pid\[(?:[^\[\]]|\[[^\]]*\])*\]|monitor\[(?:[^\[\]]|\[[^\]]*\])*\]|block\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/, inner)
+            |> Enum.map(fn [match] -> match end)
+
+          parsed = Enum.map(parts, &parse_map_inner_type/1)
+
+          if parsed != [] and Enum.all?(parsed, &match?({:ok, _}, &1)) do
+            {:ok, {:tuple, Enum.map(parsed, fn {:ok, t} -> t end)}}
+          else
+            :error
           end
 
         Regex.match?(~r/^map\[.+\s+.+\]$/, s) ->

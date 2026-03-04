@@ -96,5 +96,7 @@ defmodule Cairn.REPL do
   end
 
   defp format_value(list) when is_list(list), do: inspect(list)
+  defp format_value({:tuple, vals}),
+    do: "#(" <> (vals |> Enum.map(&format_value/1) |> Enum.join(" ")) <> ")"
   defp format_value(val), do: inspect(val)
 end

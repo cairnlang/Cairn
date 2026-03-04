@@ -262,6 +262,8 @@ defmodule Cairn.CLI do
   defp format_value(list) when is_list(list), do: inspect(list)
   defp format_value(true), do: "TRUE"
   defp format_value(false), do: "FALSE"
+  defp format_value({:tuple, vals}),
+    do: "#(" <> (vals |> Enum.map(&format_value/1) |> Enum.join(" ")) <> ")"
   defp format_value(val) when is_binary(val), do: val
   defp format_value(val) when is_number(val), do: to_string(val)
   defp format_value(val) when is_atom(val), do: to_string(val)

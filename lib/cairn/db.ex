@@ -44,10 +44,10 @@ defmodule Cairn.DB do
     ensure_started()
 
     case :mnesia.transaction(fn ->
-           :mnesia.foldl(fn {@table, key, value}, acc -> [[key, value] | acc] end, [], @table)
+           :mnesia.foldl(fn {@table, key, value}, acc -> [{:tuple, [key, value]} | acc] end, [], @table)
          end) do
       {:atomic, pairs} ->
-        Enum.sort_by(pairs, &hd/1)
+        Enum.sort_by(pairs, fn {:tuple, [key, _]} -> key end)
 
       {:aborted, reason} ->
         raise Cairn.RuntimeError, "DB_PAIRS failed: #{inspect(reason)}"

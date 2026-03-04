@@ -59,24 +59,18 @@ DEF html_escape : str -> str EFFECT pure
 END
 
 # Pack an HTTP_SERVE response stack into one value for route chaining.
-DEF http_pack_response : str map[str str] int -> [any] EFFECT pure
+DEF http_pack_response : str map[str str] int -> tuple[str map[str str] int] EFFECT pure
   LET body
   LET headers
   LET status
-
-  []
-  status SWAP CONS
-  headers SWAP CONS
-  body SWAP CONS
+  #( body headers status )
 END
 
 # Unpack a response produced by http_pack_response.
-DEF http_unpack_response : [any] -> str map[str str] int EFFECT pure
-  LET response
-  response HEAD LET body
-  response TAIL LET after_body
-  after_body HEAD LET headers
-  after_body TAIL HEAD LET status
+DEF http_unpack_response : tuple[str map[str str] int] -> str map[str str] int EFFECT pure
+  DUP FST LET body
+  DUP SND LET headers
+  TRD LET status
   status headers body
 END
 

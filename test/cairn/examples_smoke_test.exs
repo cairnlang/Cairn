@@ -11,12 +11,12 @@ defmodule Cairn.ExamplesSmokeTest do
 
   test "practical examples print expected output markers" do
     assert_output_markers("examples/collections.crn", [
-      "[[1, 10], [2, 20], [3, 30]]",
-      "[[1, \"red\"], [2, \"green\"]]",
+      "[#(1 10), #(2 20), #(3 30)]",
+      "[#(1 red), #(2 green)]",
       "[1, 2]",
       "{:variant, \"result\", \"Ok\", [2]}",
       "[1, 10, 2, 20, 3, 30]",
-      "[[0, [2, 4]], [1, [1, 3]]]"
+      "[#(0 [2, 4]), #(1 [1, 3])]"
     ])
 
     assert_output_markers("examples/math.crn", [

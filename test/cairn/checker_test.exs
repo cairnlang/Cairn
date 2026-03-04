@@ -158,10 +158,10 @@ defmodule Cairn.CheckerTest do
     end
 
     test "collection helper operators have effects" do
-      assert {:ok, %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:list, :any}}]}} =
+      assert {:ok, %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:tuple, [:any, :any]}}]}} =
                Effects.lookup(:zip)
 
-      assert {:ok, %{pops: [{:list, :any}], pushes: [{:list, {:list, :any}}]}} =
+      assert {:ok, %{pops: [{:list, :any}], pushes: [{:list, {:tuple, [:int, :any]}}]}} =
                Effects.lookup(:enumerate)
 
       assert {:ok, %{pops: [:int, {:list, :any}], pushes: [{:list, :any}]}} =
@@ -900,6 +900,10 @@ defmodule Cairn.CheckerTest do
       check_ok("[ 1 2 3 ]")
     end
 
+    test "tuple construction" do
+      check_ok("#( 1 \"x\" )")
+    end
+
     test "empty list" do
       check_ok("[ ]")
     end
@@ -912,6 +916,9 @@ defmodule Cairn.CheckerTest do
       check_ok("[ 1 2 3 ] [ 4 5 6 ] ZIP")
       check_ok("[ 1 2 3 ] ENUMERATE")
       check_ok("[ 1 2 3 ] 2 TAKE")
+      check_ok("#( 1 \"x\" ) FST")
+      check_ok("#( 1 \"x\" ) SND")
+      check_ok("#( 1 \"x\" TRUE ) TRD")
     end
 
     test "SORT and REVERSE" do

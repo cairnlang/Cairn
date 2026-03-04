@@ -43,6 +43,21 @@ defmodule Cairn.Checker.Unify do
     end
   end
 
+  # Tuple unification
+  def unify({:tuple, a_elems}, {:tuple, b_elems}) when length(a_elems) == length(b_elems) do
+    Enum.zip(a_elems, b_elems)
+    |> Enum.reduce_while({:ok, []}, fn {a, b}, {:ok, acc} ->
+      case unify(a, b) do
+        {:ok, unified} -> {:cont, {:ok, [unified | acc]}}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, elems} -> {:ok, {:tuple, Enum.reverse(elems)}}
+      :error -> :error
+    end
+  end
+
   # Map unification
   def unify({:map, k1, v1}, {:map, k2, v2}) do
     with {:ok, k} <- unify(k1, k2),

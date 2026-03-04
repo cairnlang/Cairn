@@ -32,12 +32,12 @@ DEF fail_line_reason : str -> str
   SLICE
 END
 
-DEF pair_job_id : [any] -> int
-  HEAD
+DEF pair_job_id : tuple[int str] -> int
+  FST
 END
 
-DEF pair_job_line : [any] -> str
-  TAIL HEAD
+DEF pair_job_line : tuple[int str] -> str
+  SND
 END
 
 DEF counts_completed : [int] -> int

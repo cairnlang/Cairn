@@ -251,9 +251,9 @@ DEF encode_str : str -> str
   "\"" SWAP "\"" CONCAT CONCAT
 END
 
-# Encode a [key, val] pair (as produced by PAIRS) into "\"key\":encoded_val".
-DEF encode_pair : [any] -> str
-  DUP HEAD SWAP TAIL HEAD   # [val, key]
+# Encode a #(key val) pair (as produced by PAIRS) into "\"key\":encoded_val".
+DEF encode_pair : tuple[str json] -> str
+  DUP FST SWAP SND          # [val, key]
   encode                    # [encoded_val, key]
   SWAP encode_str           # ["\"key\"", encoded_val]
   ":" CONCAT SWAP CONCAT    # "\"key\":" <> encoded_val

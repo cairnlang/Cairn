@@ -84,6 +84,9 @@ defmodule Cairn.Runtime do
   def execute(:over, [a, b | rest]), do: [b, a, b | rest]
   def execute(:rot, [a, b, c | rest]), do: [c, a, b | rest]
   def execute(:rot4, [a, b, c, d | rest]), do: [d, a, b, c | rest]
+  def execute(:fst, [{:tuple, [a | _]} | rest]), do: [a | rest]
+  def execute(:snd, [{:tuple, [_a, b | _]} | rest]), do: [b | rest]
+  def execute(:trd, [{:tuple, [_a, _b, c | _]} | rest]), do: [c | rest]
 
   # Math — binary
   def execute(:min, [a, b | rest]) when is_number(a) and is_number(b), do: [Kernel.min(b, a) | rest]
@@ -97,8 +100,11 @@ defmodule Cairn.Runtime do
   def execute(:cons, [list, elem | rest]) when is_list(list), do: [[elem | list] | rest]
   def execute(:concat, [b, a | rest]) when is_list(a) and is_list(b), do: [a ++ b | rest]
   def execute(:concat, [b, a | rest]) when is_binary(a) and is_binary(b), do: [a <> b | rest]
-  def execute(:zip, [b, a | rest]) when is_list(a) and is_list(b), do: [Enum.zip_with(a, b, fn left, right -> [left, right] end) | rest]
-  def execute(:enumerate, [list | rest]) when is_list(list), do: [Enum.with_index(list, 1) |> Enum.map(fn {elem, idx} -> [idx, elem] end) | rest]
+  def execute(:zip, [b, a | rest]) when is_list(a) and is_list(b),
+    do: [Enum.zip_with(a, b, fn left, right -> {:tuple, [left, right]} end) | rest]
+
+  def execute(:enumerate, [list | rest]) when is_list(list),
+    do: [Enum.with_index(list, 1) |> Enum.map(fn {elem, idx} -> {:tuple, [idx, elem]} end) | rest]
   def execute(:take, [count, list | rest]) when is_list(list) and is_integer(count) and count >= 0, do: [Enum.take(list, count) | rest]
 
   # CONTAINS: pop string, pop substring, push boolean
@@ -113,7 +119,7 @@ defmodule Cairn.Runtime do
 
   # PRINT: non-destructive — prints top of stack, leaves it there
   def execute(:print, [a | rest]) do
-    IO.inspect(a, label: "ax")
+    IO.puts("ax: " <> format_value(a))
     [a | rest]
   end
 
@@ -124,7 +130,7 @@ defmodule Cairn.Runtime do
   end
 
   def execute(:say, [a | rest]) do
-    IO.puts(inspect(a))
+    IO.puts(format_value(a))
     [a | rest]
   end
 
@@ -135,7 +141,7 @@ defmodule Cairn.Runtime do
   end
 
   def execute(:said, [a | rest]) do
-    IO.puts(inspect(a))
+    IO.puts(format_value(a))
     rest
   end
 
@@ -284,7 +290,7 @@ defmodule Cairn.Runtime do
     do: [Map.merge(map1, map2) | rest]
 
   def execute(:pairs, [map | rest]) when is_map(map),
-    do: [map |> Map.to_list() |> Enum.map(fn {k, v} -> [k, v] end) | rest]
+    do: [map |> Map.to_list() |> Enum.map(fn {k, v} -> {:tuple, [k, v]} end) | rest]
 
   def execute(:num_str, [n | rest]) when is_float(n), do: [Float.to_string(n) | rest]
   def execute(:num_str, [n | rest]) when is_integer(n), do: [Integer.to_string(n) | rest]
@@ -534,6 +540,10 @@ defmodule Cairn.Runtime do
   defp format_value(v) when is_float(v), do: Float.to_string(v)
   defp format_value(true), do: "TRUE"
   defp format_value(false), do: "FALSE"
+  defp format_value(v) when is_list(v),
+    do: "[" <> (v |> Enum.map(&format_value/1) |> Enum.join(", ")) <> "]"
+  defp format_value({:tuple, vals}),
+    do: "#(" <> (vals |> Enum.map(&format_value/1) |> Enum.join(" ")) <> ")"
   defp format_value(v), do: inspect(v)
 
   defp ok(value), do: {:variant, "result", "Ok", [value]}

@@ -60,6 +60,10 @@ defmodule Cairn.Checker.Stack do
   @spec depth(t()) :: non_neg_integer()
   def depth(%__MODULE__{items: items}), do: length(items)
 
+  @doc "Return raw stack items with head = top of stack."
+  @spec to_list(t()) :: [type_entry]
+  def to_list(%__MODULE__{items: items}), do: items
+
   @doc "Reverse the stack items (used after building a result stack)."
   @spec reverse(t()) :: t()
   def reverse(%__MODULE__{items: items}) do

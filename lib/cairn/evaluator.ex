@@ -436,6 +436,13 @@ defmodule Cairn.Evaluator do
     run(remaining, [map | stack], env)
   end
 
+  # Tuple construction: #( 1 "x" )
+  defp run([{:tuple_open, _, _} | rest], stack, env) do
+    {tuple_tokens, remaining} = collect_tuple(rest, 0, [])
+    values = eval_tokens(tuple_tokens, [], env) |> Enum.reverse()
+    run(remaining, [{:tuple, values} | stack], env)
+  end
+
   # List construction: [ 1 2 3 ]
   defp run([{:list_open, _, _} | rest], stack, env) do
     # Evaluate tokens inside [ ] to build list elements, then collect
@@ -667,6 +674,27 @@ defmodule Cairn.Evaluator do
     collect_block(rest, depth, [t | acc])
   end
 
+  # Collect tokens inside #( ), handling nested tuples
+  defp collect_tuple([], _depth, _acc) do
+    raise Cairn.RuntimeError, "unmatched #("
+  end
+
+  defp collect_tuple([{:tuple_close, _, _} | rest], 0, acc) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp collect_tuple([{:tuple_open, _, _} = t | rest], depth, acc) do
+    collect_tuple(rest, depth + 1, [t | acc])
+  end
+
+  defp collect_tuple([{:tuple_close, _, _} = t | rest], depth, acc) when depth > 0 do
+    collect_tuple(rest, depth - 1, [t | acc])
+  end
+
+  defp collect_tuple([t | rest], depth, acc) do
+    collect_tuple(rest, depth, [t | acc])
+  end
+
   # Split IF tokens into then-branch, optional else-branch, and remaining
   # Handles nested IFs by tracking depth
   defp split_if_branches([], _depth, _then_acc, _else_acc) do
@@ -817,6 +845,8 @@ defmodule Cairn.Evaluator do
   defp matches_type?(v, :str) when is_binary(v), do: true
   defp matches_type?(v, {:list, _}) when is_list(v), do: true
   defp matches_type?(v, {:map, _, _}) when is_map(v), do: true
+  defp matches_type?({:tuple, vals}, {:tuple, elem_types}) when length(vals) == length(elem_types),
+    do: Enum.zip(vals, elem_types) |> Enum.all?(fn {v, t} -> matches_type?(v, t) end)
   defp matches_type?({:block, _tokens, _env}, {:block, _}), do: true
   defp matches_type?({:pid, inner, _pid}, {:pid, expected_inner}), do: type_descriptor_matches?(inner, expected_inner)
   defp matches_type?({:pid, inner}, {:pid, expected_inner}), do: type_descriptor_matches?(inner, expected_inner)
@@ -825,8 +855,9 @@ defmodule Cairn.Evaluator do
   defp matches_type?({:variant, type_name, _, _}, {:user_type, type_name}), do: true
   defp matches_type?(_, _), do: false
 
-  defp format_type({:list, inner}), do: "[#{inner}]"
-  defp format_type({:map, k, v}), do: "map[#{k} #{v}]"
+  defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
+  defp format_type({:tuple, elems}), do: "tuple[#{Enum.map_join(elems, " ", &format_type/1)}]"
+  defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
   defp format_type({:user_type, name}), do: name
@@ -836,6 +867,8 @@ defmodule Cairn.Evaluator do
   defp type_descriptor_matches?(:any, _), do: true
   defp type_descriptor_matches?(a, a), do: true
   defp type_descriptor_matches?({:list, a}, {:list, b}), do: type_descriptor_matches?(a, b)
+  defp type_descriptor_matches?({:tuple, a_elems}, {:tuple, b_elems}) when length(a_elems) == length(b_elems),
+    do: Enum.zip(a_elems, b_elems) |> Enum.all?(fn {a, b} -> type_descriptor_matches?(a, b) end)
 
   defp type_descriptor_matches?({:map, ak, av}, {:map, bk, bv}) do
     type_descriptor_matches?(ak, bk) and type_descriptor_matches?(av, bv)
@@ -945,6 +978,7 @@ defmodule Cairn.Evaluator do
   defp erase_type_vars(types) when is_list(types), do: Enum.map(types, &erase_type_vars/1)
   defp erase_type_vars({:type_var, _}), do: :any
   defp erase_type_vars({:list, inner}), do: {:list, erase_type_vars(inner)}
+  defp erase_type_vars({:tuple, elems}), do: {:tuple, Enum.map(elems, &erase_type_vars/1)}
   defp erase_type_vars({:map, key_type, value_type}), do: {:map, erase_type_vars(key_type), erase_type_vars(value_type)}
   defp erase_type_vars({:pid, inner}), do: {:pid, erase_type_vars(inner)}
   defp erase_type_vars({:monitor, inner}), do: {:monitor, erase_type_vars(inner)}

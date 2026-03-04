@@ -451,6 +451,19 @@ defmodule Cairn.Checker do
     end
   end
 
+  # Tuple construction: #( ... )
+  defp walk([{:tuple_open, _, _} | rest], state) do
+    {elem_tokens, remaining} = collect_tuple_tokens(rest, [], 0)
+    tuple_state = walk(elem_tokens, %{state | stack: Stack.new()})
+    tuple_types = tuple_state.stack |> Stack.to_list() |> Enum.reverse()
+
+    walk(remaining, %{
+      state
+      | stack: Stack.push(state.stack, {:tuple, tuple_types}),
+        errors: merge_error_lists(state.errors, tuple_state.errors)
+    })
+  end
+
   # LET — pop top type, bind name in env for subsequent type checking
   defp walk([{:let_kw, _, pos}, {:ident, name, _} | rest], state) do
     case Stack.pop(state.stack) do
@@ -765,6 +778,60 @@ defmodule Cairn.Checker do
     walk(rest, add_error(state, pos, "STEP requires a function name"))
   end
 
+  defp walk([{:op, :fst, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, {:tuple, [first, _second | _]}, new_stack} ->
+        walk(rest, %{state | stack: Stack.push(new_stack, first)})
+
+      {:ok, {:tuple, elems}, new_stack} ->
+        walk(rest, add_error(%{state | stack: new_stack}, pos,
+          "FST requires tuple with at least 2 elements, got tuple[#{length(elems)}]"))
+
+      {:ok, actual, new_stack} ->
+        walk(rest, add_error(%{state | stack: new_stack}, pos,
+          "FST requires tuple[_, _], got #{format_type(actual)}"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "FST requires a tuple on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :snd, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, {:tuple, [_first, second | _]}, new_stack} ->
+        walk(rest, %{state | stack: Stack.push(new_stack, second)})
+
+      {:ok, {:tuple, elems}, new_stack} ->
+        walk(rest, add_error(%{state | stack: new_stack}, pos,
+          "SND requires tuple with at least 2 elements, got tuple[#{length(elems)}]"))
+
+      {:ok, actual, new_stack} ->
+        walk(rest, add_error(%{state | stack: new_stack}, pos,
+          "SND requires tuple[_, _], got #{format_type(actual)}"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "SND requires a tuple on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :trd, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, {:tuple, [_first, _second, third | _]}, new_stack} ->
+        walk(rest, %{state | stack: Stack.push(new_stack, third)})
+
+      {:ok, {:tuple, elems}, new_stack} ->
+        walk(rest, add_error(%{state | stack: new_stack}, pos,
+          "TRD requires tuple with at least 3 elements, got tuple[#{length(elems)}]"))
+
+      {:ok, actual, new_stack} ->
+        walk(rest, add_error(%{state | stack: new_stack}, pos,
+          "TRD requires tuple[_, _, _], got #{format_type(actual)}"))
+
+      :underflow ->
+        walk(rest, add_error(state, pos, "TRD requires a tuple on the stack (stack underflow)"))
+    end
+  end
+
   defp walk([{:op, :host_call, pos}, {:ident, name, _} | rest], state) do
     case Map.get(@host_call_signatures, name) do
       nil ->
@@ -986,6 +1053,26 @@ defmodule Cairn.Checker do
 
       :underflow ->
         walk(rest, add_error(state, pos, "AWAIT requires a monitor on the stack (stack underflow)"))
+    end
+  end
+
+  defp walk([{:op, :pairs, pos} | rest], state) do
+    case Stack.pop(state.stack) do
+      {:ok, {:map, key_type, value_type}, new_stack} ->
+        walk(rest, %{state | stack: Stack.push(new_stack, {:list, {:tuple, [key_type, value_type]}})})
+
+      {:ok, actual, new_stack} ->
+        state =
+          %{state | stack: Stack.push(new_stack, {:list, {:tuple, [:any, :any]}})}
+          |> add_error(pos, "PAIRS requires map[_, _], got #{format_type(actual)}")
+
+        walk(rest, state)
+
+      :underflow ->
+        state =
+          add_error(state, pos, "PAIRS requires a map on the stack (stack underflow)")
+
+        walk(rest, %{state | stack: Stack.push(state.stack, {:list, {:tuple, [:any, :any]}})})
     end
   end
 
@@ -1810,11 +1897,35 @@ defmodule Cairn.Checker do
     collect_list_elements(tl(tokens), [hd(tokens) | acc], depth + 1)
   end
 
+  defp collect_list_elements([{:list_close, _, _} | _rest] = tokens, acc, depth) when depth > 0 do
+    collect_list_elements(tl(tokens), [hd(tokens) | acc], depth - 1)
+  end
+
   defp collect_list_elements([tok | rest], acc, depth) do
     collect_list_elements(rest, [tok | acc], depth)
   end
 
   defp collect_list_elements([], acc, _depth) do
+    {Enum.reverse(acc), []}
+  end
+
+  defp collect_tuple_tokens([{:tuple_close, _, _} | rest], acc, _depth) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp collect_tuple_tokens([{:tuple_open, _, _} | _rest] = tokens, acc, depth) do
+    collect_tuple_tokens(tl(tokens), [hd(tokens) | acc], depth + 1)
+  end
+
+  defp collect_tuple_tokens([{:tuple_close, _, _} | _rest] = tokens, acc, depth) when depth > 0 do
+    collect_tuple_tokens(tl(tokens), [hd(tokens) | acc], depth - 1)
+  end
+
+  defp collect_tuple_tokens([tok | rest], acc, depth) do
+    collect_tuple_tokens(rest, [tok | acc], depth)
+  end
+
+  defp collect_tuple_tokens([], acc, _depth) do
     {Enum.reverse(acc), []}
   end
 
@@ -2039,6 +2150,7 @@ defmodule Cairn.Checker do
   defp format_type(:void), do: "void"
   defp format_type(:num), do: "num"
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
+  defp format_type({:tuple, elems}), do: "tuple[#{Enum.map_join(elems, " ", &format_type/1)}]"
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
@@ -2510,6 +2622,12 @@ defmodule Cairn.Checker do
   defp validate_declared_type(state, {:returns, inner}, context, type_params),
     do: validate_declared_type(state, inner, context, type_params)
 
+  defp validate_declared_type(state, {:tuple, elems}, context, type_params) do
+    Enum.reduce(elems, state, fn elem_type, st ->
+      validate_declared_type(st, elem_type, context, type_params)
+    end)
+  end
+
   defp validate_declared_type(state, {:block, inner}, context, type_params),
     do: validate_declared_type(state, inner, context, type_params)
 
@@ -2594,6 +2712,17 @@ defmodule Cairn.Checker do
   defp bind_type_vars_in_type({:list, expected_inner}, {:list, actual_inner}, bindings),
     do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
 
+  defp bind_type_vars_in_type({:tuple, expected_elems}, {:tuple, actual_elems}, bindings)
+       when length(expected_elems) == length(actual_elems) do
+    Enum.zip(expected_elems, actual_elems)
+    |> Enum.reduce_while({:ok, bindings}, fn {expected, actual}, {:ok, acc} ->
+      case bind_type_vars_in_type(expected, actual, acc) do
+        {:ok, next} -> {:cont, {:ok, next}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
   defp bind_type_vars_in_type({:map, expected_k, expected_v}, {:map, actual_k, actual_v}, bindings) do
     with {:ok, bindings} <- bind_type_vars_in_type(expected_k, actual_k, bindings),
          {:ok, bindings} <- bind_type_vars_in_type(expected_v, actual_v, bindings) do
@@ -2618,6 +2747,8 @@ defmodule Cairn.Checker do
 
   defp substitute_type_vars({:type_var, name}, bindings), do: Map.get(bindings, name, :any)
   defp substitute_type_vars({:list, inner}, bindings), do: {:list, substitute_type_vars(inner, bindings)}
+  defp substitute_type_vars({:tuple, elems}, bindings),
+    do: {:tuple, Enum.map(elems, &substitute_type_vars(&1, bindings))}
 
   defp substitute_type_vars({:map, key_type, value_type}, bindings),
     do: {:map, substitute_type_vars(key_type, bindings), substitute_type_vars(value_type, bindings)}

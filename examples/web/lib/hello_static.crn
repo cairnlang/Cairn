@@ -83,15 +83,17 @@ DEF route_get_set_cookie : str str -> result EFFECT pure
   END
 END
 
-DEF handle_static_request : str str map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT http
+DEF handle_static_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT http
   LET path
   LET method
   LET query
   LET form
   LET headers
   LET cookies
+  LET session
   form DROP
   headers DROP
+  session DROP
 
   path method "/" "examples/web/static/index.html" route_get_html_file
   path method "/about" "examples/web/static/about.html" route_get_html_file

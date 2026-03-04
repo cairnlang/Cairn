@@ -155,16 +155,18 @@ DEF handle_afford_evaluate : map[str str] -> str map[str str] int EFFECT pure
   END
 END
 
-DEF handle_afford_request : str str map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT pure
+DEF handle_afford_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT pure
   LET path
   LET method
   LET query
   LET form
   LET headers
   LET cookies
+  LET session
   query DROP
   headers DROP
   cookies DROP
+  session DROP
 
   method "GET" EQ
   IF

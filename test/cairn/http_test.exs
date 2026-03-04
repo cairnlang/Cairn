@@ -445,6 +445,77 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "web session demo can remember and clear a server-side session through cookies" do
+    previous = System.get_env("CAIRN_DB_DIR")
+    db_dir = temp_db_dir()
+    System.put_env("CAIRN_DB_DIR", db_dir)
+    Cairn.DB.reset_for_tests!()
+
+    on_exit(fn ->
+      Cairn.DB.reset_for_tests!()
+
+      if previous do
+        System.put_env("CAIRN_DB_DIR", previous)
+      else
+        System.delete_env("CAIRN_DB_DIR")
+      end
+    end)
+
+    port = free_port()
+    task = start_session_app(port)
+
+    first_response = http_get(port, "/")
+
+    assert first_response =~ "HTTP/1.1 200 OK"
+    assert first_response =~ "Remember me"
+
+    remember_response = http_post_form(port, "/remember", %{"name" => "Cairn"})
+
+    assert remember_response =~ "HTTP/1.1 200 OK"
+    assert remember_response =~ "Hello, <strong>Cairn</strong>."
+    assert remember_response =~ "Set-Cookie: cairn_session="
+
+    set_cookie = extract_header(remember_response, "set-cookie")
+    assert is_binary(set_cookie)
+
+    session_id =
+      set_cookie
+      |> String.split(";", parts: 2)
+      |> hd()
+      |> String.trim_leading("cairn_session=")
+
+    assert Cairn.SessionStore.load(session_id) == {:ok, %{"name" => "Cairn"}}
+
+    remembered_response =
+      http_request(port, "GET", "/", [{"Cookie", "cairn_session=#{session_id}"}], "")
+
+    assert remembered_response =~ "HTTP/1.1 200 OK"
+    assert remembered_response =~ "Hello, <strong>Cairn</strong>."
+
+    logout_response =
+      http_request(port, "POST", "/logout", [{"Cookie", "cairn_session=#{session_id}"}], "")
+
+    assert logout_response =~ "HTTP/1.1 200 OK"
+    assert logout_response =~ "Remember me"
+    assert logout_response =~ "Set-Cookie: cairn_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+    assert Cairn.SessionStore.load(session_id) == :error
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+
+    Cairn.DB.restart_for_tests!()
+
+    next_port = free_port()
+    restarted_task = start_session_app(next_port)
+
+    after_restart =
+      http_request(next_port, "GET", "/", [{"Cookie", "cairn_session=#{session_id}"}], "")
+
+    assert after_restart =~ "HTTP/1.1 200 OK"
+    assert after_restart =~ "Remember me"
+
+    assert nil == Task.shutdown(restarted_task, :brutal_kill)
+  end
+
   defp http_get(port, path) do
     http_request(port, "GET", path)
   end
@@ -571,7 +642,9 @@ defmodule Cairn.HTTPTest do
         LET form
         LET headers
         LET cookies
+        LET session
         headers DROP
+        session DROP
 
         method "GET" EQ
         IF
@@ -679,6 +752,33 @@ defmodule Cairn.HTTPTest do
     Task.async(fn ->
       Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
       Cairn.eval_file("examples/web/afford_app.crn")
+    end)
+  end
+
+  defp start_session_app(port) do
+    Task.async(fn ->
+      Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
+      Cairn.eval_file("examples/web/session_demo.crn")
+    end)
+  end
+
+  defp extract_header(response, header_name) do
+    wanted = String.downcase(header_name)
+
+    response
+    |> String.split("\r\n")
+    |> Enum.find_value(fn line ->
+      case String.split(line, ":", parts: 2) do
+        [name, value] ->
+          if String.downcase(name) == wanted do
+            String.trim(value)
+          else
+            nil
+          end
+
+        _ ->
+          nil
+      end
     end)
   end
 

@@ -5,12 +5,14 @@ defmodule Cairn.HTTP do
   The current slice stays intentionally narrow:
   - one long-lived listener
   - one lightweight worker per connection
-  - minimal request parsing (`method`, `path`, `query`, `form`, `headers`, `cookies`)
-  - simple response framing with optional response headers
+  - minimal request parsing (`method`, `path`, `query`, `form`, `headers`, `cookies`, `session`)
+  - simple response framing with optional response headers and server-side sessions
 
   This keeps the transport boundary honest while letting Cairn own routing and
   response decisions.
   """
+
+  alias Cairn.SessionStore
 
   @listen_opts [:binary, packet: :raw, active: false, reuseaddr: true]
   @default_options %{
@@ -34,6 +36,17 @@ defmodule Cairn.HTTP do
     serve("127.0.0.1", port, @default_options, handler)
   end
 
+  @spec serve(
+          integer(),
+          (String.t(), String.t(), map(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()}
+             | {integer(), map(), String.t()}
+             | {integer(), map(), String.t(), map()})
+        ) :: no_return()
+  def serve(port, handler) when is_integer(port) and is_function(handler, 7) do
+    serve("127.0.0.1", port, @default_options, handler)
+  end
+
   @spec serve(integer(), map(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(port, options, handler)
@@ -52,6 +65,19 @@ defmodule Cairn.HTTP do
     serve("127.0.0.1", port, options, handler)
   end
 
+  @spec serve(
+          integer(),
+          map(),
+          (String.t(), String.t(), map(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()}
+             | {integer(), map(), String.t()}
+             | {integer(), map(), String.t(), map()})
+        ) :: no_return()
+  def serve(port, options, handler)
+      when is_integer(port) and is_map(options) and is_function(handler, 7) do
+    serve("127.0.0.1", port, options, handler)
+  end
+
   @spec serve(String.t(), integer(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(bind_host, port, handler)
@@ -67,6 +93,19 @@ defmodule Cairn.HTTP do
         ) :: no_return()
   def serve(bind_host, port, handler)
       when is_binary(bind_host) and is_integer(port) and is_function(handler, 6) do
+    serve(bind_host, port, @default_options, handler)
+  end
+
+  @spec serve(
+          String.t(),
+          integer(),
+          (String.t(), String.t(), map(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()}
+             | {integer(), map(), String.t()}
+             | {integer(), map(), String.t(), map()})
+        ) :: no_return()
+  def serve(bind_host, port, handler)
+      when is_binary(bind_host) and is_integer(port) and is_function(handler, 7) do
     serve(bind_host, port, @default_options, handler)
   end
 
@@ -119,6 +158,35 @@ defmodule Cairn.HTTP do
     serve_loop(listener, handler, options)
   end
 
+  @spec serve(
+          String.t(),
+          integer(),
+          map(),
+          (String.t(), String.t(), map(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()}
+             | {integer(), map(), String.t()}
+             | {integer(), map(), String.t(), map()})
+        ) :: no_return()
+  def serve(bind_host, port, options, handler)
+      when is_binary(bind_host) and is_integer(port) and is_map(options) and is_function(handler, 7) do
+    if port <= 0 or port > 65_535 do
+      raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
+    end
+
+    ip = resolve_bind_ip!(bind_host)
+    options = normalize_options!(options)
+
+    {:ok, listener} =
+      case :gen_tcp.listen(port, Keyword.put(@listen_opts, :ip, ip)) do
+        {:ok, socket} -> {:ok, socket}
+        {:error, reason} ->
+          raise Cairn.RuntimeError,
+            "HTTP_SERVE: cannot listen on #{bind_host}:#{port}: #{inspect(reason)}"
+      end
+
+    serve_loop(listener, handler, options)
+  end
+
   defp response_for_request(client, options, handler) do
     case read_request(client, options) do
       {:error, :bad_request} ->
@@ -142,39 +210,69 @@ defmodule Cairn.HTTP do
       {:error, reason} ->
         raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
 
-      {:ok, method, path, query, form, headers, cookies} ->
+      {:ok, method, path, query, form, headers, cookies, session_id, session} ->
         result =
           case :erlang.fun_info(handler, :arity) do
             {:arity, 4} -> handler.(method, path, query, form)
             {:arity, 6} -> handler.(method, path, query, form, headers, cookies)
+            {:arity, 7} -> handler.(method, path, query, form, headers, cookies, session)
           end
 
         case normalize_handler_response(result) do
-          {:ok, status, response_headers, body} ->
+          {:ok, status, response_headers, body, session_result} ->
+            response_headers = apply_session_headers(response_headers, session_id, session_result)
             http_response(status, response_headers, body)
 
           {:error, other} ->
             raise Cairn.RuntimeError,
-              "HTTP_SERVE handler must return {status_int, content_type_str, body_str} or {status_int, headers_map, body_str}, got #{inspect(other)}"
+              "HTTP_SERVE handler must return {status_int, content_type_str, body_str}, {status_int, headers_map, body_str}, or a session-aware 4-tuple, got #{inspect(other)}"
         end
     end
   end
 
   defp normalize_handler_response({status, content_type, body})
        when is_integer(status) and is_binary(content_type) and is_binary(body) do
-    {:ok, status, %{"Content-Type" => content_type}, body}
+    {:ok, status, %{"Content-Type" => content_type}, body, :unchanged}
   end
 
   defp normalize_handler_response({status, headers, body})
        when is_integer(status) and is_map(headers) and is_binary(body) do
     if Enum.all?(headers, fn {name, value} -> is_binary(name) and is_binary(value) end) do
-      {:ok, status, headers, body}
+      {:ok, status, headers, body, :unchanged}
     else
       {:error, {status, headers, body}}
     end
   end
 
+  defp normalize_handler_response({status, headers, body, session})
+       when is_integer(status) and is_map(headers) and is_binary(body) and is_map(session) do
+    if Enum.all?(headers, fn {name, value} -> is_binary(name) and is_binary(value) end) and
+         Enum.all?(session, fn {key, value} -> is_binary(key) and is_binary(value) end) do
+      {:ok, status, headers, body, session}
+    else
+      {:error, {status, headers, body, session}}
+    end
+  end
+
   defp normalize_handler_response(other), do: {:error, other}
+
+  defp apply_session_headers(headers, session_id, :unchanged), do: headers
+
+  defp apply_session_headers(headers, session_id, session) when is_map(session) do
+    cond do
+      map_size(session) == 0 and is_binary(session_id) ->
+        SessionStore.delete(session_id)
+        Map.put(headers, "Set-Cookie", clear_session_cookie())
+
+      map_size(session) == 0 ->
+        headers
+
+      true ->
+        id = session_id || SessionStore.new_id()
+        SessionStore.save(id, session)
+        Map.put(headers, "Set-Cookie", session_cookie(id))
+    end
+  end
 
   defp parse_request_line(line) do
     case String.split(line, " ", parts: 3) do
@@ -299,7 +397,8 @@ defmodule Cairn.HTTP do
              options["read_timeout_ms"]
            ) do
       cookies = parse_cookies(headers)
-      {:ok, method, path, query, form, headers, cookies}
+      {session_id, session} = load_session(cookies)
+      {:ok, method, path, query, form, headers, cookies, session_id, session}
     end
   end
 
@@ -324,6 +423,27 @@ defmodule Cairn.HTTP do
           end
         end)
     end
+  end
+
+  defp load_session(cookies) do
+    case Map.get(cookies, SessionStore.cookie_name()) do
+      nil ->
+        {nil, %{}}
+
+      session_id ->
+        case SessionStore.load(session_id) do
+          {:ok, session} -> {session_id, session}
+          :error -> {nil, %{}}
+        end
+    end
+  end
+
+  defp session_cookie(session_id) do
+    "#{SessionStore.cookie_name()}=#{session_id}; Path=/; HttpOnly; SameSite=Lax"
+  end
+
+  defp clear_session_cookie do
+    "#{SessionStore.cookie_name()}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
   end
 
   defp read_until_header_terminator(_client, max_bytes, _timeout, acc \\ "")

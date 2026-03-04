@@ -1,0 +1,79 @@
+DEF render_session_page : str -> str map[str str] int EFFECT pure
+  LET who
+
+  who LEN 0 GT
+  IF
+    who html_escape LET safe_name
+    safe_name "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Session Demo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Session Demo</h1>\n      <p>Hello, <strong>{}</strong>.</p>\n      <form action=\"/logout\" method=\"post\">\n        <button type=\"submit\" class=\"secondary\">Forget me</button>\n      </form>\n    </main>\n  </body>\n</html>\n" FMT
+  ELSE
+    "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Session Demo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Session Demo</h1>\n      <form action=\"/remember\" method=\"post\">\n        <label>Your name\n          <input name=\"name\" placeholder=\"Cairn\" required>\n        </label>\n        <button type=\"submit\">Remember me</button>\n      </form>\n    </main>\n  </body>\n</html>\n"
+  END
+  http_html_ok
+END
+
+DEF with_session : map[str str] str map[str str] int -> str map[str str] map[str str] int EFFECT pure
+  LET session
+  LET body
+  LET headers
+  LET status
+  status session headers body
+END
+
+DEF handle_session_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] map[str str] int EFFECT pure
+  LET path
+  LET method
+  LET query
+  LET form
+  LET headers
+  LET cookies
+  LET session
+  query DROP
+  headers DROP
+  cookies DROP
+
+  method "GET" EQ
+  IF
+    path "/" EQ
+    IF
+      "name" session "" map_get_or
+      render_session_page
+      session with_session
+    ELSE
+      "not found\n" http_text_not_found
+      session with_session
+    END
+  ELSE
+    method "POST" EQ
+    IF
+      path "/remember" EQ
+      IF
+        "name" form "" map_get_or
+        TRIM
+        LET clean_name
+        clean_name render_session_page
+        LET body
+        LET headers
+        LET status
+        status session headers body "name" clean_name
+        session_put
+      ELSE
+        path "/logout" EQ
+        IF
+          ""
+          render_session_page
+          LET body
+          LET headers
+          LET status
+          status session headers body
+          session_clear
+        ELSE
+          "not found\n" http_text_not_found
+          session with_session
+        END
+      END
+    ELSE
+      "method not allowed\n" http_text_method_not_allowed
+      session with_session
+    END
+  END
+END

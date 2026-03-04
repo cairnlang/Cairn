@@ -373,6 +373,14 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Kept the preferred structure unchanged: production-serving apps should still keep assurance runners separate from app entrypoints
 - Added coverage that skipped assurance directives do not run and evaluation continues normally
 
+### v0.10.1a — Bounded Sessions (Mnesia-Backed, Backend-Agnostic API)
+- Expanded `HTTP_SERVE` so handlers now also receive a session map beneath `path`, `method`, `query`, `form`, `headers`, and `cookies`
+- Added a session-aware response form: `body headers session status`
+- Added `Cairn.SessionStore` as a session-oriented runtime layer with a Mnesia-backed default implementation
+- Kept Mnesia behind the runtime boundary so Cairn app code works with session semantics, not raw DB keys
+- Added `session_put` and `session_clear` to the web prelude
+- Added `examples/web/session_demo.crn` as the first remember/forget session example
+
 ### v0.8.6a — Can I Afford This? (Pure Decision + Web Form)
 - Added `examples/web/afford_app.crn` as a one-page web affordability checker with a proper `POST /evaluate` flow
 - Split the app into a pure rules module (`examples/web/lib/afford_rules.crn`), a web adapter (`examples/web/lib/afford_web.crn`), and a separate assurance runner (`examples/web/afford_verify.crn`)

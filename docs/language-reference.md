@@ -858,15 +858,17 @@ path method "/about" "<p>About</p>" route_get_text
 route_or
 method route_finish_get
 
-# HTTP_SERVE handlers now receive path, method, query, form, headers, and cookies (path on top):
+# HTTP_SERVE handlers now receive path, method, query, form, headers, cookies, and session (path on top):
 LET path
 LET method
 LET query
 LET form
 LET headers
 LET cookies
+LET session
 "name" query "friend" map_get_or
 "theme" cookies "none" map_get_or
+"name" session "" map_get_or
 
 # Escape untrusted text before embedding it into HTML:
 "<script>alert('hola')</script>" html_escape
@@ -926,6 +928,16 @@ before: [value:str, key:str, body:str, headers:map[str str], status:int]
 after:  [body:str, headers:map[str str], status:int]
 note: used to add Set-Cookie, Location, or other response headers from Cairn
 
+session_put
+before: [value:str, key:str, body:str, headers:map[str str], session:map[str str], status:int]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+note: updates the outgoing session map; the runtime persists it and issues the session cookie
+
+session_clear
+before: [body:str, headers:map[str str], session:map[str str], status:int]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+note: returns an empty outgoing session map; the runtime clears the stored session and expires the cookie
+
 route_get_html_file
 before: [file:str, route:str, method:str, path:str]
 after:  [candidate:result]
@@ -942,6 +954,20 @@ route_finish_get
 before: [method:str, candidate:result]
 after:  [body:str, headers:map[str str], status:int]
 ```
+
+`HTTP_SERVE` accepts either response shape:
+
+```text
+classic response:
+before final return: [body:str, headers:map[str str], status:int]
+
+session-aware response:
+before final return: [body:str, headers:map[str str], session:map[str str], status:int]
+```
+
+If a session map is returned, the runtime treats it as the desired next session state:
+- non-empty session -> persist and issue/reuse `cairn_session`
+- empty session -> clear the stored session and expire the cookie
 
 So a typical GET route chain reads like this:
 

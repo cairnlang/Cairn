@@ -126,16 +126,18 @@ DEF handle_todo_index : -> str map[str str] int EFFECT db
   render_todo_response
 END
 
-DEF handle_todo_request : str str map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT db
+DEF handle_todo_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT db
   LET path
   LET method
   LET query
   LET form
   LET headers
   LET cookies
+  LET session
   query DROP
   headers DROP
   cookies DROP
+  session DROP
 
   method "GET" EQ
   IF

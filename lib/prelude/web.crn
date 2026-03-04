@@ -79,6 +79,32 @@ DEF http_add_header : str str str map[str str] int -> str map[str str] int EFFEC
   status updated_headers body
 END
 
+# Update the session map in a response while preserving the HTTP_SERVE stack shape.
+# Signature: value key body headers session status -> body headers session status
+DEF session_put : str str str map[str str] map[str str] int -> str map[str str] map[str str] int EFFECT pure
+  LET value
+  LET key
+  LET body
+  LET headers
+  LET session
+  LET status
+
+  session key value PUT LET updated_session
+  status updated_session headers body
+END
+
+# Clear the current session in a response.
+# Signature: body headers session status -> body headers session status
+DEF session_clear : str map[str str] map[str str] int -> str map[str str] map[str str] int EFFECT pure
+  LET body
+  LET headers
+  LET session
+  LET status
+  session DROP
+
+  status M[] headers body
+END
+
 # Exact-path route: serve a known HTML file on match.
 # Signature: file route path -> result
 DEF route_html_file : str str str -> result EFFECT http

@@ -155,7 +155,7 @@ defmodule Cairn.Evaluator do
 
   # HTTP_SERVE — bounded host-backed HTTP serving with Cairn-owned request routing.
   # Stack shapes:
-  #   8080 { ...path, method, query, form -> status, content_type, body... } HTTP_SERVE
+  #   8080 { ...path, method, query, form, headers, cookies, session -> status, content_type|headers, body[, session]... } HTTP_SERVE
   #   "0.0.0.0" 8080 { ... } HTTP_SERVE
   #   M[ "request_line_max" 4096 "read_timeout_ms" 5000 ] "0.0.0.0" 8080 { ... } HTTP_SERVE
   #   M[ ... ] 8080 { ... } HTTP_SERVE
@@ -537,8 +537,13 @@ defmodule Cairn.Evaluator do
   defp run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, options, stack, env) do
     handler_env = Map.merge(block_env, env)
 
-    Cairn.HTTP.serve(bind_host, port, options, fn method, path, query, form, headers, cookies ->
-      case eval_tokens(block_tokens, [path, method, query, form, headers, cookies], handler_env) do
+    Cairn.HTTP.serve(bind_host, port, options, fn method, path, query, form, headers, cookies, session ->
+      case eval_tokens(block_tokens, [path, method, query, form, headers, cookies, session], handler_env) do
+        [body, response_headers, response_session, status]
+            when is_binary(body) and is_map(response_headers) and is_map(response_session) and
+                   is_integer(status) ->
+          {status, response_headers, body, response_session}
+
         [body, response_headers, status]
             when is_binary(body) and is_map(response_headers) and is_integer(status) ->
           {status, response_headers, body}
@@ -548,7 +553,7 @@ defmodule Cairn.Evaluator do
 
         other ->
           raise Cairn.RuntimeError,
-            "HTTP_SERVE at word #{pos + 1}: handler must leave exactly [body, content_type|headers, status], got #{inspect(other)}"
+            "HTTP_SERVE at word #{pos + 1}: handler must leave [body, content_type|headers, status] or [body, headers, session, status], got #{inspect(other)}"
       end
     end)
 

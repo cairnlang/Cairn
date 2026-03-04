@@ -173,6 +173,9 @@ These are the mistakes users make most often when reading or writing Cairn:
      - then `method`
      - then `query`
      - then `form`
+     - then `headers`
+     - then `cookies`
+     - then `session`
 
 6. **Assuming convenience runtime forms are the canonical stack order**
    - Some operators accept alternate forms for convenience (`REDUCE`, `FILTER`, `MAP`).
@@ -196,6 +199,7 @@ POW                           # binary: pop exponent + base (floats), push float
 
 # Narrow host interop (v1)
 HOST_CALL helper              # expects a literal arg list immediately before it, e.g. [ 42 ] HOST_CALL int_to_string
+AUTH_CHECK                    # pop password + username, push built-in result (Ok user_map | Err message)
 
 # Comparison (pop 2, push bool)
 EQ NEQ GT LT GTE LTE
@@ -342,8 +346,16 @@ before (with options): [handler_block, port, options]
 after:  blocks forever serving requests (no normal stack result)
 
 HTTP_SERVE handler block
-before: [path:str, method:str, query:map[str str], form:map[str str]]
-after:  [body:str, content_type:str, status:int]
+before: [path:str, method:str, query:map[str str], form:map[str str], headers:map[str str], cookies:map[str str], session:map[str str]]
+after (legacy):  [body:str, content_type:str, status:int]
+after (headers): [body:str, headers:map[str str], status:int]
+after (session): [body:str, headers:map[str str], session:map[str str], status:int]
+
+AUTH_CHECK
+before: [password:str, username:str]
+after (success): [result:Ok(map[str str])]
+after (failure): [result:Err(str)]
+note: push the username first, then the password last
 
 POW
 before: [exponent:float, base:float]
@@ -937,6 +949,11 @@ session_clear
 before: [body:str, headers:map[str str], session:map[str str], status:int]
 after:  [body:str, headers:map[str str], session:map[str str], status:int]
 note: returns an empty outgoing session map; the runtime clears the stored session and expires the cookie
+
+AUTH_CHECK is the first auth-facing built-in. It checks credentials through the
+runtime-side user-store boundary and returns the built-in `result` type. The
+current default user-store implementation is Mnesia-backed, but Cairn app code
+does not talk to raw `DB_*` operations for login.
 
 route_get_html_file
 before: [file:str, route:str, method:str, path:str]

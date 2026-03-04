@@ -418,6 +418,14 @@ defmodule Cairn.Runtime do
     [Cairn.DB.pairs() | stack]
   end
 
+  def execute(:auth_check, [password, username | rest])
+      when is_binary(password) and is_binary(username) do
+    case Cairn.UserStore.authenticate(username, password) do
+      {:ok, user} -> [ok(user) | rest]
+      :error -> [err("invalid username or password") | rest]
+    end
+  end
+
   # READ_LINE: read one line from stdin, push trimmed string
   def execute(:read_line, stack) do
     line = IO.gets("") |> String.trim_trailing("\n")

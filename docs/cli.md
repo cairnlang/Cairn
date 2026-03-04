@@ -128,6 +128,7 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
    - `./cairn examples/web/todo_app.crn`
    - `./cairn examples/web/afford_app.crn`
    - `./cairn examples/web/afford_verify.crn`
+   - `./cairn examples/web/login_app.crn`
 9. Load typed-concurrency examples:
    - `./cairn examples/concurrency/ping_pong_types.crn`
    - `./cairn examples/concurrency/protocol_ping_pong.crn`
@@ -154,6 +155,8 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 `examples/web/afford_app.crn` is the first web app where the business rule engine is the point: it accepts a `POST /evaluate` form, computes whether a proposed purchase or subscription is safe, and renders a simple risk + recommendation panel. Its paired `examples/web/afford_verify.crn` runner keeps the `VERIFY`/`PROVE` story separate from the serving path so the live app stays production-shaped while the policy helpers remain explicitly checked.
 
 `examples/web/session_demo.crn` is the first bounded server-side session example. It uses the expanded `HTTP_SERVE` boundary to receive a session map on each request and to return an updated session map on the response path. The runtime handles the cookie (`cairn_session`) and persists session data in a default Mnesia-backed session store, so the app code works with session semantics instead of raw DB keys. This is the foundation for later auth and login work, not a full auth framework yet.
+
+`examples/web/login_app.crn` is the first bounded login/logout demo built on top of that session boundary. It uses `AUTH_CHECK`, which goes through a runtime-side user-store abstraction instead of exposing raw `DB_*` calls in app code. The demo credentials are intentionally simple (`alice / cairn`, `bob / cairn`) because the slice is about session-backed identity flow, not password-hardening yet.
 
 `examples/policy/approval/` is the first typed policy-engine showcase built specifically to stress the full assurance stack: `main.crn` demonstrates the domain behavior, `verify.crn` runs the `VERIFY` and `PROVE` checks, and `test.crn` runs concrete native `TEST` scenarios. `examples/web/afford_test.crn` remains the first web-facing native test harness example.
 

@@ -516,6 +516,81 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(restarted_task, :brutal_kill)
   end
 
+  test "web login demo can log in, persist identity in session, and log out" do
+    previous = System.get_env("CAIRN_DB_DIR")
+    db_dir = temp_db_dir()
+    System.put_env("CAIRN_DB_DIR", db_dir)
+    Cairn.DB.reset_for_tests!()
+
+    on_exit(fn ->
+      Cairn.DB.reset_for_tests!()
+
+      if previous do
+        System.put_env("CAIRN_DB_DIR", previous)
+      else
+        System.delete_env("CAIRN_DB_DIR")
+      end
+    end)
+
+    port = free_port()
+    task = start_login_app(port)
+
+    first_response = http_get(port, "/")
+
+    assert first_response =~ "HTTP/1.1 200 OK"
+    assert first_response =~ "Login Demo"
+    assert first_response =~ "action=\"/login\""
+
+    invalid_response =
+      http_post_form(port, "/login", %{
+        "username" => "alice",
+        "password" => "wrong"
+      })
+
+    assert invalid_response =~ "HTTP/1.1 200 OK"
+    assert invalid_response =~ "Invalid username or password."
+    assert is_nil(extract_header(invalid_response, "set-cookie"))
+
+    login_response =
+      http_post_form(port, "/login", %{
+        "username" => "alice",
+        "password" => "cairn"
+      })
+
+    assert login_response =~ "HTTP/1.1 200 OK"
+    assert login_response =~ "Protected Home"
+    assert login_response =~ "Hello, <strong>alice</strong>."
+    assert login_response =~ "Your role is <strong>admin</strong>."
+    assert login_response =~ "Set-Cookie: cairn_session="
+
+    set_cookie = extract_header(login_response, "set-cookie")
+    assert is_binary(set_cookie)
+
+    session_id =
+      set_cookie
+      |> String.split(";", parts: 2)
+      |> hd()
+      |> String.trim_leading("cairn_session=")
+
+    assert Cairn.SessionStore.load(session_id) == {:ok, %{"role" => "admin", "user" => "alice"}}
+
+    remembered_response =
+      http_request(port, "GET", "/", [{"Cookie", "cairn_session=#{session_id}"}], "")
+
+    assert remembered_response =~ "HTTP/1.1 200 OK"
+    assert remembered_response =~ "Hello, <strong>alice</strong>."
+
+    logout_response =
+      http_request(port, "POST", "/logout", [{"Cookie", "cairn_session=#{session_id}"}], "")
+
+    assert logout_response =~ "HTTP/1.1 200 OK"
+    assert logout_response =~ "Login Demo"
+    assert logout_response =~ "Set-Cookie: cairn_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+    assert Cairn.SessionStore.load(session_id) == :error
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   defp http_get(port, path) do
     http_request(port, "GET", path)
   end
@@ -759,6 +834,13 @@ defmodule Cairn.HTTPTest do
     Task.async(fn ->
       Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
       Cairn.eval_file("examples/web/session_demo.crn")
+    end)
+  end
+
+  defp start_login_app(port) do
+    Task.async(fn ->
+      Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
+      Cairn.eval_file("examples/web/login_app.crn")
     end)
   end
 

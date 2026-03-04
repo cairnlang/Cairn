@@ -381,6 +381,12 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Added `session_put` and `session_clear` to the web prelude
 - Added `examples/web/session_demo.crn` as the first remember/forget session example
 
+### v0.10.1b — Bounded Login/Auth Foundations
+- Added `AUTH_CHECK` as the first auth-facing built-in, returning the built-in `result`
+- Added `Cairn.UserStore` as a runtime-side user-store boundary with a Mnesia-backed default implementation and seeded demo users
+- Added `examples/web/login_app.crn` as the first bounded login/logout demo built on top of sessions
+- Kept the slice intentionally narrow: no password hardening, no auth framework, just session-backed identity flow
+
 ### v0.8.6a — Can I Afford This? (Pure Decision + Web Form)
 - Added `examples/web/afford_app.crn` as a one-page web affordability checker with a proper `POST /evaluate` flow
 - Split the app into a pure rules module (`examples/web/lib/afford_rules.crn`), a web adapter (`examples/web/lib/afford_web.crn`), and a separate assurance runner (`examples/web/afford_verify.crn`)

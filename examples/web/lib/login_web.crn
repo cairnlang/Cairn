@@ -1,0 +1,142 @@
+DEF current_user_name : map[str str] -> str EFFECT pure
+  "user" SWAP "" map_get_or
+END
+
+DEF current_user_role : map[str str] -> str EFFECT pure
+  "role" SWAP "" map_get_or
+END
+
+DEF logged_in_p : map[str str] -> bool EFFECT pure
+  current_user_name LEN 0 GT
+END
+
+DEF render_login_page : str -> str map[str str] int EFFECT pure
+  LET error_message
+
+  error_message LEN 0 GT
+  IF
+    error_message html_escape
+    "<p><mark>{}</mark></p>\n" FMT
+  ELSE
+    ""
+  END
+  LET error_html
+
+  error_html "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Login Demo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Login Demo</h1>\n      <p>A tiny session-backed login flow built on Cairn.</p>\n      {}\n      <form action=\"/login\" method=\"post\">\n        <label>Username\n          <input name=\"username\" placeholder=\"alice\" required>\n        </label>\n        <label>Password\n          <input name=\"password\" type=\"password\" placeholder=\"cairn\" required>\n        </label>\n        <button type=\"submit\">Log in</button>\n      </form>\n    </main>\n  </body>\n</html>\n" FMT
+  http_html_ok
+END
+
+DEF render_home_page : str str -> str map[str str] int EFFECT pure
+  LET username
+  LET role
+
+  username html_escape LET safe_user
+  role html_escape LET safe_role
+
+  safe_role
+  safe_user
+  "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Login Demo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Protected Home</h1>\n      <p>Hello, <strong>{}</strong>.</p>\n      <p>Your role is <strong>{}</strong>.</p>\n      <form action=\"/logout\" method=\"post\">\n        <button type=\"submit\" class=\"secondary\">Log out</button>\n      </form>\n    </main>\n  </body>\n</html>\n" FMT
+  http_html_ok
+END
+
+DEF with_session : map[str str] str map[str str] int -> str map[str str] map[str str] int EFFECT pure
+  LET session
+  LET body
+  LET headers
+  LET status
+  status session headers body
+END
+
+DEF with_user_session : str str str map[str str] int -> str map[str str] map[str str] int EFFECT pure
+  LET role
+  LET user
+  LET body
+  LET headers
+  LET status
+  status M[] headers body "role" role session_put "user" user session_put
+END
+
+DEF handle_login_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] map[str str] int EFFECT http
+  LET path
+  LET method
+  LET query
+  LET form
+  LET headers
+  LET cookies
+  LET session
+  query DROP
+  headers DROP
+  cookies DROP
+
+  method "GET" EQ
+  IF
+    path "/" EQ
+    IF
+      session logged_in_p
+      IF
+        session current_user_role
+        session current_user_name
+        render_home_page
+        session with_session
+      ELSE
+        "" render_login_page
+        session with_session
+      END
+    ELSE
+      path "/login" EQ
+      IF
+        "" render_login_page
+        session with_session
+      ELSE
+        "not found\n" http_text_not_found
+        session with_session
+      END
+    END
+  ELSE
+    method "POST" EQ
+    IF
+      path "/login" EQ
+      IF
+        "username" form "" map_get_or TRIM LET username
+        "password" form "" map_get_or TRIM LET password
+
+        username LEN 0 GT
+        password LEN 0 GT AND
+        IF
+          username password AUTH_CHECK
+          MATCH
+            Ok {
+              DUP "role" GET LET role
+              "user" GET LET user
+              role user render_home_page
+              user role with_user_session
+            }
+            Err {
+              DROP
+              "Invalid username or password." render_login_page
+              session with_session
+            }
+          END
+        ELSE
+          "Invalid username or password." render_login_page
+          session with_session
+        END
+      ELSE
+        path "/logout" EQ
+        IF
+          "" render_login_page
+          LET body
+          LET headers
+          LET status
+          status session headers body session_clear
+        ELSE
+          "not found\n" http_text_not_found
+          session with_session
+        END
+      END
+    ELSE
+      "method not allowed\n" http_text_method_not_allowed
+      session with_session
+    END
+  END
+END

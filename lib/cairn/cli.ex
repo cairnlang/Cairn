@@ -70,6 +70,7 @@ defmodule Cairn.CLI do
      [
        "examples/web/hello_static.crn",
        "examples/web/session_demo.crn",
+       "examples/web/login_app.crn",
        "examples/web/todo_app.crn",
        "examples/web/afford_app.crn",
        "examples/web/afford_verify.crn"

@@ -23,6 +23,7 @@ defmodule Cairn.Checker do
                   :db_get,
                   :db_del,
                   :db_pairs,
+                  :auth_check,
                   :ask,
                   :ask!,
                   :random,

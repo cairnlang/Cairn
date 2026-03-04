@@ -1,20 +1,20 @@
 # Prelude: config-file helpers
 
 # Parse trimmed KEY=VALUE lines into a string map, skipping blanks/comments.
-DEF env_is_data_line : str -> bool
+DEF env_is_data_line : str -> bool EFFECT pure
   DUP LEN 0 GT
   SWAP DUP "#" STARTS_WITH NOT
   SWAP "=" CONTAINS
   AND AND
 END
 
-DEF env_data_lines : str -> [str]
+DEF env_data_lines : str -> [str] EFFECT pure
   LINES
   { TRIM } MAP
   { env_is_data_line } FILTER
 END
 
-DEF env_put_line : str map[str str] -> map[str str]
+DEF env_put_line : str map[str str] -> map[str str] EFFECT pure
   LET line
   line "=" SPLIT LET parts
   parts HEAD LET key
@@ -22,17 +22,17 @@ DEF env_put_line : str map[str str] -> map[str str]
   key value PUT
 END
 
-DEF env_map : str -> map[str str]
+DEF env_map : str -> map[str str] EFFECT pure
   env_data_lines
   M[] { env_put_line } REDUCE
 END
 
-DEF env_keys : str -> [str]
+DEF env_keys : str -> [str] EFFECT pure
   env_data_lines
   { "=" SPLIT HEAD } MAP
 END
 
-DEF env_fetch : str str -> result
+DEF env_fetch : str str -> result EFFECT pure
   LET key
   LET raw
   raw env_map LET source
@@ -44,7 +44,7 @@ DEF env_fetch : str str -> result
   END
 END
 
-DEF map_get_or[T] : T map[str T] str -> T
+DEF map_get_or[T] : T map[str T] str -> T EFFECT pure
   LET fallback
   LET source
   LET key

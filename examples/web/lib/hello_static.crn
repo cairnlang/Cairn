@@ -1,11 +1,11 @@
-DEF handle_static_route : str -> str str int
+DEF handle_static_route : str -> str str int EFFECT http
   DUP "/" "examples/web/static/index.html" route_html_file
   SWAP "/about" "examples/web/static/about.html" route_html_file
   route_or
   route_finish
 END
 
-DEF route_get_echo : map[str str] str str -> result
+DEF route_get_echo : map[str str] str str -> result EFFECT pure
   LET query
   LET method
   LET path
@@ -24,7 +24,7 @@ DEF route_get_echo : map[str str] str str -> result
   END
 END
 
-DEF route_get_hello_html : map[str str] str str -> result
+DEF route_get_hello_html : map[str str] str str -> result EFFECT pure
   LET query
   LET method
   LET path
@@ -44,7 +44,7 @@ DEF route_get_hello_html : map[str str] str str -> result
   END
 END
 
-DEF handle_static_request : str str map[str str] map[str str] -> str str int
+DEF handle_static_request : str str map[str str] map[str str] -> str str int EFFECT http
   LET path
   LET method
   LET query

@@ -1,42 +1,42 @@
 # Prelude: small web response helpers for HTTP_SERVE handlers.
 
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
-DEF http_html_ok : str -> str str int
+DEF http_html_ok : str -> str str int EFFECT pure
   200
   "text/html; charset=utf-8"
   ROT
 END
 
 # Convert a plain-text body into the stack shape HTTP_SERVE expects.
-DEF http_text_ok : str -> str str int
+DEF http_text_ok : str -> str str int EFFECT pure
   200
   "text/plain; charset=utf-8"
   ROT
 END
 
 # Convert a plain-text body into a simple 404 response.
-DEF http_text_not_found : str -> str str int
+DEF http_text_not_found : str -> str str int EFFECT pure
   404
   "text/plain; charset=utf-8"
   ROT
 END
 
 # Convert a plain-text body into a simple 405 response.
-DEF http_text_method_not_allowed : str -> str str int
+DEF http_text_method_not_allowed : str -> str str int EFFECT pure
   405
   "text/plain; charset=utf-8"
   ROT
 END
 
 # Convenience wrapper for serving a known HTML file.
-DEF http_html_file_ok : str -> str str int
+DEF http_html_file_ok : str -> str str int EFFECT http
   READ_FILE!
   http_html_ok
 END
 
 # Escape untrusted text before embedding it into HTML.
 # Order matters: ampersands must be escaped first.
-DEF html_escape : str -> str
+DEF html_escape : str -> str EFFECT pure
   "&" "&amp;" REPLACE
   "<" "&lt;" REPLACE
   ">" "&gt;" REPLACE
@@ -45,7 +45,7 @@ DEF html_escape : str -> str
 END
 
 # Pack an HTTP_SERVE response stack into one value for route chaining.
-DEF http_pack_response : str str int -> [any]
+DEF http_pack_response : str str int -> [any] EFFECT pure
   LET body
   LET content_type
   LET status
@@ -57,7 +57,7 @@ DEF http_pack_response : str str int -> [any]
 END
 
 # Unpack a response produced by http_pack_response.
-DEF http_unpack_response : [any] -> str str int
+DEF http_unpack_response : [any] -> str str int EFFECT pure
   LET response
   response HEAD LET body
   response TAIL LET after_body
@@ -68,7 +68,7 @@ END
 
 # Exact-path route: serve a known HTML file on match.
 # Signature: file route path -> result
-DEF route_html_file : str str str -> result
+DEF route_html_file : str str str -> result EFFECT http
   LET file
   LET route
   LET path
@@ -83,7 +83,7 @@ END
 
 # Exact GET route: serve a known HTML file on match.
 # Signature: file route method path -> result
-DEF route_get_html_file : str str str str -> result
+DEF route_get_html_file : str str str str -> result EFFECT http
   LET file
   LET route
   LET method
@@ -101,7 +101,7 @@ END
 
 # Exact-path route: serve a plain-text body on match.
 # Signature: body route path -> result
-DEF route_text_ok : str str str -> result
+DEF route_text_ok : str str str -> result EFFECT pure
   LET body
   LET route
   LET path
@@ -116,7 +116,7 @@ END
 
 # Exact GET route: serve a plain-text body on match.
 # Signature: body route method path -> result
-DEF route_get_text : str str str str -> result
+DEF route_get_text : str str str str -> result EFFECT pure
   LET body
   LET route
   LET method
@@ -134,7 +134,7 @@ END
 
 # Prefer the earlier candidate if it matched; otherwise keep the fallback.
 # Signature: fallback preferred -> result
-DEF route_or : result result -> result
+DEF route_or : result result -> result EFFECT pure
   LET fallback
   LET preferred
 
@@ -148,7 +148,7 @@ DEF route_or : result result -> result
 END
 
 # Finalize a route chain into the stack shape HTTP_SERVE expects.
-DEF route_finish : result -> str str int
+DEF route_finish : result -> str str int EFFECT pure
   [ "not found\n" "text/plain; charset=utf-8" 404 ]
   SWAP
   result_unwrap_or
@@ -159,7 +159,7 @@ END
 # - matching route => use it
 # - no route + GET => 404
 # - no route + non-GET => 405
-DEF route_finish_get : str result -> str str int
+DEF route_finish_get : str result -> str str int EFFECT pure
   LET method
   LET candidate
 

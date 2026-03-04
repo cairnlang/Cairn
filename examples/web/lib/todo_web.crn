@@ -1,40 +1,40 @@
 IMPORT "../../practical/lib/todo.crn"
 
-DEF todo_pair_key : [str] -> str
+DEF todo_pair_key : [str] -> str EFFECT pure
   HEAD
 END
 
-DEF todo_pair_value : [str] -> str
+DEF todo_pair_value : [str] -> str EFFECT pure
   TAIL HEAD
 END
 
-DEF todo_pair_is_item : [str] -> bool
+DEF todo_pair_is_item : [str] -> bool EFFECT pure
   todo_pair_key "todo:" STARTS_WITH
 END
 
-DEF todo_pair_to_line : [str] -> str
+DEF todo_pair_to_line : [str] -> str EFFECT pure
   todo_pair_value
 END
 
-DEF load_todo_items : -> [str]
+DEF load_todo_items : -> [str] EFFECT db
   DB_PAIRS
   { todo_pair_is_item } FILTER
   { todo_pair_to_line } MAP
 END
 
-DEF db_key_for_todo_id : int -> str
+DEF db_key_for_todo_id : int -> str EFFECT pure
   NUM_STR "todo:{}" FMT
 END
 
-DEF next_todo_id : -> int
+DEF next_todo_id : -> int EFFECT db
   load_todo_items LEN 1 ADD
 END
 
-DEF todo_line_title : str -> str
+DEF todo_line_title : str -> str EFFECT pure
   "|" SPLIT TAIL "|" JOIN
 END
 
-DEF render_todo_line : [any] -> str
+DEF render_todo_line : [any] -> str EFFECT pure
   DUP HEAD LET todo_id
   TAIL HEAD LET line
 
@@ -48,7 +48,7 @@ DEF render_todo_line : [any] -> str
   END
 END
 
-DEF render_todo_items : [str] -> str
+DEF render_todo_items : [str] -> str EFFECT pure
   DUP LEN 0 EQ
   IF
     DROP
@@ -60,7 +60,7 @@ DEF render_todo_items : [str] -> str
   END
 END
 
-DEF render_todo_page : [str] -> str
+DEF render_todo_page : [str] -> str EFFECT pure
   DUP count_open LET open_count
   DUP count_done LET done_count
   DUP LEN LET total_count
@@ -69,12 +69,12 @@ DEF render_todo_page : [str] -> str
   items_html total_count done_count open_count "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Todo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n    <style>\n      .todo-item {\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        gap: 0.75rem;\n      }\n      .todo-item-done {\n        color: #6b7280;\n      }\n      .todo-item-done .todo-title {\n        text-decoration: line-through;\n        text-decoration-thickness: 0.12em;\n      }\n      .todo-status {\n        font-size: 0.8rem;\n        text-transform: uppercase;\n        letter-spacing: 0.06em;\n        opacity: 0.7;\n      }\n      .todo-inline-form {\n        margin: 0;\n      }\n      .todo-inline-form input,\n      .todo-inline-form button {\n        margin: 0;\n      }\n      .todo-done-button {\n        padding: 0.18rem 0.55rem;\n        font-size: 0.72rem;\n        line-height: 1.2;\n        min-height: auto;\n      }\n    </style>\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Cairn Todo</h1>\n      <p>Open: {} | Done: {} | Total: {}</p>\n      <form action=\"/add\" method=\"post\">\n        <input name=\"title\" placeholder=\"New task\" />\n        <button type=\"submit\">Add</button>\n      </form>\n      <ul>\n{}\n      </ul>\n    </main>\n  </body>\n</html>\n" FMT
 END
 
-DEF render_todo_response : [str] -> str str int
+DEF render_todo_response : [str] -> str str int EFFECT pure
   render_todo_page
   http_html_ok
 END
 
-DEF add_todo_item : map[str str] -> str str int
+DEF add_todo_item : map[str str] -> str str int EFFECT db
   LET form
 
   "title" form "" map_get_or
@@ -93,7 +93,7 @@ DEF add_todo_item : map[str str] -> str str int
   render_todo_response
 END
 
-DEF handle_todo_done : map[str str] -> str str int
+DEF handle_todo_done : map[str str] -> str str int EFFECT db
   LET form
 
   "id" form "0" map_get_or
@@ -121,12 +121,12 @@ DEF handle_todo_done : map[str str] -> str str int
   render_todo_response
 END
 
-DEF handle_todo_index : -> str str int
+DEF handle_todo_index : -> str str int EFFECT db
   load_todo_items
   render_todo_response
 END
 
-DEF handle_todo_request : str str map[str str] map[str str] -> str str int
+DEF handle_todo_request : str str map[str str] map[str str] -> str str int EFFECT db
   LET path
   LET method
   LET query

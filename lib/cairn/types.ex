@@ -18,6 +18,8 @@ defmodule Cairn.Types do
           | :void
           | :str
 
+  @type function_effect :: :pure | :io | :db | :http
+
   @type token_type ::
           :int_lit
           | :float_lit
@@ -32,6 +34,7 @@ defmodule Cairn.Types do
           | :fn_def
           | :fn_end
           | :post
+          | :effect_kw
           | :colon
           | :type
           | :arrow
@@ -83,13 +86,14 @@ defmodule Cairn.Types do
     @moduledoc """
     An Cairn function definition.
     """
-    defstruct [:name, :type_params, :param_types, :return_types, :body, :pre_condition, :post_condition]
+    defstruct [:name, :type_params, :param_types, :return_types, :effect, :body, :pre_condition, :post_condition]
 
     @type t :: %__MODULE__{
             name: String.t(),
             type_params: [String.t()],
             param_types: [Cairn.Types.cairn_type()],
             return_types: [Cairn.Types.cairn_type()],
+            effect: Cairn.Types.function_effect(),
             body: [Cairn.Types.token()],
             pre_condition: [Cairn.Types.token()] | nil,
             post_condition: [Cairn.Types.token()] | nil

@@ -369,6 +369,7 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ### v0.8.5c — Production Assurance Skip
 - Added `CAIRN_SKIP_ASSURANCE=1` so `VERIFY` and `PROVE` directives can be skipped during evaluation without changing source files
+- `v0.10.0a`: start bounded effect-system foundations with explicit `EFFECT pure|io|db|http`, defaulting omitted functions to `io`, enforcing that `pure` functions cannot call effectful code, and making `PROVE` return `UNKNOWN` for non-pure targets
 - Kept the preferred structure unchanged: production-serving apps should still keep assurance runners separate from app entrypoints
 - Added coverage that skipped assurance directives do not run and evaluation continues normally
 

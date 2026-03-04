@@ -192,6 +192,22 @@ defmodule Cairn.VerifyTest do
 
       assert output == ""
     end
+
+    test "PROVE on a non-pure function reports UNKNOWN immediately" do
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert {[], _env} =
+                   Cairn.eval_with_env("""
+                   DEF noisy : int -> int
+                     DUP SAY DROP
+                   END
+                   PROVE noisy
+                   """)
+        end)
+
+      assert output =~ "PROVE noisy: UNKNOWN"
+      assert output =~ "reason: function is not pure"
+    end
   end
 
   # ── Bank example as integration test ──

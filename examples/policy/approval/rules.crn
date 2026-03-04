@@ -1,7 +1,7 @@
 IMPORT "types.crn"
 IMPORT "kernel.crn"
 
-DEF role_rank : role -> int
+DEF role_rank : role -> int EFFECT pure
   MATCH
     Viewer   { 0 }
     Operator { 1 }
@@ -9,7 +9,7 @@ DEF role_rank : role -> int
   END
 END
 
-DEF action_rank : action -> int
+DEF action_rank : action -> int EFFECT pure
   MATCH
     Read          { 0 }
     Deploy        { 1 }
@@ -19,7 +19,7 @@ DEF action_rank : action -> int
   END
 END
 
-DEF env_rank : env -> int
+DEF env_rank : env -> int EFFECT pure
   MATCH
     Dev     { 0 }
     Staging { 1 }
@@ -27,7 +27,7 @@ DEF env_rank : env -> int
   END
 END
 
-DEF decision_from_rank : int -> decision
+DEF decision_from_rank : int -> decision EFFECT pure
   DUP 0 EQ
   IF
     DROP Allow
@@ -41,7 +41,7 @@ DEF decision_from_rank : int -> decision
   END
 END
 
-DEF decision_name : decision -> str
+DEF decision_name : decision -> str EFFECT pure
   MATCH
     Allow           { "allow" }
     RequireApproval { "require_approval" }
@@ -49,7 +49,7 @@ DEF decision_name : decision -> str
   END
 END
 
-DEF role_floor_rank : bool action role -> int
+DEF role_floor_rank : bool action role -> int EFFECT pure
   LET customer
   LET action
 
@@ -87,7 +87,7 @@ DEF role_floor_rank : bool action role -> int
   END
 END
 
-DEF env_floor_rank : env action -> int
+DEF env_floor_rank : env action -> int EFFECT pure
   LET env
   LET action
 
@@ -125,7 +125,7 @@ DEF env_floor_rank : env action -> int
   END
 END
 
-DEF customer_data_floor : bool action -> int
+DEF customer_data_floor : bool action -> int EFFECT pure
   LET customer
   LET action
 
@@ -141,7 +141,7 @@ DEF customer_data_floor : bool action -> int
   END
 END
 
-DEF apply_emergency_rank : int bool env action role -> int
+DEF apply_emergency_rank : int bool env action role -> int EFFECT pure
   LET current
   LET emergency
   LET env
@@ -179,7 +179,7 @@ DEF apply_emergency_rank : int bool env action role -> int
   END
 END
 
-DEF approval_rank : bool bool env action role -> int
+DEF approval_rank : bool bool env action role -> int EFFECT pure
   LET customer
   LET emergency
   LET env
@@ -197,12 +197,12 @@ DEF approval_rank : bool bool env action role -> int
   role action env emergency base_rank apply_emergency_rank
 END
 
-DEF approval_decision : bool bool env action role -> decision
+DEF approval_decision : bool bool env action role -> decision EFFECT pure
   approval_rank
   decision_from_rank
 END
 
-DEF approval_reason : bool bool env action role -> str
+DEF approval_reason : bool bool env action role -> str EFFECT pure
   LET customer
   LET emergency
   LET env
@@ -246,7 +246,7 @@ DEF approval_reason : bool bool env action role -> str
   END
 END
 
-DEF valid_transition : workflow workflow -> bool
+DEF valid_transition : workflow workflow -> bool EFFECT pure
   LET to
 
   MATCH
@@ -277,7 +277,7 @@ DEF valid_transition : workflow workflow -> bool
   END
 END
 
-DEF prod_never_less_strict_than_dev : bool bool action role -> bool
+DEF prod_never_less_strict_than_dev : bool bool action role -> bool EFFECT pure
   LET customer
   LET emergency
   LET action
@@ -290,7 +290,7 @@ DEF prod_never_less_strict_than_dev : bool bool action role -> bool
   POST DUP EQ TRUE
 END
 
-DEF viewer_never_less_strict_than_admin : bool bool env action -> bool
+DEF viewer_never_less_strict_than_admin : bool bool env action -> bool EFFECT pure
   LET customer
   LET emergency
   LET env
@@ -303,7 +303,7 @@ DEF viewer_never_less_strict_than_admin : bool bool env action -> bool
   POST DUP EQ TRUE
 END
 
-DEF customer_data_never_reduces_strictness : bool env action role -> bool
+DEF customer_data_never_reduces_strictness : bool env action role -> bool EFFECT pure
   LET emergency
   LET env
   LET action
@@ -316,7 +316,7 @@ DEF customer_data_never_reduces_strictness : bool env action role -> bool
   POST DUP EQ TRUE
 END
 
-DEF prod_delete_never_auto_allows : bool role -> bool
+DEF prod_delete_never_auto_allows : bool role -> bool EFFECT pure
   LET customer
   LET role
 

@@ -260,6 +260,81 @@ defmodule Cairn.CheckerTest do
     end
   end
 
+  describe "effect annotations" do
+    test "parser records explicit EFFECT pure" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF id : int -> int EFFECT pure
+                 DUP DROP
+               END
+               """)
+
+      assert {:ok, [%Cairn.Types.Function{} = func]} = Cairn.Parser.parse(tokens)
+      assert func.effect == :pure
+    end
+
+    test "functions default to io effect when omitted" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF id : int -> int
+                 DUP DROP
+               END
+               """)
+
+      assert {:ok, [%Cairn.Types.Function{} = func]} = Cairn.Parser.parse(tokens)
+      assert func.effect == :io
+    end
+
+    test "invalid effect name is rejected by parser" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               DEF bad : int -> int EFFECT spooky
+                 DUP DROP
+               END
+               """)
+
+      assert {:error, "invalid EFFECT spooky; expected pure, io, db, or http"} = Cairn.Parser.parse(tokens)
+    end
+
+    test "pure function can call another pure function" do
+      check_ok("""
+      DEF base : int -> int EFFECT pure
+        DUP DROP
+      END
+
+      DEF wrapper : int -> int EFFECT pure
+        base
+      END
+      """)
+    end
+
+    test "pure function cannot call effectful function" do
+      errors =
+        check_errors("""
+        DEF noisy : int -> int
+          DUP SAY DROP
+        END
+
+        DEF wrapper : int -> int EFFECT pure
+          noisy
+        END
+        """)
+
+      assert Enum.any?(errors, &String.contains?(&1.message, "pure function cannot call effectful function 'noisy'"))
+    end
+
+    test "pure function cannot use effectful operator" do
+      errors =
+        check_errors("""
+        DEF impure : int -> int EFFECT pure
+          RANDOM
+        END
+        """)
+
+      assert Enum.any?(errors, &String.contains?(&1.message, "pure function cannot use effectful operator 'RANDOM'"))
+    end
+  end
+
   describe "signature type variable foundations" do
     test "parser accepts declared type variables in signatures" do
       assert {:ok, tokens} =

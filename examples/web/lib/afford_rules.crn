@@ -1,7 +1,7 @@
 # Pure affordability rules for the web app.
 # Keep this file free of web and transport concerns.
 
-DEF nonneg_triplet : int int int -> bool
+DEF nonneg_triplet : int int int -> bool EFFECT pure
   LET c
   LET b
   LET a
@@ -10,7 +10,7 @@ DEF nonneg_triplet : int int int -> bool
   c 0 GTE AND
 END
 
-DEF nonneg_quad : int int int int -> bool
+DEF nonneg_quad : int int int int -> bool EFFECT pure
   LET d
   LET c
   LET b
@@ -21,7 +21,7 @@ DEF nonneg_quad : int int int int -> bool
   d 0 GTE AND
 END
 
-DEF one_time_compare_inputs_valid : int int int int -> bool
+DEF one_time_compare_inputs_valid : int int int int -> bool EFFECT pure
   LET high
   LET low
   LET baseline
@@ -33,7 +33,7 @@ DEF one_time_compare_inputs_valid : int int int int -> bool
   high low GTE AND
 END
 
-DEF recurring_compare_inputs_valid : int int int int -> bool
+DEF recurring_compare_inputs_valid : int int int int -> bool EFFECT pure
   LET high
   LET low
   LET baseline
@@ -45,7 +45,7 @@ DEF recurring_compare_inputs_valid : int int int int -> bool
   high low GTE AND
 END
 
-DEF reserve_breach_inputs_valid : int int int -> bool
+DEF reserve_breach_inputs_valid : int int int -> bool EFFECT pure
   LET proposed
   LET baseline
   LET cash
@@ -57,38 +57,38 @@ DEF reserve_breach_inputs_valid : int int int -> bool
   AND
 END
 
-DEF reserve_threshold : int -> int
+DEF reserve_threshold : int -> int EFFECT pure
   PRE { DUP 0 GTE }
   3 MUL
   POST DUP 0 GTE
 END
 
-DEF caution_threshold : int -> int
+DEF caution_threshold : int -> int EFFECT pure
   PRE { DUP 0 GTE }
   4 MUL
   POST DUP 0 GTE
 END
 
-DEF net_margin : int int -> int
+DEF net_margin : int int -> int EFFECT pure
   LET baseline
   LET income
   income baseline SUB
 END
 
-DEF remaining_cash_after_purchase : int int -> int
+DEF remaining_cash_after_purchase : int int -> int EFFECT pure
   LET proposed
   LET cash
   cash proposed SUB
 END
 
-DEF projected_margin_after_recurring : int int int -> int
+DEF projected_margin_after_recurring : int int int -> int EFFECT pure
   LET proposed
   LET baseline
   LET income
   income baseline proposed ADD SUB
 END
 
-DEF score_from_projected_margin : int -> int
+DEF score_from_projected_margin : int -> int EFFECT pure
   DUP 0 GT
   IF
     DROP 0
@@ -103,7 +103,7 @@ DEF score_from_projected_margin : int -> int
   POST DUP 0 GTE SWAP 2 LTE AND
 END
 
-DEF score_one_time : int int int -> int
+DEF score_one_time : int int int -> int EFFECT pure
   PRE { nonneg_triplet }
   LET proposed
   LET baseline
@@ -127,7 +127,7 @@ DEF score_one_time : int int int -> int
   POST DUP 0 GTE SWAP 2 LTE AND
 END
 
-DEF score_recurring : int int int -> int
+DEF score_recurring : int int int -> int EFFECT pure
   PRE { nonneg_triplet }
   LET proposed
   LET baseline
@@ -139,7 +139,7 @@ DEF score_recurring : int int int -> int
   POST DUP 0 GTE SWAP 2 LTE AND
 END
 
-DEF affordability_score : int int int int str -> int
+DEF affordability_score : int int int int str -> int EFFECT pure
   LET proposed
   LET baseline
   LET income
@@ -155,7 +155,7 @@ DEF affordability_score : int int int int str -> int
   POST DUP 0 GTE SWAP 2 LTE AND
 END
 
-DEF risk_label_for_score : int -> str
+DEF risk_label_for_score : int -> str EFFECT pure
   DUP 0 EQ
   IF
     DROP "safe"
@@ -169,7 +169,7 @@ DEF risk_label_for_score : int -> str
   END
 END
 
-DEF recommendation_for_score : int -> str
+DEF recommendation_for_score : int -> str EFFECT pure
   DUP 0 EQ
   IF
     DROP "Safe to proceed"
@@ -183,7 +183,7 @@ DEF recommendation_for_score : int -> str
   END
 END
 
-DEF score_one_time_in_range : int int int -> bool
+DEF score_one_time_in_range : int int int -> bool EFFECT pure
   PRE { nonneg_triplet }
   score_one_time
   DUP 0 GTE
@@ -191,7 +191,7 @@ DEF score_one_time_in_range : int int int -> bool
   POST DUP EQ TRUE
 END
 
-DEF score_recurring_in_range : int int int -> bool
+DEF score_recurring_in_range : int int int -> bool EFFECT pure
   PRE { nonneg_triplet }
   score_recurring
   DUP 0 GTE
@@ -199,7 +199,7 @@ DEF score_recurring_in_range : int int int -> bool
   POST DUP EQ TRUE
 END
 
-DEF higher_one_time_cost_not_better : int int int int -> bool
+DEF higher_one_time_cost_not_better : int int int int -> bool EFFECT pure
   PRE { one_time_compare_inputs_valid }
   LET high
   LET low
@@ -213,7 +213,7 @@ DEF higher_one_time_cost_not_better : int int int int -> bool
   POST DUP EQ TRUE
 END
 
-DEF higher_recurring_cost_not_better : int int int int -> bool
+DEF higher_recurring_cost_not_better : int int int int -> bool EFFECT pure
   PRE { recurring_compare_inputs_valid }
   LET high
   LET low
@@ -227,7 +227,7 @@ DEF higher_recurring_cost_not_better : int int int int -> bool
   POST DUP EQ TRUE
 END
 
-DEF risk_label_known : int -> bool
+DEF risk_label_known : int -> bool EFFECT pure
   ABS 3 MOD
   risk_label_for_score
   DUP "safe" EQ
@@ -237,13 +237,13 @@ DEF risk_label_known : int -> bool
   POST DUP EQ TRUE
 END
 
-DEF reserve_breach_not_safe : int int int -> int
+DEF reserve_breach_not_safe : int int int -> int EFFECT pure
   PRE { reserve_breach_inputs_valid }
   score_one_time
   POST DUP 0 NEQ
 END
 
-DEF negative_margin_not_safe_from_margin : int -> int
+DEF negative_margin_not_safe_from_margin : int -> int EFFECT pure
   PRE { DUP 0 LT }
   score_from_projected_margin
   POST DUP 2 EQ

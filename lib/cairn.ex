@@ -116,32 +116,37 @@ defmodule Cairn do
         raise Cairn.RuntimeError, "PROVE: undefined function '#{name}'"
 
       %Cairn.Types.Function{} = func ->
-        case Prove.prove(func, env) do
-          {:proven, _msg} ->
-            IO.puts("PROVE #{name}: PROVEN — POST holds for all inputs satisfying PRE")
+        if Map.get(func, :effect, :io) != :pure do
+          IO.puts("PROVE #{name}: UNKNOWN")
+          IO.puts("  reason: function is not pure")
+        else
+          case Prove.prove(func, env) do
+            {:proven, _msg} ->
+              IO.puts("PROVE #{name}: PROVEN — POST holds for all inputs satisfying PRE")
 
-          {:disproven, counterexample, _model} ->
-            raise Cairn.ContractError,
-              message: "PROVE #{name}: DISPROVEN\n  counterexample: #{counterexample}",
-              function_name: name,
-              stack: []
+            {:disproven, counterexample, _model} ->
+              raise Cairn.ContractError,
+                message: "PROVE #{name}: DISPROVEN\n  counterexample: #{counterexample}",
+                function_name: name,
+                stack: []
 
-          {:unknown, reason} ->
-            IO.puts("PROVE #{name}: UNKNOWN")
-            IO.puts("  reason: #{reason}")
-            maybe_print_prove_hint(reason)
+            {:unknown, reason} ->
+              IO.puts("PROVE #{name}: UNKNOWN")
+              IO.puts("  reason: #{reason}")
+              maybe_print_prove_hint(reason)
 
-          {:error, reason} ->
-            hint = prove_error_hint(reason)
+            {:error, reason} ->
+              hint = prove_error_hint(reason)
 
-            message =
-              if hint do
-                "PROVE #{name}: ERROR\n  reason: #{reason}\n  hint: #{hint}"
-              else
-                "PROVE #{name}: ERROR\n  reason: #{reason}"
-              end
+              message =
+                if hint do
+                  "PROVE #{name}: ERROR\n  reason: #{reason}\n  hint: #{hint}"
+                else
+                  "PROVE #{name}: ERROR\n  reason: #{reason}"
+                end
 
-            raise Cairn.RuntimeError, message
+              raise Cairn.RuntimeError, message
+          end
         end
     end
   end

@@ -8,6 +8,27 @@ defmodule Cairn.Checker do
 
   alias Cairn.Checker.{Error, Stack, Effects, Unify}
 
+  @effectful_ops MapSet.new([
+                  :argv,
+                  :read_line,
+                  :say,
+                  :print,
+                  :said,
+                  :read_file,
+                  :write_file,
+                  :read_file!,
+                  :write_file!,
+                  :http_serve,
+                  :db_put,
+                  :db_get,
+                  :db_del,
+                  :db_pairs,
+                  :ask,
+                  :ask!,
+                  :random,
+                  :host_call
+                ])
+
   @host_call_signatures %{
     "int_to_string" => %{args: [:int], return: :str},
     "float_to_string" => %{args: [:float], return: :str}
@@ -51,6 +72,7 @@ defmodule Cairn.Checker do
              type_params: func.type_params,
              param_types: func.param_types,
              return_types: func.return_types,
+             effect: func.effect || :io,
              actor_required: MapSet.member?(actor_required, func.name),
              protocol_effect_steps: protocol_effect_steps
            }),
@@ -74,6 +96,7 @@ defmodule Cairn.Checker do
       current_actor_type: nil,
       current_protocol_steps: nil,
       current_state_type: nil,
+      current_effect: nil,
       actor_required: actor_required
     }
 
@@ -94,7 +117,7 @@ defmodule Cairn.Checker do
       env
       |> Enum.filter(fn {_, v} -> match?(%Cairn.Types.Function{}, v) end)
       |> Enum.reduce(type_env, fn {name, func}, acc ->
-        {name, %{type_params: func.type_params || [], param_types: func.param_types, return_types: func.return_types}}
+        {name, %{type_params: func.type_params || [], param_types: func.param_types, return_types: func.return_types, effect: func.effect || :io}}
         |> then(fn {k, v} -> Map.put(acc, k, v) end)
       end)
 
@@ -146,6 +169,7 @@ defmodule Cairn.Checker do
       type_params: func.type_params,
       param_types: func.param_types,
       return_types: func.return_types,
+      effect: func.effect || :io,
       actor_required: MapSet.member?(state.actor_required, func.name),
       protocol_effect_steps:
         Map.get(state.env[func.name] || %{}, :protocol_effect_steps) || protocol_effect_steps
@@ -202,6 +226,7 @@ defmodule Cairn.Checker do
       | stack: body_stack,
         current_actor_type: body_actor_type,
         current_protocol_steps: body_protocol_steps,
+        current_effect: func.effect || :io,
         types: body_types,
         env: body_env
     }
@@ -218,7 +243,7 @@ defmodule Cairn.Checker do
           |> Enum.reverse()
           |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
-        pre_state = %{body_state | stack: pre_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, types: body_types, env: body_env}
+        pre_state = %{body_state | stack: pre_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, current_effect: :pure, types: body_types, env: body_env}
         pre_state = check_tokens(func.pre_condition, pre_state)
         %{pre_state | stack: body_state.stack}
       else
@@ -237,7 +262,7 @@ defmodule Cairn.Checker do
             |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
           end
 
-        post_state = %{body_state | stack: post_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, types: body_types, env: body_env}
+        post_state = %{body_state | stack: post_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, current_effect: :pure, types: body_types, env: body_env}
         post_state = check_tokens(func.post_condition, post_state)
         %{post_state | stack: body_state.stack}
       else
@@ -251,7 +276,8 @@ defmodule Cairn.Checker do
         current_actor_type: state.current_actor_type,
         current_protocol_steps: state.current_protocol_steps,
         types: state.types,
-        env: state.env
+        env: state.env,
+        current_effect: state.current_effect
     }
   end
 
@@ -293,7 +319,8 @@ defmodule Cairn.Checker do
       | stack: state.stack,
         current_actor_type: state.current_actor_type,
         current_protocol_steps: state.current_protocol_steps,
-        current_state_type: state.current_state_type
+        current_state_type: state.current_state_type,
+        current_effect: state.current_effect
     }
   end
 
@@ -965,6 +992,13 @@ defmodule Cairn.Checker do
   defp walk([{:op, op, pos} | rest], state) do
     case Effects.lookup(op) do
       {:ok, effect} ->
+        state =
+          if pure_context?(state) and effectful_op?(op) do
+            add_error(state, pos, "pure function cannot use effectful operator '#{String.upcase(to_string(op))}'")
+          else
+            state
+          end
+
         state = apply_effect(op, effect, pos, state)
         walk(rest, state)
 
@@ -987,6 +1021,13 @@ defmodule Cairn.Checker do
         state =
           if Map.get(entry, :actor_required, false) and is_nil(state.current_actor_type) do
             add_error(state, pos, "function '#{name}' requires actor context")
+          else
+            state
+          end
+
+        state =
+          if pure_context?(state) and Map.get(entry, :effect, :io) != :pure do
+            add_error(state, pos, "pure function cannot call effectful function '#{name}' (#{Map.get(entry, :effect, :io)})")
           else
             state
           end
@@ -2480,6 +2521,11 @@ defmodule Cairn.Checker do
   defp validate_declared_type(state, other, context, _type_params) do
     add_error(state, nil, "#{context} uses unsupported declared type #{format_type(other)}")
   end
+
+  defp pure_context?(%{current_effect: :pure}), do: true
+  defp pure_context?(_state), do: false
+
+  defp effectful_op?(op), do: MapSet.member?(@effectful_ops, op)
 
   defp duplicates(items) do
     items

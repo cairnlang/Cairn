@@ -4,7 +4,7 @@ defmodule Cairn.Parser do
 
   Top-level constructs:
   1. Expressions — postfix sequences of literals, identifiers, and operators.
-  2. Function definitions — `DEF name : type -> type body [POST condition] END`
+  2. Function definitions — `DEF name : type -> type [EFFECT kind] body [POST condition] END`
   3. TYPE declarations — `TYPE name = Ctor1 [types...] | Ctor2 [types...] ...`
   4. VERIFY/PROVE statements
   5. TEST blocks — `TEST "name" ... END`
@@ -96,6 +96,7 @@ defmodule Cairn.Parser do
     with {:ok, name, type_params, rest} <- parse_function_name(tokens),
          {:ok, _colon, rest} <- expect(:colon, rest),
          {:ok, param_types, return_types, rest} <- parse_type_signature(rest, known_types, MapSet.new(type_params)),
+         {:ok, effect, rest} <- parse_effect(rest),
          {:ok, pre_condition, post_condition, body, rest} <- parse_body(rest) do
       {:ok,
        %Function{
@@ -103,6 +104,7 @@ defmodule Cairn.Parser do
          type_params: type_params,
          param_types: param_types,
          return_types: return_types,
+         effect: effect,
          body: body,
          pre_condition: pre_condition,
          post_condition: post_condition
@@ -113,6 +115,22 @@ defmodule Cairn.Parser do
   defp parse_function_name([{:ident, name, _} | rest]), do: {:ok, name, [], rest}
   defp parse_function_name([{:generic_ident, {name, type_params}, _} | rest]), do: {:ok, name, type_params, rest}
   defp parse_function_name(_), do: {:error, "expected function name after DEF"}
+
+  defp parse_effect([{:effect_kw, _, _}, {:ident, name, _} | rest]) do
+    case name do
+      "pure" -> {:ok, :pure, rest}
+      "io" -> {:ok, :io, rest}
+      "db" -> {:ok, :db, rest}
+      "http" -> {:ok, :http, rest}
+      _ -> {:error, "invalid EFFECT #{name}; expected pure, io, db, or http"}
+    end
+  end
+
+  defp parse_effect([{:effect_kw, _, _} | _]) do
+    {:error, "EFFECT requires one of: pure, io, db, http"}
+  end
+
+  defp parse_effect(tokens), do: {:ok, :io, tokens}
 
   # TYPE name = Ctor1 type1 type2 | Ctor2 type3 | Ctor3
   defp parse_type_def([{:ident, name, _}, {:equals, _, _} | rest]) do

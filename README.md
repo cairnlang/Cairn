@@ -58,6 +58,14 @@ mix escript.build
 
 If you want a production-style run to ignore inline `VERIFY` and `PROVE` directives, set `CAIRN_SKIP_ASSURANCE=1`.
 
+Functions can now also declare a bounded effect:
+- `EFFECT pure`
+- `EFFECT io`
+- `EFFECT db`
+- `EFFECT http`
+
+The first enforced rule is simple and practical: `pure` functions cannot call effectful functions or use effectful built-ins.
+
 Run native Cairn test files with:
 
 ```bash

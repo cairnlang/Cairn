@@ -531,6 +531,31 @@ For ADT params, counterexamples are now decoded in constructor form (see `exampl
 To print MATCH pruning diagnostics, run with `CAIRN_PROVE_TRACE=summary`, `CAIRN_PROVE_TRACE=verbose`, or `CAIRN_PROVE_TRACE=json` (trace goes to stderr; see `examples/prove/proven_shape_trace.crn`).
 For production-style runs that should ignore inline assurance directives in loaded code, set `CAIRN_SKIP_ASSURANCE=1` to skip both `VERIFY` and `PROVE` during evaluation.
 
+## Function Effects
+
+Functions may optionally declare an effect:
+
+```crn
+DEF score : int int -> int EFFECT pure
+  SUB
+END
+```
+
+Built-in effect kinds:
+- `pure`
+- `io`
+- `db`
+- `http`
+
+If omitted, functions currently default to `io`.
+
+Current v1 rule:
+- `pure` functions may only call other `pure` functions
+- `pure` functions may not use effectful built-ins such as file I/O, database operators, HTTP serving, prompting, printing, host calls, or `RANDOM`
+
+`PROVE` respects this boundary:
+- proving a non-`pure` function returns `UNKNOWN` with the reason `function is not pure`
+
 For the full proof surface, trace modes, and solver details, see [`prove.md`](prove.md).
 
 ### Native Tests

@@ -99,6 +99,7 @@ JSON mode (`--json-errors`) emits a single JSON object with fields like:
 2. Run native tests: `./cairn --test examples/web/afford_test.crn`
 3. Run: `./cairn examples/hello_world.crn`
    - Or try the collection-helper showcase: `./cairn examples/collections.crn`
+   - Or try explicit generics: `./cairn examples/generics.crn`
    - Or try explicit float math: `./cairn examples/math.crn`
    - Or try native string helpers: `./cairn examples/strings.crn`
    - Or try narrow host interop: `./cairn examples/interop.crn`

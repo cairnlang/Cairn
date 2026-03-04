@@ -34,6 +34,68 @@ DEF divmod : int int -> int int
 END
 ```
 
+### Explicit Generics
+
+Cairn supports explicit parametric polymorphism for functions.
+
+Use type parameters directly after the function name:
+
+```crn
+DEF id[T] : T -> T
+  DUP DROP
+END
+```
+
+Multiple type parameters are allowed:
+
+```crn
+DEF swap[T U] : T U -> U T
+  SWAP
+END
+```
+
+Type variables:
+- must be declared in the function's type parameter list
+- may appear in both parameter and return positions
+- are instantiated from the actual stack types at the call site
+
+This means the checker uses the concrete values you push to determine what `T`,
+`U`, and the other declared variables mean for that particular call.
+
+For example:
+
+```crn
+DEF map_get_or[T] : T map[str T] str -> T
+  ...
+END
+```
+
+can be used as:
+
+```text
+before: [key:str, source:map[str str], fallback:str]
+after:  [value:str]
+```
+
+and also as:
+
+```text
+before: [key:str, source:map[str int], fallback:int]
+after:  [value:int]
+```
+
+Current scope and limits:
+- generic functions: supported
+- type variables in signatures: supported
+- call-site generic instantiation: supported
+- user-defined generic `TYPE` declarations: not supported yet
+- explicit type application syntax: not supported yet
+- full global type inference: not supported
+
+This is intentionally an explicit, bounded first version. The practical goal is
+to remove avoidable `any` from reusable helpers without turning Cairn into a
+full Hindley-Milner language.
+
 ### Reading Stack Effects
 
 Cairn signatures are written from the top of the stack outward:

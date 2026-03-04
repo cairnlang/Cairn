@@ -28,6 +28,20 @@ DEF http_text_method_not_allowed : str -> str map[str str] int EFFECT pure
   ROT
 END
 
+# Convert a plain-text body into a simple 401 response.
+DEF http_text_unauthorized : str -> str map[str str] int EFFECT pure
+  401
+  M[ "Content-Type" "text/plain; charset=utf-8" ]
+  ROT
+END
+
+# Convert a plain-text body into a simple 403 response.
+DEF http_text_forbidden : str -> str map[str str] int EFFECT pure
+  403
+  M[ "Content-Type" "text/plain; charset=utf-8" ]
+  ROT
+END
+
 # Convenience wrapper for serving a known HTML file.
 DEF http_html_file_ok : str -> str map[str str] int EFFECT http
   READ_FILE!
@@ -103,6 +117,37 @@ DEF session_clear : str map[str str] map[str str] int -> str map[str str] map[st
   session DROP
 
   status M[] headers body
+END
+
+# Check whether a session currently has a logged-in user.
+DEF session_has_user : map[str str] -> bool EFFECT pure
+  "user" SWAP "" map_get_or LEN 0 GT
+END
+
+# Check whether the current session role matches the required role.
+DEF session_has_role : str map[str str] -> bool EFFECT pure
+  LET required_role
+  LET session
+
+  session "role" SWAP "" map_get_or required_role EQ
+END
+
+# Guard predicate: require a logged-in user.
+DEF guard_require_login : map[str str] -> bool EFFECT pure
+  session_has_user
+END
+
+# Guard predicate: require a specific role on an already-present session.
+DEF guard_require_role : str map[str str] -> bool EFFECT pure
+  LET required_role
+  LET session
+
+  session guard_require_login
+  IF
+    session required_role session_has_role
+  ELSE
+    FALSE
+  END
 END
 
 # Exact-path route: serve a known HTML file on match.

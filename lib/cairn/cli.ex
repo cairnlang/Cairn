@@ -8,7 +8,7 @@ defmodule Cairn.CLI do
     {"lib/prelude/str.crn", ["lines_nonempty", "csv_ints"]},
     {"lib/prelude/config.crn", ["env_data_lines", "env_map", "env_keys", "env_fetch", "map_get_or"]},
     {"lib/prelude/ini.crn", ["ini_data_lines", "ini_map", "ini_sections", "ini_fetch"]},
-    {"lib/prelude/web.crn", ["http_html_ok", "http_text_ok", "http_text_not_found", "http_text_method_not_allowed", "http_html_file_ok", "html_escape", "http_add_header", "session_put", "session_clear", "route_html_file", "route_get_html_file", "route_text_ok", "route_get_text", "route_or", "route_finish", "route_finish_get"]},
+    {"lib/prelude/web.crn", ["http_html_ok", "http_text_ok", "http_text_not_found", "http_text_method_not_allowed", "http_text_unauthorized", "http_text_forbidden", "http_html_file_ok", "html_escape", "http_add_header", "session_put", "session_clear", "session_has_user", "session_has_role", "guard_require_login", "guard_require_role", "route_html_file", "route_get_html_file", "route_text_ok", "route_get_text", "route_or", "route_finish", "route_finish_get"]},
     {"lib/prelude.crn", ["to_int_or", "to_float_or", "read_file_or", "ask_or"]}
   ]
 

@@ -580,6 +580,38 @@ defmodule Cairn.HTTPTest do
     assert remembered_response =~ "HTTP/1.1 200 OK"
     assert remembered_response =~ "Hello, <strong>alice</strong>."
 
+    admin_response =
+      http_request(port, "GET", "/admin", [{"Cookie", "cairn_session=#{session_id}"}], "")
+
+    assert admin_response =~ "HTTP/1.1 200 OK"
+    assert admin_response =~ "Admin Area"
+    assert admin_response =~ "You cleared the admin guard."
+
+    bob_response =
+      http_post_form(port, "/login", %{
+        "username" => "bob",
+        "password" => "cairn"
+      })
+
+    bob_cookie = extract_header(bob_response, "set-cookie")
+    assert is_binary(bob_cookie)
+
+    bob_session_id =
+      bob_cookie
+      |> String.split(";", parts: 2)
+      |> hd()
+      |> String.trim_leading("cairn_session=")
+
+    forbidden_response =
+      http_request(port, "GET", "/admin", [{"Cookie", "cairn_session=#{bob_session_id}"}], "")
+
+    assert forbidden_response =~ "HTTP/1.1 403 Forbidden"
+    assert forbidden_response =~ "forbidden"
+
+    unauth_response = http_get(port, "/admin")
+    assert unauth_response =~ "HTTP/1.1 401 Unauthorized"
+    assert unauth_response =~ "login required"
+
     logout_response =
       http_request(port, "POST", "/logout", [{"Cookie", "cairn_session=#{session_id}"}], "")
 

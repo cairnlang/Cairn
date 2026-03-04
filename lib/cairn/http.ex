@@ -256,7 +256,7 @@ defmodule Cairn.HTTP do
 
   defp normalize_handler_response(other), do: {:error, other}
 
-  defp apply_session_headers(headers, session_id, :unchanged), do: headers
+  defp apply_session_headers(headers, _session_id, :unchanged), do: headers
 
   defp apply_session_headers(headers, session_id, session) when is_map(session) do
     cond do
@@ -331,6 +331,8 @@ defmodule Cairn.HTTP do
 
   defp status_line(200), do: "200 OK"
   defp status_line(400), do: "400 Bad Request"
+  defp status_line(401), do: "401 Unauthorized"
+  defp status_line(403), do: "403 Forbidden"
   defp status_line(413), do: "413 Payload Too Large"
   defp status_line(415), do: "415 Unsupported Media Type"
   defp status_line(405), do: "405 Method Not Allowed"

@@ -7,7 +7,7 @@ DEF current_user_role : map[str str] -> str EFFECT pure
 END
 
 DEF logged_in_p : map[str str] -> bool EFFECT pure
-  current_user_name LEN 0 GT
+  session_has_user
 END
 
 DEF render_login_page : str -> str map[str str] int EFFECT pure
@@ -35,7 +35,17 @@ DEF render_home_page : str str -> str map[str str] int EFFECT pure
 
   safe_role
   safe_user
-  "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Login Demo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Protected Home</h1>\n      <p>Hello, <strong>{}</strong>.</p>\n      <p>Your role is <strong>{}</strong>.</p>\n      <form action=\"/logout\" method=\"post\">\n        <button type=\"submit\" class=\"secondary\">Log out</button>\n      </form>\n    </main>\n  </body>\n</html>\n" FMT
+  "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Login Demo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Protected Home</h1>\n      <p>Hello, <strong>{}</strong>.</p>\n      <p>Your role is <strong>{}</strong>.</p>\n      <p><a href=\"/admin\">Admin area</a></p>\n      <form action=\"/logout\" method=\"post\">\n        <button type=\"submit\" class=\"secondary\">Log out</button>\n      </form>\n    </main>\n  </body>\n</html>\n" FMT
+  http_html_ok
+END
+
+DEF render_admin_page : str -> str map[str str] int EFFECT pure
+  LET username
+
+  username html_escape LET safe_user
+
+  safe_user
+  "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Login Demo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Admin Area</h1>\n      <p>Welcome, <strong>{}</strong>. You cleared the admin guard.</p>\n      <p><a href=\"/\">Back home</a></p>\n    </main>\n  </body>\n</html>\n" FMT
   http_html_ok
 END
 
@@ -88,8 +98,27 @@ DEF handle_login_request : str str map[str str] map[str str] map[str str] map[st
         "" render_login_page
         session with_session
       ELSE
-        "not found\n" http_text_not_found
-        session with_session
+        path "/admin" EQ
+        IF
+          session guard_require_login
+          IF
+            session "admin" guard_require_role
+            IF
+              session current_user_name
+              render_admin_page
+              session with_session
+            ELSE
+              "forbidden\n" http_text_forbidden
+              session with_session
+            END
+          ELSE
+            "login required\n" http_text_unauthorized
+            session with_session
+          END
+        ELSE
+          "not found\n" http_text_not_found
+          session with_session
+        END
       END
     END
   ELSE

@@ -147,6 +147,12 @@ defmodule Cairn.ExamplesSmokeTest do
       "method_status=405",
       "method_headers=%{\"Content-Type\" => \"text/plain; charset=utf-8\"}",
       "method_body=method not allowed",
+      "unauth_status=401",
+      "unauth_headers=%{\"Content-Type\" => \"text/plain; charset=utf-8\"}",
+      "unauth_body=login required",
+      "forbidden_status=403",
+      "forbidden_headers=%{\"Content-Type\" => \"text/plain; charset=utf-8\"}",
+      "forbidden_body=forbidden",
       "custom_status=200",
       "custom_headers=%{",
       "\"Content-Type\" => \"text/plain; charset=utf-8\"",
@@ -163,7 +169,11 @@ defmodule Cairn.ExamplesSmokeTest do
       "route_body=<p>About</p>",
       "miss_route_status=404",
       "miss_route_headers=%{\"Content-Type\" => \"text/plain; charset=utf-8\"}",
-      "miss_route_body=not found"
+      "miss_route_body=not found",
+      "guard_login=TRUE",
+      "guard_missing=FALSE",
+      "guard_admin=TRUE",
+      "guard_forbidden=FALSE"
     ])
 
     assert_output_markers("examples/practical/mini_env.crn", [

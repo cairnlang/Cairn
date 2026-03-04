@@ -29,6 +29,24 @@ method_status "method_status={}" FMT SAID
 method_headers "method_headers={}" FMT SAID
 method_body "method_body={}" FMT SAID
 
+"login required\n" http_text_unauthorized
+LET unauth_body
+LET unauth_headers
+LET unauth_status
+
+unauth_status "unauth_status={}" FMT SAID
+unauth_headers "unauth_headers={}" FMT SAID
+unauth_body "unauth_body={}" FMT SAID
+
+"forbidden\n" http_text_forbidden
+LET forbidden_body
+LET forbidden_headers
+LET forbidden_status
+
+forbidden_status "forbidden_status={}" FMT SAID
+forbidden_headers "forbidden_headers={}" FMT SAID
+forbidden_body "forbidden_body={}" FMT SAID
+
 "ok\n" http_text_ok
 "X-Demo" "demo=yes" http_add_header
 LET custom_body
@@ -87,3 +105,15 @@ LET miss_route_status
 miss_route_status "miss_route_status={}" FMT SAID
 miss_route_headers "miss_route_headers={}" FMT SAID
 miss_route_body "miss_route_body={}" FMT SAID
+
+M[ "user" "alice" "role" "admin" ] guard_require_login
+"guard_login={}" FMT SAID
+
+M[] guard_require_login
+"guard_missing={}" FMT SAID
+
+M[ "user" "alice" "role" "admin" ] "admin" guard_require_role
+"guard_admin={}" FMT SAID
+
+M[ "user" "bob" "role" "operator" ] "admin" guard_require_role
+"guard_forbidden={}" FMT SAID

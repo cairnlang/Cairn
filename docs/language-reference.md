@@ -918,6 +918,14 @@ http_text_method_not_allowed
 before: [body:str]
 after:  [body:str, headers:map[str str], status:int]
 
+http_text_unauthorized
+before: [body:str]
+after:  [body:str, headers:map[str str], status:int]
+
+http_text_forbidden
+before: [body:str]
+after:  [body:str, headers:map[str str], status:int]
+
 http_html_file_ok
 before: [path:str]
 after:  [body:str, headers:map[str str], status:int]
@@ -949,6 +957,24 @@ session_clear
 before: [body:str, headers:map[str str], session:map[str str], status:int]
 after:  [body:str, headers:map[str str], session:map[str str], status:int]
 note: returns an empty outgoing session map; the runtime clears the stored session and expires the cookie
+
+session_has_user
+before: [session:map[str str]]
+after:  [present:bool]
+
+session_has_role
+before: [required_role:str, session:map[str str]]
+after:  [allowed:bool]
+
+guard_require_login
+before: [session:map[str str]]
+after:  [allowed:bool]
+note: this is a boolean guard predicate; it does not build an HTTP response by itself
+
+guard_require_role
+before: [required_role:str, session:map[str str]]
+after:  [allowed:bool]
+note: this is a boolean guard predicate; pair it with `http_text_unauthorized` or `http_text_forbidden`
 
 AUTH_CHECK is the first auth-facing built-in. It checks credentials through the
 runtime-side user-store boundary and returns the built-in `result` type. The

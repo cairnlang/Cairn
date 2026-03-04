@@ -15,6 +15,7 @@ defmodule Cairn.Types do
           | {:monitor, cairn_type}
           | {:block, term()}
           | {:user_type, String.t()}
+          | {:user_type, String.t(), [cairn_type]}
           | :any
           | :void
           | :str
@@ -77,10 +78,11 @@ defmodule Cairn.Types do
     @moduledoc """
     A sum type (tagged union) definition.
     """
-    defstruct [:name, :variants]
+    defstruct [:name, :type_params, :variants]
 
     @type t :: %__MODULE__{
             name: String.t(),
+            type_params: [String.t()],
             variants: %{String.t() => [Cairn.Types.cairn_type()]}
           }
   end

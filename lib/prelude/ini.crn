@@ -126,7 +126,7 @@ DEF ini_sections : str -> [str]
   REVERSE
 END
 
-DEF ini_fetch : str str str -> result
+DEF ini_fetch : str str str -> result[str str]
   LET key
   LET section
   LET raw

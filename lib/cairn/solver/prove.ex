@@ -256,6 +256,13 @@ defmodule Cairn.Solver.Prove do
     Map.get(model, "p#{i}", "?")
   end
 
+  defp format_param_value({:user_type, "option", _}, i, model, _env) do
+    case Map.get(model, "p#{i}_tag", 0) do
+      1 -> "Some(#{Map.get(model, "p#{i}_val", "?")})"
+      _ -> "None"
+    end
+  end
+
   defp format_param_value({:user_type, "option"}, i, model, _env) do
     case Map.get(model, "p#{i}_tag", 0) do
       1 -> "Some(#{Map.get(model, "p#{i}_val", "?")})"
@@ -263,10 +270,52 @@ defmodule Cairn.Solver.Prove do
     end
   end
 
+  defp format_param_value({:user_type, "result", _}, i, model, _env) do
+    case Map.get(model, "p#{i}_tag", 0) do
+      1 -> "Ok(#{Map.get(model, "p#{i}_ok", "?")})"
+      _ -> "Err(_)"
+    end
+  end
+
   defp format_param_value({:user_type, "result"}, i, model, _env) do
     case Map.get(model, "p#{i}_tag", 0) do
       1 -> "Ok(#{Map.get(model, "p#{i}_ok", "?")})"
       _ -> "Err(_)"
+    end
+  end
+
+  defp format_param_value({:user_type, type_name, _}, i, model, env) do
+    types = Map.get(env, "__types__", %{})
+
+    case Map.get(types, type_name) do
+      %Cairn.Types.TypeDef{} = typedef ->
+        ctors = typedef.variants |> Map.keys() |> Enum.sort()
+        tag = Map.get(model, "p#{i}_tag", 0)
+
+        case Enum.at(ctors, tag) do
+          nil ->
+            "#{type_name}(tag=#{tag})"
+
+          ctor ->
+            case Map.get(typedef.variants, ctor, []) do
+              [] -> ctor
+              [field_type] ->
+                "#{ctor}(#{Map.get(model, "p#{i}_v0", format_unknown(field_type))})"
+              field_types ->
+                rendered =
+                  field_types
+                  |> Enum.with_index()
+                  |> Enum.map(fn {field_type, field_i} ->
+                    Map.get(model, "p#{i}_v#{field_i}", format_unknown(field_type))
+                  end)
+                  |> Enum.join(", ")
+
+                "#{ctor}(#{rendered})"
+            end
+        end
+
+      _ ->
+        "#{type_name}(?)"
     end
   end
 
@@ -302,6 +351,20 @@ defmodule Cairn.Solver.Prove do
   end
 
   defp format_param_value(_type, _i, _model, _env), do: "?"
+
+  defp format_unknown({:list, _}), do: "[]"
+  defp format_unknown({:tuple, _}), do: "#(...)"
+  defp format_unknown({:user_type, "option", _}), do: "None"
+  defp format_unknown({:user_type, "option"}), do: "None"
+  defp format_unknown({:user_type, "result", _}), do: "Err(?)"
+  defp format_unknown({:user_type, "result"}), do: "Err(?)"
+  defp format_unknown({:user_type, type_name, _}), do: "#{type_name}(?)"
+  defp format_unknown({:user_type, type_name}), do: "#{type_name}(?)"
+  defp format_unknown(:int), do: "0"
+  defp format_unknown(:float), do: "0.0"
+  defp format_unknown(:str), do: "\"?\""
+  defp format_unknown(:bool), do: "TRUE"
+  defp format_unknown(_), do: "?"
 
   defp enrich_env_with_pre_assumptions(env, pre_constraint) do
     {assumptions, normalized_pre, rewrites, rewrite_summary} = assumption_map_from_constraint(pre_constraint)

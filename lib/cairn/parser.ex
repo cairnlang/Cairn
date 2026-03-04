@@ -133,10 +133,17 @@ defmodule Cairn.Parser do
   defp parse_effect(tokens), do: {:ok, :io, tokens}
 
   # TYPE name = Ctor1 type1 type2 | Ctor2 type3 | Ctor3
-  defp parse_type_def([{:ident, name, _}, {:equals, _, _} | rest]) do
-    case collect_variants(rest, %{}, nil, []) do
+  defp parse_type_def([type_name_tok, {:equals, _, _} | rest])
+       when elem(type_name_tok, 0) in [:ident, :generic_ident] do
+    {name, type_params} =
+      case type_name_tok do
+        {:ident, name, _} -> {name, []}
+        {:generic_ident, {name, type_params}, _} -> {name, type_params}
+      end
+
+    case collect_variants(rest, %{}, nil, [], MapSet.new(type_params)) do
       {:ok, variants, remaining} ->
-        {:ok, %TypeDef{name: name, variants: variants}, remaining}
+        {:ok, %TypeDef{name: name, type_params: type_params, variants: variants}, remaining}
       {:error, _} = err -> err
     end
   end
@@ -182,43 +189,57 @@ defmodule Cairn.Parser do
 
   # Collect variant declarations: Ctor1 type... | Ctor2 type... | ...
   # Terminates when we see a top-level keyword or end of tokens
-  defp collect_variants([], variants, current_ctor, current_types) do
+  defp collect_variants([], variants, current_ctor, current_types, _type_params) do
     variants = finish_variant(variants, current_ctor, current_types)
     {:ok, variants, []}
   end
 
-  defp collect_variants([{:pipe, _, _} | rest], variants, current_ctor, current_types) do
+  defp collect_variants([{:pipe, _, _} | rest], variants, current_ctor, current_types, type_params) do
     variants = finish_variant(variants, current_ctor, current_types)
-    collect_variants(rest, variants, nil, [])
+    collect_variants(rest, variants, nil, [], type_params)
   end
 
-  defp collect_variants([{:constructor, ctor_name, _} | rest], variants, current_ctor, current_types) do
-    # If we already have a current constructor without a pipe, it was a nullary ctor
-    variants = finish_variant(variants, current_ctor, current_types)
-    collect_variants(rest, variants, ctor_name, [])
+  defp collect_variants([{:constructor, ctor_name, _} | rest], variants, current_ctor, current_types, type_params) do
+    cond do
+      not is_nil(current_ctor) and MapSet.member?(type_params, ctor_name) ->
+        collect_variants(rest, variants, current_ctor, current_types ++ [{:type_var, ctor_name}], type_params)
+
+      true ->
+        # If we already have a current constructor without a pipe, it was a nullary ctor
+        variants = finish_variant(variants, current_ctor, current_types)
+        collect_variants(rest, variants, ctor_name, [], type_params)
+    end
   end
 
-  defp collect_variants([{:type, type_val, _} | rest], variants, current_ctor, current_types)
+  defp collect_variants([{:type, type_val, _} | rest], variants, current_ctor, current_types, type_params)
        when not is_nil(current_ctor) do
-    collect_variants(rest, variants, current_ctor, current_types ++ [type_val])
+    collect_variants(rest, variants, current_ctor, current_types ++ [type_val], type_params)
   end
 
   # User-defined type names as variant field types (e.g. `Node tree tree`, `JArr [json]` uses lexer,
   # but bare user types like `Wrap json` arrive here as :ident tokens)
-  defp collect_variants([{:ident, name, _} | rest], variants, current_ctor, current_types)
+  defp collect_variants([{:ident, name, _} | rest], variants, current_ctor, current_types, type_params)
        when not is_nil(current_ctor) do
-    collect_variants(rest, variants, current_ctor, current_types ++ [{:user_type, name}])
+    field_type =
+      if MapSet.member?(type_params, name), do: {:type_var, name}, else: {:user_type, name}
+
+    collect_variants(rest, variants, current_ctor, current_types ++ [field_type], type_params)
+  end
+
+  defp collect_variants([{:generic_ident, {name, type_args}, _} | rest], variants, current_ctor, current_types, type_params)
+       when not is_nil(current_ctor) do
+    collect_variants(rest, variants, current_ctor, current_types ++ [{:user_type, name, type_args}], type_params)
   end
 
   # Stop at any top-level boundary token
-  defp collect_variants([{type, _, _} | _] = rest, variants, current_ctor, current_types)
+  defp collect_variants([{type, _, _} | _] = rest, variants, current_ctor, current_types, _type_params)
        when type in [:fn_def, :verify_kw, :prove_kw, :test_kw, :type_kw, :protocol_kw] do
     variants = finish_variant(variants, current_ctor, current_types)
     {:ok, variants, rest}
   end
 
   # Any other token terminates the TYPE declaration — start of next expression
-  defp collect_variants(tokens, variants, current_ctor, current_types) do
+  defp collect_variants(tokens, variants, current_ctor, current_types, _type_params) do
     variants = finish_variant(variants, current_ctor, current_types)
     {:ok, variants, tokens}
   end
@@ -307,7 +328,7 @@ defmodule Cairn.Parser do
   defp parse_type_signature(tokens, known_types, type_params) do
     {type_tokens, rest} = collect_type_tokens(tokens, [], known_types, type_params)
 
-    case split_on_last_arrow(type_tokens) do
+    case split_on_last_arrow(type_tokens, type_params) do
       {:ok, param_types, return_types} ->
         param_types = Enum.map(param_types, &normalize_signature_type(&1, type_params))
         return_types = Enum.map(return_types, &normalize_signature_type(&1, type_params))
@@ -319,7 +340,7 @@ defmodule Cairn.Parser do
             {:ok, [], [t], rest}
 
           [{:user_type_tok, name, _}] ->
-            {:ok, [], [{:user_type, name}], rest}
+            {:ok, [], [name], rest}
 
           [{:type_var_tok, name, _}] ->
             {:ok, [], [{:type_var, name}], rest}
@@ -357,9 +378,20 @@ defmodule Cairn.Parser do
     end
   end
 
+  defp collect_type_tokens([{:generic_ident, {name, type_args}, pos} | rest], acc, known_types, type_params) do
+    cond do
+      MapSet.member?(known_types, name) ->
+        normalized_args = Enum.map(type_args, &normalize_signature_type(&1, type_params))
+        collect_type_tokens(rest, [{:type, {:user_type, name, normalized_args}, pos} | acc], known_types, type_params)
+
+      true ->
+        {Enum.reverse(acc), [{:generic_ident, {name, type_args}, pos} | rest]}
+    end
+  end
+
   defp collect_type_tokens(rest, acc, _known_types, _type_params), do: {Enum.reverse(acc), rest}
 
-  defp split_on_last_arrow(type_tokens) do
+  defp split_on_last_arrow(type_tokens, type_params) do
     indices =
       type_tokens
       |> Enum.with_index()
@@ -379,8 +411,8 @@ defmodule Cairn.Parser do
           before
           |> Enum.filter(fn {type, _, _} -> type in [:type, :user_type_tok, :type_var_tok] end)
           |> Enum.map(fn
-            {:type, val, _} -> val
-            {:user_type_tok, name, _} -> {:user_type, name}
+            {:type, val, _} -> normalize_signature_type(val, type_params)
+            {:user_type_tok, name, _} -> normalize_signature_type({:user_type, name}, type_params)
             {:type_var_tok, name, _} -> {:type_var, name}
           end)
 
@@ -392,7 +424,7 @@ defmodule Cairn.Parser do
             return_types =
               Enum.map(types, fn
                 {:type, val, _} -> val
-                {:user_type_tok, name, _} -> {:user_type, name}
+                {:user_type_tok, name, _} -> normalize_signature_type({:user_type, name}, type_params)
                 {:type_var_tok, name, _} -> {:type_var, name}
                 other -> throw({:bad_return_type, other})
               end)
@@ -402,12 +434,29 @@ defmodule Cairn.Parser do
     end
   end
 
+  defp normalize_signature_type(name, type_params) when is_binary(name) do
+    cond do
+      name in ["int", "float", "bool", "str", "any", "void"] ->
+        String.to_atom(name)
+
+      MapSet.member?(type_params, name) ->
+        {:type_var, name}
+
+      true ->
+        name
+    end
+  end
+
   defp normalize_signature_type({:user_type, name}, type_params) do
     if MapSet.member?(type_params, name) do
       {:type_var, name}
     else
-      {:user_type, name}
+      name
     end
+  end
+
+  defp normalize_signature_type({:user_type, name, args}, type_params) do
+    {:user_type, name, Enum.map(args, &normalize_signature_type(&1, type_params))}
   end
 
   defp normalize_signature_type({:list, inner}, type_params),
@@ -557,6 +606,7 @@ defmodule Cairn.Parser do
     |> Enum.chunk_every(2, 1, :discard)
     |> Enum.reduce(MapSet.new(["result"]), fn
       [{:type_kw, _, _}, {:ident, name, _}], acc -> MapSet.put(acc, name)
+      [{:type_kw, _, _}, {:generic_ident, {name, _}, _}], acc -> MapSet.put(acc, name)
       _, acc -> acc
     end)
   end

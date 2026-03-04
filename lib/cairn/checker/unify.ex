@@ -98,6 +98,70 @@ defmodule Cairn.Checker.Unify do
   # Block types unify with each other
   def unify({:block, _} = a, {:block, _}), do: {:ok, a}
 
+  def unify({:user_type, n, a_args}, {:user_type, n, b_args}) when length(a_args) == length(b_args) do
+    unify_type_lists(a_args, b_args)
+    |> case do
+      {:ok, args} -> {:ok, {:user_type, n, args}}
+      :error -> :error
+    end
+  end
+
+  def unify(type_name, {:user_type, type_name, []}) when is_binary(type_name), do: {:ok, type_name}
+  def unify({:user_type, type_name, []}, type_name) when is_binary(type_name), do: {:ok, type_name}
+
+  def unify(type_name, {:user_type, type_name}) when is_binary(type_name), do: {:ok, type_name}
+  def unify({:user_type, type_name}, type_name) when is_binary(type_name), do: {:ok, type_name}
+
+  def unify({:tagged_variant, type_name, _ctor, type_args}, {:user_type, type_name, expected_args})
+      when length(type_args) == length(expected_args) do
+    unify_type_lists(type_args, expected_args)
+    |> case do
+      {:ok, args} -> {:ok, {:user_type, type_name, args}}
+      :error -> :error
+    end
+  end
+
+  def unify({:user_type, type_name, expected_args}, {:tagged_variant, type_name, _ctor, type_args})
+      when length(type_args) == length(expected_args) do
+    unify({:tagged_variant, type_name, :_, type_args}, {:user_type, type_name, expected_args})
+  end
+
+  def unify({:tagged_variant, type_name, _ctor, _type_args}, {:user_type, type_name}),
+    do: {:ok, {:user_type, type_name}}
+
+  def unify({:user_type, type_name}, {:tagged_variant, type_name, _ctor, _type_args}),
+    do: {:ok, {:user_type, type_name}}
+
+  def unify({:tagged_variant, type_name, _ctor, []}, expected_type_name) when is_binary(expected_type_name) and expected_type_name == type_name,
+    do: {:ok, expected_type_name}
+
+  def unify(expected_type_name, {:tagged_variant, type_name, _ctor, []}) when is_binary(expected_type_name) and expected_type_name == type_name,
+    do: {:ok, expected_type_name}
+
+  def unify({:tagged_variant, type_name, _ctor}, expected_type_name) when is_binary(expected_type_name) and expected_type_name == type_name,
+    do: {:ok, expected_type_name}
+
+  def unify(expected_type_name, {:tagged_variant, type_name, _ctor}) when is_binary(expected_type_name) and expected_type_name == type_name,
+    do: {:ok, expected_type_name}
+
+  def unify({:tagged_variant, type_name, ctor, type_args_a}, {:tagged_variant, type_name, ctor, type_args_b})
+      when length(type_args_a) == length(type_args_b) do
+    unify_type_lists(type_args_a, type_args_b)
+    |> case do
+      {:ok, args} -> {:ok, {:tagged_variant, type_name, ctor, args}}
+      :error -> :error
+    end
+  end
+
+  def unify({:tagged_variant, type_name, _ctor_a, type_args_a}, {:tagged_variant, type_name, _ctor_b, type_args_b})
+      when length(type_args_a) == length(type_args_b) do
+    unify_type_lists(type_args_a, type_args_b)
+    |> case do
+      {:ok, args} -> {:ok, {:user_type, type_name, args}}
+      :error -> :error
+    end
+  end
+
   # Tagged constructor values unify with their declared sum type
   def unify({:tagged_variant, type_name, _ctor}, {:user_type, type_name}),
     do: {:ok, {:user_type, type_name}}
@@ -116,4 +180,18 @@ defmodule Cairn.Checker.Unify do
 
   # Everything else fails
   def unify(_, _), do: :error
+
+  defp unify_type_lists(a_types, b_types) do
+    Enum.zip(a_types, b_types)
+    |> Enum.reduce_while({:ok, []}, fn {a, b}, {:ok, acc} ->
+      case unify(a, b) do
+        {:ok, unified} -> {:cont, {:ok, [unified | acc]}}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, types} -> {:ok, Enum.reverse(types)}
+      :error -> :error
+    end
+  end
 end

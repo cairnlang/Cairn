@@ -1,6 +1,6 @@
 # proven_result.crn — result MATCH proofs (v0.6.0b slice)
 
-DEF unwrap_ok_or_default : result int -> int
+DEF unwrap_ok_or_default : result[int str] int -> int
   PRE { OVER 0 GTE }
   MATCH
     Ok  { ABS SWAP DROP }
@@ -9,7 +9,7 @@ DEF unwrap_ok_or_default : result int -> int
   POST DUP 0 GTE
 END
 
-DEF is_ok_bool : result -> bool
+DEF is_ok_bool : result[int str] -> bool
   MATCH
     Ok  { DROP TRUE }
     Err { DROP FALSE }

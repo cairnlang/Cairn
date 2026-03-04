@@ -32,7 +32,7 @@ DEF env_keys : str -> [str] EFFECT pure
   { "=" SPLIT HEAD } MAP
 END
 
-DEF env_fetch : str str -> result EFFECT pure
+DEF env_fetch : str str -> result[str str] EFFECT pure
   LET key
   LET raw
   raw env_map LET source

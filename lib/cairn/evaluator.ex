@@ -357,6 +357,12 @@ defmodule Cairn.Evaluator do
         {fields, stack} = pop_args(stack, arity)
         variant = {:variant, type_name, name, fields}
         run(rest, [variant | stack], env)
+
+      %{type_name: type_name, field_types: field_types} ->
+        arity = length(field_types)
+        {fields, stack} = pop_args(stack, arity)
+        variant = {:variant, type_name, name, fields}
+        run(rest, [variant | stack], env)
     end
   end
 
@@ -852,7 +858,10 @@ defmodule Cairn.Evaluator do
   defp matches_type?({:pid, inner}, {:pid, expected_inner}), do: type_descriptor_matches?(inner, expected_inner)
   defp matches_type?({:monitor, inner, _pid, _ref}, {:monitor, expected_inner}),
     do: type_descriptor_matches?(inner, expected_inner)
+  defp matches_type?({:variant, type_name, _, _}, expected_type_name) when is_binary(expected_type_name) and type_name == expected_type_name,
+    do: true
   defp matches_type?({:variant, type_name, _, _}, {:user_type, type_name}), do: true
+  defp matches_type?({:variant, type_name, _, _}, {:user_type, type_name, _}), do: true
   defp matches_type?(_, _), do: false
 
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
@@ -860,6 +869,7 @@ defmodule Cairn.Evaluator do
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
+  defp format_type({:user_type, name, args}), do: "#{name}[#{Enum.map_join(args, " ", &format_type/1)}]"
   defp format_type({:user_type, name}), do: name
   defp format_type({:type_var, name}), do: name
   defp format_type(type), do: to_string(type)
@@ -876,6 +886,14 @@ defmodule Cairn.Evaluator do
 
   defp type_descriptor_matches?({:pid, a}, {:pid, b}), do: type_descriptor_matches?(a, b)
   defp type_descriptor_matches?({:monitor, a}, {:monitor, b}), do: type_descriptor_matches?(a, b)
+  defp type_descriptor_matches?(a_name, {:user_type, a_name, []}) when is_binary(a_name), do: true
+  defp type_descriptor_matches?({:user_type, a_name, []}, a_name) when is_binary(a_name), do: true
+  defp type_descriptor_matches?(a_name, {:user_type, a_name}) when is_binary(a_name), do: true
+  defp type_descriptor_matches?({:user_type, a_name}, a_name) when is_binary(a_name), do: true
+  defp type_descriptor_matches?(a_name, b_name) when is_binary(a_name) and is_binary(b_name), do: a_name == b_name
+  defp type_descriptor_matches?({:user_type, a_name, a_args}, {:user_type, a_name, b_args})
+       when length(a_args) == length(b_args),
+       do: Enum.zip(a_args, b_args) |> Enum.all?(fn {a, b} -> type_descriptor_matches?(a, b) end)
   defp type_descriptor_matches?(_, :any), do: true
   defp type_descriptor_matches?(_, _), do: false
 

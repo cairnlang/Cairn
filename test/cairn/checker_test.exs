@@ -134,8 +134,8 @@ defmodule Cairn.CheckerTest do
       assert {:ok, %{pops: [:str],             pushes: [:str]}}           = Effects.lookup(:trim)
       assert {:ok, %{pops: [:str, :str],       pushes: [:bool]}}          = Effects.lookup(:starts_with)
       assert {:ok, %{pops: [:int, :int, :str], pushes: [:str]}}           = Effects.lookup(:slice)
-      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result"}]}} = Effects.lookup(:to_int)
-      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result"}]}} = Effects.lookup(:to_float)
+      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result", [:int, :str]}]}} = Effects.lookup(:to_int)
+      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result", [:float, :str]}]}} = Effects.lookup(:to_float)
       assert {:ok, %{pops: [:str], pushes: [:int]}} = Effects.lookup(:to_int!)
       assert {:ok, %{pops: [:str], pushes: [:float]}} = Effects.lookup(:to_float!)
     end
@@ -444,6 +444,51 @@ defmodule Cairn.CheckerTest do
       DEF restart_once[T] : block[pid[T]] block[pid[T]] -> void
         DROP DROP
       END
+      """)
+    end
+
+    test "parser accepts generic type definitions" do
+      assert {:ok, tokens} =
+               Cairn.Lexer.tokenize("""
+               TYPE option[T] = None | Some T
+               """)
+
+      assert {:ok, [%Cairn.Types.TypeDef{} = typedef]} = Cairn.Parser.parse(tokens)
+      assert typedef.name == "option"
+      assert typedef.type_params == ["T"]
+      assert typedef.variants["None"] == []
+      assert typedef.variants["Some"] == [{:type_var, "T"}]
+    end
+
+    test "checker accepts generic adt constructors and matches" do
+      check_ok("""
+      TYPE option[T] = None | Some T
+
+      DEF wrap[T] : T -> option[T]
+        Some
+      END
+
+      DEF unwrap_or[T] : option[T] T -> T
+        MATCH
+          None { }
+          Some { SWAP DROP }
+        END
+      END
+
+      0 42 wrap unwrap_or
+      """)
+    end
+
+    test "checker accepts parameterized built-in result signatures" do
+      check_ok("""
+      DEF keep_ok : result[int str] int -> int
+        MATCH
+          Ok { SWAP DROP }
+          Err { DROP }
+        END
+      END
+
+      0 3 Ok keep_ok
       """)
     end
   end

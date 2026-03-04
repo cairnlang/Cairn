@@ -86,8 +86,8 @@ defmodule Cairn.Checker.Effects do
     replace:     %{pops: [:str, :str, :str], pushes: [:str]},
     reverse_str: %{pops: [:str],             pushes: [:str]},
     slice:       %{pops: [:int, :int, :str], pushes: [:str]},
-    to_int:      %{pops: [:str],             pushes: [{:user_type, "result"}]},
-    to_float:    %{pops: [:str],             pushes: [{:user_type, "result"}]},
+    to_int:      %{pops: [:str],             pushes: [{:user_type, "result", [:int, :str]}]},
+    to_float:    %{pops: [:str],             pushes: [{:user_type, "result", [:float, :str]}]},
     to_int!:  %{pops: [:str],             pushes: [:int]},
     to_float!: %{pops: [:str],            pushes: [:float]},
     join:        %{pops: [:str, {:list, :str}], pushes: [:str]},
@@ -104,16 +104,16 @@ defmodule Cairn.Checker.Effects do
     read_line: %{pops: [], pushes: [:str]},
 
     # File I/O
-    read_file: %{pops: [:str], pushes: [{:user_type, "result"}]},
-    write_file: %{pops: [:str, :str], pushes: [{:user_type, "result"}]},
+    read_file: %{pops: [:str], pushes: [{:user_type, "result", [:str, :str]}]},
+    write_file: %{pops: [:str, :str], pushes: [{:user_type, "result", [:void, :str]}]},
     read_file!: %{pops: [:str], pushes: [:str]},
     write_file!: %{pops: [:str, :str], pushes: []},
     http_serve: %{pops: [{:block, :opaque}, :int], pushes: []},
     db_put: %{pops: [:str, :str], pushes: []},
-    db_get: %{pops: [:str], pushes: [{:user_type, "result"}]},
+    db_get: %{pops: [:str], pushes: [{:user_type, "result", [:str, :str]}]},
     db_del: %{pops: [:str], pushes: []},
     db_pairs: %{pops: [], pushes: [{:list, {:tuple, [:str, :str]}}]},
-    auth_check: %{pops: [:str, :str], pushes: [{:user_type, "result"}]},
+    auth_check: %{pops: [:str, :str], pushes: [{:user_type, "result", [{:map, :str, :str}, :str]}]},
 
     # Map operations
     get: %{pops: [:any, {:map, :any, :any}], pushes: [:any]},
@@ -128,7 +128,7 @@ defmodule Cairn.Checker.Effects do
     num_str: %{pops: [:num], pushes: [:str]},
 
     # ASK: pop prompt string, push input string
-    ask: %{pops: [:str], pushes: [{:user_type, "result"}]},
+    ask: %{pops: [:str], pushes: [{:user_type, "result", [:str, :str]}]},
     ask!: %{pops: [:str], pushes: [:str]},
 
     # RANDOM: pop int N, push random int in [1, N]

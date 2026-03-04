@@ -222,7 +222,11 @@ defmodule Cairn do
 
           new_ctors =
             Enum.reduce(typedef.variants, ctors, fn {ctor_name, field_types}, acc ->
-              Map.put(acc, ctor_name, {typedef.name, field_types})
+              Map.put(acc, ctor_name, %{
+                type_name: typedef.name,
+                type_params: typedef.type_params || [],
+                field_types: field_types
+              })
             end)
 
           env =
@@ -276,13 +280,14 @@ defmodule Cairn do
     types =
       Map.put_new(types, "result", %TypeDef{
         name: "result",
-        variants: %{"Ok" => [:any], "Err" => [:str]}
+        type_params: ["T", "E"],
+        variants: %{"Ok" => [{:type_var, "T"}], "Err" => [{:type_var, "E"}]}
       })
 
     ctors =
       ctors
-      |> Map.put_new("Ok", {"result", [:any]})
-      |> Map.put_new("Err", {"result", [:str]})
+      |> Map.put_new("Ok", %{type_name: "result", type_params: ["T", "E"], field_types: [{:type_var, "T"}]})
+      |> Map.put_new("Err", %{type_name: "result", type_params: ["T", "E"], field_types: [{:type_var, "E"}]})
 
     env
     |> Map.put("__types__", types)

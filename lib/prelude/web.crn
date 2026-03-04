@@ -145,8 +145,8 @@ DEF guard_require_role : str map[str str] -> bool EFFECT pure
 END
 
 # Exact-path route: serve a known HTML file on match.
-# Signature: file route path -> result
-DEF route_html_file : str str str -> result EFFECT http
+# Signature: file route path -> result[any str]
+DEF route_html_file : str str str -> result[any str] EFFECT http
   LET file
   LET route
   LET path
@@ -160,8 +160,8 @@ DEF route_html_file : str str str -> result EFFECT http
 END
 
 # Exact GET route: serve a known HTML file on match.
-# Signature: file route method path -> result
-DEF route_get_html_file : str str str str -> result EFFECT http
+# Signature: file route method path -> result[any str]
+DEF route_get_html_file : str str str str -> result[any str] EFFECT http
   LET file
   LET route
   LET method
@@ -178,8 +178,8 @@ DEF route_get_html_file : str str str str -> result EFFECT http
 END
 
 # Exact-path route: serve a plain-text body on match.
-# Signature: body route path -> result
-DEF route_text_ok : str str str -> result EFFECT pure
+# Signature: body route path -> result[any str]
+DEF route_text_ok : str str str -> result[any str] EFFECT pure
   LET body
   LET route
   LET path
@@ -193,8 +193,8 @@ DEF route_text_ok : str str str -> result EFFECT pure
 END
 
 # Exact GET route: serve a plain-text body on match.
-# Signature: body route method path -> result
-DEF route_get_text : str str str str -> result EFFECT pure
+# Signature: body route method path -> result[any str]
+DEF route_get_text : str str str str -> result[any str] EFFECT pure
   LET body
   LET route
   LET method
@@ -211,8 +211,8 @@ DEF route_get_text : str str str str -> result EFFECT pure
 END
 
 # Prefer the earlier candidate if it matched; otherwise keep the fallback.
-# Signature: fallback preferred -> result
-DEF route_or : result result -> result EFFECT pure
+# Signature: fallback preferred -> result[any str]
+DEF route_or : result[any str] result[any str] -> result[any str] EFFECT pure
   LET fallback
   LET preferred
 
@@ -226,7 +226,7 @@ DEF route_or : result result -> result EFFECT pure
 END
 
 # Finalize a route chain into the stack shape HTTP_SERVE expects.
-DEF route_finish : result -> str map[str str] int EFFECT pure
+DEF route_finish : result[any str] -> str map[str str] int EFFECT pure
   "not found\n" http_text_not_found http_pack_response
   SWAP
   result_unwrap_or
@@ -237,7 +237,7 @@ END
 # - matching route => use it
 # - no route + GET => 404
 # - no route + non-GET => 405
-DEF route_finish_get : str result -> str map[str str] int EFFECT pure
+DEF route_finish_get : str result[any str] -> str map[str str] int EFFECT pure
   LET method
   LET candidate
 

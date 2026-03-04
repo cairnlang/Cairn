@@ -151,6 +151,8 @@ defmodule Cairn.Verify do
   # User-defined sum types: depth-limited via StreamData.tree.
   # StreamData.tree(leaf_gen, subtree_fn) automatically shrinks depth toward
   # the leaf generator as size decreases, preventing infinite recursion.
+  defp type_generator({:user_type, name, _args}, types), do: type_generator({:user_type, name}, types)
+
   defp type_generator({:user_type, name}, types) do
     typedef = Map.get(types, name)
 
@@ -180,6 +182,13 @@ defmodule Cairn.Verify do
       else
         leaf_gen
       end
+    end
+  end
+
+  defp type_generator(name, types) when is_binary(name) do
+    case Map.get(types, name) do
+      nil -> StreamData.integer(-100..100)
+      _typedef -> type_generator({:user_type, name}, types)
     end
   end
 
@@ -213,16 +222,28 @@ defmodule Cairn.Verify do
 
   # For a field whose type directly or shallowly references a user_type, use
   # `inner_gen` (the depth-reduced sub-generator) instead of recursing fully.
+  defp gen_for_field({:user_type, _, _}, inner, _types) when not is_nil(inner), do: inner
   defp gen_for_field({:user_type, _}, inner, _types) when not is_nil(inner), do: inner
+  defp gen_for_field(name, inner, _types) when is_binary(name) and not is_nil(inner), do: inner
+  defp gen_for_field({:list, {:user_type, _, _}}, inner, _types) when not is_nil(inner),
+    do: StreamData.list_of(inner, min_length: 0, max_length: 3)
   defp gen_for_field({:list, {:user_type, _}}, inner, _types) when not is_nil(inner),
     do: StreamData.list_of(inner, min_length: 0, max_length: 3)
+  defp gen_for_field({:list, name}, inner, _types) when is_binary(name) and not is_nil(inner),
+    do: StreamData.list_of(inner, min_length: 0, max_length: 3)
+  defp gen_for_field({:map, k_type, {:user_type, _, _}}, inner, types) when not is_nil(inner),
+    do: StreamData.map_of(type_generator(k_type, types), inner, min_length: 0, max_length: 3)
   defp gen_for_field({:map, k_type, {:user_type, _}}, inner, types) when not is_nil(inner),
+    do: StreamData.map_of(type_generator(k_type, types), inner, min_length: 0, max_length: 3)
+  defp gen_for_field({:map, k_type, name}, inner, types) when is_binary(name) and not is_nil(inner),
     do: StreamData.map_of(type_generator(k_type, types), inner, min_length: 0, max_length: 3)
   defp gen_for_field(field_type, _inner, types),
     do: type_generator(field_type, types)
 
   # Returns true if `type` references a user_type anywhere in its structure.
+  defp field_has_user_type?({:user_type, _, _}), do: true
   defp field_has_user_type?({:user_type, _}), do: true
+  defp field_has_user_type?(name) when is_binary(name), do: true
   defp field_has_user_type?({:list, inner}), do: field_has_user_type?(inner)
   defp field_has_user_type?({:map, k, v}), do: field_has_user_type?(k) or field_has_user_type?(v)
   defp field_has_user_type?(_), do: false
@@ -253,6 +274,7 @@ defmodule Cairn.Verify do
   defp format_type(:any), do: "any"
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
+  defp format_type({:user_type, name, args}), do: "#{name}[#{Enum.map_join(args, " ", &format_type/1)}]"
   defp format_type({:user_type, name}), do: name
   defp format_type(other), do: inspect(other)
 end

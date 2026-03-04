@@ -51,6 +51,20 @@ defmodule Cairn.Solver.Symbolic do
             var = "p#{i}"
             {:cont, {:ok, [{:int_expr, {:var, var}} | stack], [var | vars], constraints}}
 
+          {:user_type, "option", _} ->
+            tag_var = "p#{i}_tag"
+            val_var = "p#{i}_val"
+
+            tag_expr = {:var, tag_var}
+            val_expr = {:var, val_var}
+
+            option_domain =
+              {:or, {:eq, tag_expr, {:const, 0}}, {:eq, tag_expr, {:const, 1}}}
+
+            {:cont,
+             {:ok, [{:option_expr, tag_expr, val_expr} | stack], [val_var, tag_var | vars],
+              [option_domain | constraints]}}
+
           {:user_type, "option"} ->
             tag_var = "p#{i}_tag"
             val_var = "p#{i}_val"
@@ -64,6 +78,21 @@ defmodule Cairn.Solver.Symbolic do
             {:cont,
              {:ok, [{:option_expr, tag_expr, val_expr} | stack], [val_var, tag_var | vars],
               [option_domain | constraints]}}
+
+          {:user_type, "result", _} ->
+            tag_var = "p#{i}_tag"
+            ok_var = "p#{i}_ok"
+            err_var = "p#{i}_err"
+
+            tag_expr = {:var, tag_var}
+            ok_expr = {:var, ok_var}
+
+            result_domain =
+              {:or, {:eq, tag_expr, {:const, 0}}, {:eq, tag_expr, {:const, 1}}}
+
+            {:cont,
+             {:ok, [{:result_expr, tag_expr, ok_expr, err_var} | stack], [ok_var, tag_var | vars],
+              [result_domain | constraints]}}
 
           {:user_type, "result"} ->
             tag_var = "p#{i}_tag"
@@ -79,6 +108,15 @@ defmodule Cairn.Solver.Symbolic do
             {:cont,
              {:ok, [{:result_expr, tag_expr, ok_expr, err_var} | stack], [ok_var, tag_var | vars],
               [result_domain | constraints]}}
+
+          {:user_type, type_name, _} ->
+            case build_user_type_symbolic_param(type_name, i, types) do
+              {:ok, sym_val, new_vars, constraint} ->
+                {:cont, {:ok, [sym_val | stack], Enum.reverse(new_vars) ++ vars, [constraint | constraints]}}
+
+              {:unsupported, _} = err ->
+                {:halt, err}
+            end
 
           {:user_type, type_name} ->
             case build_user_type_symbolic_param(type_name, i, types) do
@@ -163,6 +201,17 @@ defmodule Cairn.Solver.Symbolic do
     case Map.get(ctors, name) do
       nil ->
         {:unsupported, "constructor '#{name}' is not available in PROVE"}
+
+      %{type_name: type_name, field_types: field_types} ->
+        with {:ok, typedef} <- fetch_typedef(type_name, types),
+             {:ok, field_vals, remaining_stack} <- pop_constructor_fields(stack, field_types) do
+          ctor_order = ctor_order(typedef)
+          tag = ctor_index(ctor_order, name)
+          payload_map = constructor_payload_map(typedef, name, field_vals)
+          walk(rest, [{:variant_expr, type_name, {:const, tag}, payload_map} | remaining_stack], env, depth)
+        else
+          {:unsupported, _} = err -> err
+        end
 
       {type_name, field_types} ->
         with {:ok, typedef} <- fetch_typedef(type_name, types),

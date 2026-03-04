@@ -1,21 +1,21 @@
 # Prelude: result helpers
 
-DEF result_is_ok : result -> bool EFFECT pure
+DEF result_is_ok[T E] : result[T E] -> bool EFFECT pure
   MATCH
     Ok  { DROP TRUE }
     Err { DROP FALSE }
   END
 END
 
-DEF result_is_err : result -> bool EFFECT pure
+DEF result_is_err[T E] : result[T E] -> bool EFFECT pure
   MATCH
     Ok  { DROP FALSE }
     Err { DROP TRUE }
   END
 END
 
-# Signature: result any -> any (result on top, default below)
-DEF result_unwrap_or : result any -> any EFFECT pure
+# Signature: result[T E] T -> T (result on top, default below)
+DEF result_unwrap_or[T E] : result[T E] T -> T EFFECT pure
   MATCH
     Ok  { SWAP DROP }  # keep value, drop default
     Err { DROP }       # drop error message, keep default

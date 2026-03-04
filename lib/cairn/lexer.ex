@@ -287,6 +287,22 @@ defmodule Cairn.Lexer do
             :error -> :error
           end
 
+        Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*\[.+\]$/, s) ->
+          [name, args_str] = String.split(s, "[", parts: 2)
+          inner = String.trim_trailing(args_str, "]")
+
+          parts =
+            Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|pid\[(?:[^\[\]]|\[[^\]]*\])*\]|monitor\[(?:[^\[\]]|\[[^\]]*\])*\]|block\[(?:[^\[\]]|\[[^\]]*\])*\]|[A-Za-z_][A-Za-z0-9_]*\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/, inner)
+            |> Enum.map(fn [match] -> match end)
+
+          parsed = Enum.map(parts, &parse_map_inner_type/1)
+
+          if parsed != [] and Enum.all?(parsed, &match?({:ok, _}, &1)) do
+            {:ok, {:user_type, name, Enum.map(parsed, fn {:ok, t} -> t end)}}
+          else
+            :error
+          end
+
         Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*$/, s) ->
           {:ok, {:user_type, s}}
 

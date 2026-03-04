@@ -56,11 +56,15 @@ defmodule Cairn.Checker do
     {type_env, types, protocols} =
       Enum.reduce(items, {type_env, types, protocols}, fn
         %Cairn.Types.TypeDef{} = typedef, {te, tys, protos} ->
+          type_params = typedef.type_params || []
+          return_type = {:user_type, typedef.name, Enum.map(type_params, &{:type_var, &1})}
+
           te =
             Enum.reduce(typedef.variants, te, fn {ctor_name, field_types}, acc ->
               Map.put(acc, ctor_name, %{
+                type_params: type_params,
                 param_types: field_types,
-                return_types: [{:user_type, typedef.name}]
+                return_types: [return_type]
               })
             end)
 
@@ -126,11 +130,28 @@ defmodule Cairn.Checker do
     ctors = Map.get(env, "__constructors__", %{})
 
     type_env =
-      Enum.reduce(ctors, type_env, fn {ctor_name, {type_name, field_types}}, acc ->
-        Map.put(acc, ctor_name, %{
-          param_types: field_types,
-          return_types: [{:user_type, type_name}]
-        })
+      Enum.reduce(ctors, type_env, fn {ctor_name, ctor_info}, acc ->
+        case ctor_info do
+          %{type_name: type_name, field_types: field_types, type_params: type_params} ->
+            return_type =
+              if Enum.empty?(type_params || []) do
+                type_name
+              else
+                {:user_type, type_name, Enum.map(type_params, &{:type_var, &1})}
+              end
+
+            Map.put(acc, ctor_name, %{
+              type_params: type_params || [],
+              param_types: field_types,
+              return_types: [return_type]
+            })
+
+          {type_name, field_types} ->
+            Map.put(acc, ctor_name, %{
+              param_types: field_types,
+                return_types: [type_name]
+              })
+        end
       end)
 
     env_types = Map.get(env, "__types__", %{})
@@ -141,14 +162,23 @@ defmodule Cairn.Checker do
 
   defp prelude_checker_env do
     type_env = %{
-      "Ok" => %{param_types: [:any], return_types: [{:user_type, "result"}]},
-      "Err" => %{param_types: [:str], return_types: [{:user_type, "result"}]}
+      "Ok" => %{
+        type_params: ["T", "E"],
+        param_types: [{:type_var, "T"}],
+        return_types: [{:user_type, "result", [{:type_var, "T"}, {:type_var, "E"}]}]
+      },
+      "Err" => %{
+        type_params: ["T", "E"],
+        param_types: [{:type_var, "E"}],
+        return_types: [{:user_type, "result", [{:type_var, "T"}, {:type_var, "E"}]}]
+      }
     }
 
     types = %{
       "result" => %Cairn.Types.TypeDef{
         name: "result",
-        variants: %{"Ok" => [:any], "Err" => [:str]}
+        type_params: ["T", "E"],
+        variants: %{"Ok" => [{:type_var, "T"}], "Err" => [{:type_var, "E"}]}
       }
     }
 
@@ -197,12 +227,12 @@ defmodule Cairn.Checker do
             Enum.reduce(helper_variants, state.env, fn {ctor_name, field_types}, acc ->
               Map.put(acc, ctor_name, %{
                 param_types: field_types,
-                return_types: [{:user_type, helper_type_name}]
+                return_types: [helper_type_name]
               })
             end)
 
           {
-            {:user_type, helper_type_name},
+            helper_type_name,
             helper_protocol_steps,
             Map.put(state.types, helper_type_name, helper_typedef),
             helper_env
@@ -284,18 +314,21 @@ defmodule Cairn.Checker do
 
   defp check_item(%Cairn.Types.TypeDef{} = typedef, state) do
     state = %{state | types: Map.put(state.types, typedef.name, typedef)}
+    type_params = typedef.type_params || []
+    return_type = {:user_type, typedef.name, Enum.map(type_params, &{:type_var, &1})}
 
     state =
       Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
-        validate_declared_types(st, field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field", [])
+        validate_declared_types(st, field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field", type_params)
       end)
 
     # Register each constructor as a pseudo-function in the checker env
     state =
       Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
         put_in(st.env[ctor_name], %{
+          type_params: type_params,
           param_types: field_types,
-          return_types: [{:user_type, typedef.name}]
+          return_types: [return_type]
         })
       end)
 
@@ -1179,11 +1212,22 @@ defmodule Cairn.Checker do
       nil ->
         walk(rest, add_error(state, pos, "unknown constructor '#{name}'"))
 
-      %{param_types: param_types, return_types: return_types} ->
+      %{param_types: param_types, return_types: return_types} = entry ->
         arity = length(param_types)
 
         case Stack.pop_n(state.stack, arity) do
           {arg_types, base} ->
+            expected_arg_types = Enum.reverse(param_types)
+
+            {param_types, return_types, state} =
+              case instantiate_signature(Map.get(entry, :type_params, []), expected_arg_types, return_types, arg_types) do
+                {:ok, instantiated_params, instantiated_returns} ->
+                  {Enum.reverse(instantiated_params), instantiated_returns, state}
+
+                {:error, reason} ->
+                  {param_types, return_types, add_error(state, pos, "constructor '#{name}' #{reason}")}
+              end
+
             state =
               arg_types
               # Runtime constructors pop top-first, so the last declared field is on top
@@ -1204,6 +1248,7 @@ defmodule Cairn.Checker do
               Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                 pushed_type =
                   case type do
+                    {:user_type, type_name, type_args} -> {:tagged_variant, type_name, name, type_args}
                     {:user_type, type_name} -> {:tagged_variant, type_name, name}
                     other -> other
                   end
@@ -1222,6 +1267,7 @@ defmodule Cairn.Checker do
               Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                 pushed_type =
                   case type do
+                    {:user_type, type_name, type_args} -> {:tagged_variant, type_name, name, type_args}
                     {:user_type, type_name} -> {:tagged_variant, type_name, name}
                     other -> other
                   end
@@ -1239,96 +1285,24 @@ defmodule Cairn.Checker do
     {arms, remaining} = collect_checker_match_arms(rest, [])
 
     case Stack.pop(state.stack) do
+      {:ok, type_name, base_stack} when is_binary(type_name) ->
+        {result_stack, state} = check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+        walk(remaining, %{state | stack: result_stack})
+
       {:ok, {:user_type, type_name}, base_stack} ->
-        state = %{state | stack: base_stack}
-        typedef = Map.get(state.types, type_name)
-        has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
+        {result_stack, state} = check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+        walk(remaining, %{state | stack: result_stack})
 
-        state =
-          cond do
-            is_nil(typedef) ->
-              add_error(state, pos, "MATCH requires a known sum type, got #{type_name}")
-
-            has_wildcard ->
-              state
-
-            true ->
-              arm_names = MapSet.new(arms, fn {name, _} -> name end)
-              all_ctors = MapSet.new(Map.keys(typedef.variants))
-              missing = MapSet.difference(all_ctors, arm_names)
-
-              if MapSet.size(missing) > 0 do
-                add_error(state, pos,
-                  "MATCH on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
-              else
-                state
-              end
-          end
-
-        # Walk each arm
-        arm_states =
-          Enum.map(arms, fn
-            {:wildcard, arm_tokens} ->
-              # Wildcard arm: no fields pushed — body starts with base stack
-              walk(arm_tokens, %{state | stack: base_stack})
-
-            {ctor_name, arm_tokens} ->
-              field_types =
-                if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
-
-              arm_stack =
-                field_types
-                |> Enum.reverse()
-                |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
-
-              walk(arm_tokens, %{state | stack: arm_stack})
-          end)
-
-        {result_stack, state} = unify_arm_stacks(arm_states, state, pos)
+      {:ok, {:user_type, type_name, type_args}, base_stack} ->
+        {result_stack, state} = check_match_arms(type_name, type_args, base_stack, arms, %{state | stack: base_stack}, pos)
         walk(remaining, %{state | stack: result_stack})
 
       {:ok, {:tagged_variant, type_name, _ctor_name}, base_stack} ->
-        state = %{state | stack: base_stack}
-        typedef = Map.get(state.types, type_name)
-        has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
+        {result_stack, state} = check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+        walk(remaining, %{state | stack: result_stack})
 
-        # Exhaustiveness check — skip if wildcard catch-all is present
-        state =
-          if typedef && !has_wildcard do
-            arm_names = MapSet.new(arms, fn {name, _} -> name end)
-            all_ctors = MapSet.new(Map.keys(typedef.variants))
-            missing = MapSet.difference(all_ctors, arm_names)
-
-            if MapSet.size(missing) > 0 do
-              add_error(state, pos,
-                "MATCH on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
-            else
-              state
-            end
-          else
-            state
-          end
-
-        # Walk each arm
-        arm_states =
-          Enum.map(arms, fn
-            {:wildcard, arm_tokens} ->
-              # Wildcard arm: no fields pushed — body starts with base stack
-              walk(arm_tokens, %{state | stack: base_stack})
-
-            {ctor_name, arm_tokens} ->
-              field_types =
-                if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
-
-              arm_stack =
-                field_types
-                |> Enum.reverse()
-                |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
-
-              walk(arm_tokens, %{state | stack: arm_stack})
-          end)
-
-        {result_stack, state} = unify_arm_stacks(arm_states, state, pos)
+      {:ok, {:tagged_variant, type_name, _ctor_name, type_args}, base_stack} ->
+        {result_stack, state} = check_match_arms(type_name, type_args, base_stack, arms, %{state | stack: base_stack}, pos)
         walk(remaining, %{state | stack: result_stack})
 
       {:ok, other, _} ->
@@ -1349,8 +1323,15 @@ defmodule Cairn.Checker do
     {arms, remaining} = collect_checker_match_arms(rest, [])
 
     case state.current_actor_type do
+      type_name when is_binary(type_name) and is_list(state.current_protocol_steps) ->
+        check_receive_with_protocol(type_name, arms, remaining, state, pos)
+
       {:user_type, type_name} when is_list(state.current_protocol_steps) ->
         check_receive_with_protocol(type_name, arms, remaining, state, pos)
+
+      type_name when is_binary(type_name) ->
+        {result_stack, state} = check_receive_arms(type_name, state.stack, arms, state, pos)
+        walk(remaining, %{state | stack: result_stack})
 
       {:user_type, type_name} ->
         {result_stack, state} = check_receive_arms(type_name, state.stack, arms, state, pos)
@@ -1580,7 +1561,7 @@ defmodule Cairn.Checker do
               [%Error{message: "FIND block must return bool", position: pos} | block_state.errors]
           end
 
-        state = %{state | stack: Stack.push(base, {:user_type, "result"}), errors: errors}
+        state = %{state | stack: Stack.push(base, {:user_type, "result", [elem_type, :str]}), errors: errors}
         walk(rest, state)
 
       {[{:list, elem_type}, {:block, block_tokens}], base} ->
@@ -1597,7 +1578,7 @@ defmodule Cairn.Checker do
               [%Error{message: "FIND block must return bool", position: pos} | block_state.errors]
           end
 
-        state = %{state | stack: Stack.push(base, {:user_type, "result"}), errors: errors}
+        state = %{state | stack: Stack.push(base, {:user_type, "result", [elem_type, :str]}), errors: errors}
         walk(rest, state)
 
       {_, _} ->
@@ -2154,9 +2135,13 @@ defmodule Cairn.Checker do
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
+  defp format_type({:tagged_variant, _type_name, ctor, args}),
+    do: "#{ctor}[#{Enum.map_join(args, " ", &format_type/1)}]"
   defp format_type({:tagged_variant, _type_name, ctor}), do: ctor
   defp format_type({:block, _}), do: "block"
   defp format_type({:tvar, id}), do: "t#{id}"
+  defp format_type({:user_type, name, args}),
+    do: "#{name}[#{Enum.map_join(args, " ", &format_type/1)}]"
   defp format_type({:user_type, name}), do: name
   defp format_type(other), do: inspect(other)
 
@@ -2246,6 +2231,10 @@ defmodule Cairn.Checker do
 
   defp check_receive_with_explicit_pid(arms, remaining, state, pos) do
     case Stack.pop(state.stack) do
+      {:ok, {:pid, type_name}, base_stack} when is_binary(type_name) ->
+        {result_stack, state} = check_receive_arms(type_name, base_stack, arms, state, pos)
+        walk(remaining, %{state | stack: result_stack})
+
       {:ok, {:pid, {:user_type, type_name}}, base_stack} ->
         {result_stack, state} = check_receive_arms(type_name, base_stack, arms, state, pos)
         walk(remaining, %{state | stack: result_stack})
@@ -2558,6 +2547,24 @@ defmodule Cairn.Checker do
 
   defp resolve_protocol_steps(nil, _msg_type, state, _pos), do: {nil, state}
 
+  defp resolve_protocol_steps(protocol_name, type_name, state, pos) when is_binary(type_name) do
+    case Map.get(state.protocols, protocol_name) do
+      nil ->
+        {nil, add_error(state, pos, "unknown protocol '#{protocol_name}'")}
+
+      %Cairn.Types.ProtocolDef{} = protocol ->
+        {steps, state} =
+          Enum.reduce(protocol.steps, {[], state}, fn {dir, ctor_name}, {acc, st} ->
+            case resolve_protocol_ctor(type_name, ctor_name, st, pos, protocol_name) do
+              {:ok, checked_ctor_name} -> {[{dir, checked_ctor_name} | acc], st}
+              {:error, st} -> {acc, st}
+            end
+          end)
+
+        {Enum.reverse(steps), state}
+    end
+  end
+
   defp resolve_protocol_steps(protocol_name, {:user_type, type_name}, state, pos) do
     case Map.get(state.protocols, protocol_name) do
       nil ->
@@ -2594,6 +2601,26 @@ defmodule Cairn.Checker do
   defp validate_declared_type(state, type, _context, _type_params) when type in [:int, :float, :bool, :str, :any, :void],
     do: state
 
+  defp validate_declared_type(state, type_name, context, _type_params) when is_binary(type_name) do
+    case Map.get(state.types, type_name) do
+      nil ->
+        add_error(state, nil, "#{context} references unknown type #{type_name}")
+
+      typedef ->
+        expected_arity = length(typedef.type_params || [])
+
+        if expected_arity == 0 do
+          state
+        else
+          add_error(
+            state,
+            nil,
+            "#{context} references type #{type_name} with 0 argument(s); expected #{expected_arity}"
+          )
+        end
+    end
+  end
+
   defp validate_declared_type(state, {:type_var, name}, context, type_params) do
     if name in type_params do
       state
@@ -2602,11 +2629,69 @@ defmodule Cairn.Checker do
     end
   end
 
+  defp validate_declared_type(state, name, context, _type_params) when is_binary(name) do
+    case Map.get(state.types, name) do
+      nil ->
+        add_error(state, nil, "#{context} references unknown type #{name}")
+
+      typedef ->
+        expected_arity = length(typedef.type_params || [])
+
+        if expected_arity == 0 do
+          state
+        else
+          add_error(
+            state,
+            nil,
+            "#{context} references type #{name} with 0 argument(s); expected #{expected_arity}"
+          )
+        end
+    end
+  end
+
   defp validate_declared_type(state, {:user_type, name}, context, _type_params) do
-    if Map.has_key?(state.types, name) do
-      state
-    else
-      add_error(state, nil, "#{context} references unknown type #{name}")
+    case Map.get(state.types, name) do
+      nil ->
+        add_error(state, nil, "#{context} references unknown type #{name}")
+
+      typedef ->
+        expected_arity = length(typedef.type_params || [])
+
+        if expected_arity == 0 do
+          state
+        else
+          add_error(
+            state,
+            nil,
+            "#{context} references type #{name} with 0 argument(s); expected #{expected_arity}"
+          )
+        end
+    end
+  end
+
+  defp validate_declared_type(state, {:user_type, name, args}, context, type_params) do
+    case Map.get(state.types, name) do
+      nil ->
+        add_error(state, nil, "#{context} references unknown type #{name}")
+
+      typedef ->
+        expected_arity = length(typedef.type_params || [])
+        actual_arity = length(args)
+
+        state =
+          if expected_arity == actual_arity do
+            state
+          else
+            add_error(
+              state,
+              nil,
+              "#{context} references type #{name} with #{actual_arity} argument(s); expected #{expected_arity}"
+            )
+          end
+
+        Enum.reduce(args, state, fn arg_type, st ->
+          validate_declared_type(st, arg_type, context, type_params)
+        end)
     end
   end
 
@@ -2707,7 +2792,43 @@ defmodule Cairn.Checker do
        do: {:ok, bindings}
 
   defp bind_type_vars_in_type({:user_type, _name}, _actual, bindings), do: {:ok, bindings}
+  defp bind_type_vars_in_type({:tagged_variant, _type_name, _ctor, _type_args}, _actual, bindings), do: {:ok, bindings}
   defp bind_type_vars_in_type({:tagged_variant, _type_name, _ctor}, _actual, bindings), do: {:ok, bindings}
+
+  defp bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
+       when length(expected_args) == length(actual_args) do
+    Enum.zip(expected_args, actual_args)
+    |> Enum.reduce_while({:ok, bindings}, fn {expected, actual}, {:ok, acc} ->
+      case bind_type_vars_in_type(expected, actual, acc) do
+        {:ok, next} -> {:cont, {:ok, next}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp bind_type_vars_in_type(
+         {:user_type, expected_name, expected_args},
+         {:tagged_variant, expected_name, _ctor, actual_args},
+         bindings
+       )
+       when length(expected_args) == length(actual_args),
+       do: bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
+
+  defp bind_type_vars_in_type(
+         {:tagged_variant, expected_name, _ctor, expected_args},
+         {:tagged_variant, expected_name, _actual_ctor, actual_args},
+         bindings
+       )
+       when length(expected_args) == length(actual_args),
+       do: bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
+
+  defp bind_type_vars_in_type(
+         {:tagged_variant, expected_name, _ctor, expected_args},
+         {:user_type, expected_name, actual_args},
+         bindings
+       )
+       when length(expected_args) == length(actual_args),
+       do: bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
 
   defp bind_type_vars_in_type({:list, expected_inner}, {:list, actual_inner}, bindings),
     do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
@@ -2746,6 +2867,8 @@ defmodule Cairn.Checker do
     do: Enum.map(types, &substitute_type_vars(&1, bindings))
 
   defp substitute_type_vars({:type_var, name}, bindings), do: Map.get(bindings, name, :any)
+  defp substitute_type_vars({:user_type, name, args}, bindings),
+    do: {:user_type, name, Enum.map(args, &substitute_type_vars(&1, bindings))}
   defp substitute_type_vars({:list, inner}, bindings), do: {:list, substitute_type_vars(inner, bindings)}
   defp substitute_type_vars({:tuple, elems}, bindings),
     do: {:tuple, Enum.map(elems, &substitute_type_vars(&1, bindings))}
@@ -2760,6 +2883,66 @@ defmodule Cairn.Checker do
     do: {:block, {:returns, substitute_type_vars(inner, bindings)}}
 
   defp substitute_type_vars(other, _bindings), do: other
+
+  defp check_match_arms(type_name, type_args, base_stack, arms, state, pos) do
+    typedef = Map.get(state.types, type_name)
+    has_wildcard = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
+
+    state =
+      cond do
+        is_nil(typedef) ->
+          add_error(state, pos, "MATCH requires a known sum type, got #{type_name}")
+
+        has_wildcard ->
+          state
+
+        true ->
+          arm_names = MapSet.new(arms, fn {name, _} -> name end)
+          all_ctors = MapSet.new(Map.keys(typedef.variants))
+          missing = MapSet.difference(all_ctors, arm_names)
+
+          if MapSet.size(missing) > 0 do
+            add_error(
+              state,
+              pos,
+              "MATCH on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}"
+            )
+          else
+            state
+          end
+      end
+
+    type_param_bindings =
+      (typedef && typedef.type_params || [])
+      |> Enum.zip(type_args)
+      |> Map.new()
+
+    arm_states =
+      Enum.map(arms, fn
+        {:wildcard, arm_tokens} ->
+          walk(arm_tokens, %{state | stack: base_stack})
+
+        {ctor_name, arm_tokens} ->
+          field_types =
+            if typedef do
+              typedef
+              |> Map.get(:variants, %{})
+              |> Map.get(ctor_name, [])
+              |> substitute_type_vars(type_param_bindings)
+            else
+              []
+            end
+
+          arm_stack =
+            field_types
+            |> Enum.reverse()
+            |> Enum.reduce(base_stack, fn t, s -> Stack.push(s, t) end)
+
+          walk(arm_tokens, %{state | stack: arm_stack})
+      end)
+
+    unify_arm_stacks(arm_states, state, pos)
+  end
 
   defp resolve_protocol_ctor(type_name, ctor_name, state, pos, protocol_name) do
     typedef = Map.get(state.types, type_name)

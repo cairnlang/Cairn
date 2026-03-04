@@ -7,8 +7,9 @@ DEF ini_is_comment_line : str -> bool
 END
 
 DEF ini_is_data_line : str -> bool
-  DUP LEN 0 GT
-  SWAP ini_is_comment_line NOT
+  LET line
+  line LEN 0 GT
+  line ini_is_comment_line NOT
   AND
 END
 
@@ -19,10 +20,12 @@ DEF ini_data_lines : str -> [str]
 END
 
 DEF ini_is_section_line : str -> bool
-  DUP LEN 2 GTE
-  SWAP DUP "[" STARTS_WITH
-  SWAP "]" ENDS_WITH
-  AND AND
+  LET line
+  line LEN 2 GTE
+  line "[" STARTS_WITH
+  AND
+  line "]" ENDS_WITH
+  AND
 END
 
 DEF ini_is_kv_line : str -> bool

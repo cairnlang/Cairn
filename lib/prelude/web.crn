@@ -145,8 +145,8 @@ DEF guard_require_role : str map[str str] -> bool EFFECT pure
 END
 
 # Exact-path route: serve a known HTML file on match.
-# Signature: file route path -> result[any str]
-DEF route_html_file : str str str -> result[any str] EFFECT http
+# Signature: file route path -> result[tuple[str map[str str] int] str]
+DEF route_html_file : str str str -> result[tuple[str map[str str] int] str] EFFECT http
   LET file
   LET route
   LET path
@@ -160,26 +160,29 @@ DEF route_html_file : str str str -> result[any str] EFFECT http
 END
 
 # Exact GET route: serve a known HTML file on match.
-# Signature: file route method path -> result[any str]
-DEF route_get_html_file : str str str str -> result[any str] EFFECT http
+# Signature: file route method path -> result[tuple[str map[str str] int] str]
+DEF route_get_html_file : str str str str -> result[tuple[str map[str str] int] str] EFFECT http
   LET file
   LET route
   LET method
   LET path
 
   method "GET" EQ
-  path route EQ
-  AND
   IF
-    file http_html_file_ok http_pack_response Ok
+    path route EQ
+    IF
+      file http_html_file_ok http_pack_response Ok
+    ELSE
+      "no_match" Err
+    END
   ELSE
     "no_match" Err
   END
 END
 
 # Exact-path route: serve a plain-text body on match.
-# Signature: body route path -> result[any str]
-DEF route_text_ok : str str str -> result[any str] EFFECT pure
+# Signature: body route path -> result[tuple[str map[str str] int] str]
+DEF route_text_ok : str str str -> result[tuple[str map[str str] int] str] EFFECT pure
   LET body
   LET route
   LET path
@@ -193,26 +196,29 @@ DEF route_text_ok : str str str -> result[any str] EFFECT pure
 END
 
 # Exact GET route: serve a plain-text body on match.
-# Signature: body route method path -> result[any str]
-DEF route_get_text : str str str str -> result[any str] EFFECT pure
+# Signature: body route method path -> result[tuple[str map[str str] int] str]
+DEF route_get_text : str str str str -> result[tuple[str map[str str] int] str] EFFECT pure
   LET body
   LET route
   LET method
   LET path
 
   method "GET" EQ
-  path route EQ
-  AND
   IF
-    body http_text_ok http_pack_response Ok
+    path route EQ
+    IF
+      body http_text_ok http_pack_response Ok
+    ELSE
+      "no_match" Err
+    END
   ELSE
     "no_match" Err
   END
 END
 
 # Prefer the earlier candidate if it matched; otherwise keep the fallback.
-# Signature: fallback preferred -> result[any str]
-DEF route_or : result[any str] result[any str] -> result[any str] EFFECT pure
+# Signature: fallback preferred -> result[tuple[str map[str str] int] str]
+DEF route_or : result[tuple[str map[str str] int] str] result[tuple[str map[str str] int] str] -> result[tuple[str map[str str] int] str] EFFECT pure
   LET fallback
   LET preferred
 
@@ -226,7 +232,7 @@ DEF route_or : result[any str] result[any str] -> result[any str] EFFECT pure
 END
 
 # Finalize a route chain into the stack shape HTTP_SERVE expects.
-DEF route_finish : result[any str] -> str map[str str] int EFFECT pure
+DEF route_finish : result[tuple[str map[str str] int] str] -> str map[str str] int EFFECT pure
   "not found\n" http_text_not_found http_pack_response
   SWAP
   result_unwrap_or
@@ -237,7 +243,7 @@ END
 # - matching route => use it
 # - no route + GET => 404
 # - no route + non-GET => 405
-DEF route_finish_get : str result[any str] -> str map[str str] int EFFECT pure
+DEF route_finish_get : str result[tuple[str map[str str] int] str] -> str map[str str] int EFFECT pure
   LET method
   LET candidate
 

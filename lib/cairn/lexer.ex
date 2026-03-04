@@ -61,6 +61,48 @@ defmodule Cairn.Lexer do
       source
     )
     |> Enum.map(fn [match] -> match end)
+    |> merge_bracketed_words([])
+  end
+
+  # The regex scanner handles one-level bracket nesting, but nested generic types like
+  # result[tuple[str map[str str] int] str] can still be split across spaces inside the
+  # outer brackets. Merge only word-like bracketed tokens, not list/map literal opens.
+  defp merge_bracketed_words([], acc), do: Enum.reverse(acc)
+
+  defp merge_bracketed_words([word | rest], acc) do
+    if mergeable_bracket_word?(word) and bracket_balance(word) > 0 do
+      {merged, remaining} = consume_bracket_word(rest, word)
+      merge_bracketed_words(remaining, [merged | acc])
+    else
+      merge_bracketed_words(rest, [word | acc])
+    end
+  end
+
+  defp mergeable_bracket_word?(word) do
+    not (String.starts_with?(word, "\"") and String.ends_with?(word, "\"")) and
+      String.contains?(word, "[") and
+      word not in ["[", "M["]
+  end
+
+  defp bracket_balance(word) do
+    String.graphemes(word)
+    |> Enum.reduce(0, fn
+      "[", acc -> acc + 1
+      "]", acc -> acc - 1
+      _, acc -> acc
+    end)
+  end
+
+  defp consume_bracket_word([], current), do: {current, []}
+
+  defp consume_bracket_word([next | rest], current) do
+    merged = current <> " " <> next
+
+    if bracket_balance(merged) > 0 do
+      consume_bracket_word(rest, merged)
+    else
+      {merged, rest}
+    end
   end
 
   # Resolve backslash escape sequences inside a string literal body
@@ -210,12 +252,13 @@ defmodule Cairn.Lexer do
         {:ok, {:constructor, word}}
 
       # generic function name like fn_name[T U]
-      Regex.match?(~r/^[a-z_][a-z0-9_]*\[[A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)*\]$/, word) ->
+      Regex.match?(~r/^[a-z_][a-z0-9_]*\[.+\]$/, word) ->
         [name, params_str] = String.split(word, "[", parts: 2)
+        params_str = String.trim_trailing(params_str, "]")
+
         params =
           params_str
-          |> String.trim_trailing("]")
-          |> String.split(~r/\s+/, trim: true)
+          |> scan_type_args()
 
         {:ok, {:generic_ident, {name, params}}}
 
@@ -226,6 +269,15 @@ defmodule Cairn.Lexer do
       true ->
         {:error, "unexpected token: #{word}"}
     end
+  end
+
+  defp scan_type_args(source) do
+    Regex.scan(
+      ~r/tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|map\[(?:[^\[\]]|\[[^\]]*\])*\]|[a-z_][a-z0-9_]*\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/,
+      source
+    )
+    |> Enum.map(fn [match] -> match end)
+    |> merge_bracketed_words([])
   end
 
   defp parse_map_inner_type(s) do

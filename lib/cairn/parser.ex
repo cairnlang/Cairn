@@ -23,10 +23,15 @@ defmodule Cairn.Parser do
           | {:error, String.t()}
   def parse(tokens, external_known_types \\ MapSet.new()) do
     known_types =
-      external_known_types
+      built_in_type_names()
+      |> MapSet.union(external_known_types)
       |> MapSet.union(collect_declared_type_names(tokens))
 
     parse_top(tokens, [], known_types)
+  end
+
+  defp built_in_type_names do
+    MapSet.new(["result"])
   end
 
   defp parse_top([], acc, _known_types), do: {:ok, Enum.reverse(acc)}
@@ -113,7 +118,15 @@ defmodule Cairn.Parser do
   end
 
   defp parse_function_name([{:ident, name, _} | rest]), do: {:ok, name, [], rest}
-  defp parse_function_name([{:generic_ident, {name, type_params}, _} | rest]), do: {:ok, name, type_params, rest}
+
+  defp parse_function_name([{:generic_ident, {name, type_params}, _} | rest]) do
+    if Enum.all?(type_params, &simple_type_param_name?/1) do
+      {:ok, name, type_params, rest}
+    else
+      {:error, "generic function parameters must be simple identifiers"}
+    end
+  end
+
   defp parse_function_name(_), do: {:error, "expected function name after DEF"}
 
   defp parse_effect([{:effect_kw, _, _}, {:ident, name, _} | rest]) do
@@ -141,10 +154,14 @@ defmodule Cairn.Parser do
         {:generic_ident, {name, type_params}, _} -> {name, type_params}
       end
 
-    case collect_variants(rest, %{}, nil, [], MapSet.new(type_params)) do
-      {:ok, variants, remaining} ->
-        {:ok, %TypeDef{name: name, type_params: type_params, variants: variants}, remaining}
-      {:error, _} = err -> err
+    if Enum.all?(type_params, &simple_type_param_name?/1) do
+      case collect_variants(rest, %{}, nil, [], MapSet.new(type_params)) do
+        {:ok, variants, remaining} ->
+          {:ok, %TypeDef{name: name, type_params: type_params, variants: variants}, remaining}
+        {:error, _} = err -> err
+      end
+    else
+      {:error, "TYPE parameters must be simple identifiers"}
     end
   end
 
@@ -246,6 +263,10 @@ defmodule Cairn.Parser do
 
   defp finish_variant(variants, nil, _types), do: variants
   defp finish_variant(variants, ctor_name, types), do: Map.put(variants, ctor_name, types)
+
+  defp simple_type_param_name?(name) do
+    String.match?(name, ~r/^[A-Za-z_][A-Za-z0-9_]*$/)
+  end
 
   # VERIFY name count
   defp parse_verify([{:ident, name, _}, {:int_lit, count, _} | rest]) when count > 0 do
@@ -380,6 +401,10 @@ defmodule Cairn.Parser do
 
   defp collect_type_tokens([{:generic_ident, {name, type_args}, pos} | rest], acc, known_types, type_params) do
     cond do
+      name == "tuple" ->
+        normalized_args = Enum.map(type_args, &normalize_signature_type(&1, type_params))
+        collect_type_tokens(rest, [{:type, {:tuple, normalized_args}, pos} | acc], known_types, type_params)
+
       MapSet.member?(known_types, name) ->
         normalized_args = Enum.map(type_args, &normalize_signature_type(&1, type_params))
         collect_type_tokens(rest, [{:type, {:user_type, name, normalized_args}, pos} | acc], known_types, type_params)
@@ -442,6 +467,38 @@ defmodule Cairn.Parser do
       MapSet.member?(type_params, name) ->
         {:type_var, name}
 
+      String.starts_with?(name, "tuple[") and String.ends_with?(name, "]") ->
+        inner = extract_bracket_inner(name, "tuple")
+        {:tuple, split_inline_type_args(inner) |> Enum.map(&normalize_signature_type(&1, type_params))}
+
+      String.starts_with?(name, "map[") and String.ends_with?(name, "]") ->
+        inner = extract_bracket_inner(name, "map")
+
+        case split_inline_type_args(inner) do
+          [key_type, value_type] ->
+            {:map,
+             normalize_signature_type(key_type, type_params),
+             normalize_signature_type(value_type, type_params)}
+
+          _ ->
+            name
+        end
+
+      String.starts_with?(name, "[") and String.ends_with?(name, "]") ->
+        inner =
+          name
+          |> String.trim_leading("[")
+          |> String.trim_trailing("]")
+
+        {:list, normalize_signature_type(inner, type_params)}
+
+      Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*\[.+\]$/, name) ->
+        [base, rest] = String.split(name, "[", parts: 2)
+        inner = String.trim_trailing(rest, "]")
+
+        {:user_type, base,
+         split_inline_type_args(inner) |> Enum.map(&normalize_signature_type(&1, type_params))}
+
       true ->
         name
     end
@@ -479,6 +536,48 @@ defmodule Cairn.Parser do
     do: {:block, {:returns, normalize_signature_type(inner, type_params)}}
 
   defp normalize_signature_type(other, _type_params), do: other
+
+  defp extract_bracket_inner(name, prefix) do
+    name
+    |> String.trim_leading(prefix <> "[")
+    |> String.trim_trailing("]")
+  end
+
+  defp split_inline_type_args(source) do
+    split_inline_type_args(String.graphemes(source), [], [], 0)
+  end
+
+  defp split_inline_type_args([], current, acc, _depth) do
+    final = current |> Enum.reverse() |> Enum.join() |> String.trim()
+
+    acc =
+      if final == "" do
+        acc
+      else
+        [final | acc]
+      end
+
+    Enum.reverse(acc)
+  end
+
+  defp split_inline_type_args([" " | rest], current, acc, 0) do
+    token = current |> Enum.reverse() |> Enum.join() |> String.trim()
+
+    if token == "" do
+      split_inline_type_args(rest, [], acc, 0)
+    else
+      split_inline_type_args(rest, [], [token | acc], 0)
+    end
+  end
+
+  defp split_inline_type_args(["[" | rest], current, acc, depth),
+    do: split_inline_type_args(rest, ["[" | current], acc, depth + 1)
+
+  defp split_inline_type_args(["]" | rest], current, acc, depth),
+    do: split_inline_type_args(rest, ["]" | current], acc, depth - 1)
+
+  defp split_inline_type_args([char | rest], current, acc, depth),
+    do: split_inline_type_args(rest, [char | current], acc, depth)
 
   # Collects body tokens until END, splitting on PRE/POST if present.
   # Tracks IF and MATCH nesting depth so inner IF...END / MATCH...END

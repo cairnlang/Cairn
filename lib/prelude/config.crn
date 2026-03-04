@@ -2,10 +2,12 @@
 
 # Parse trimmed KEY=VALUE lines into a string map, skipping blanks/comments.
 DEF env_is_data_line : str -> bool EFFECT pure
-  DUP LEN 0 GT
-  SWAP DUP "#" STARTS_WITH NOT
-  SWAP "=" CONTAINS
-  AND AND
+  LET line
+  line LEN 0 GT
+  line "#" STARTS_WITH NOT
+  AND
+  line "=" CONTAINS
+  AND
 END
 
 DEF env_data_lines : str -> [str] EFFECT pure

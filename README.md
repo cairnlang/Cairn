@@ -130,13 +130,13 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/strings.crn`: native string helpers (`LOWER`, `UPPER`, `REPLACE`, ...)
 - `examples/prelude/env_parse.crn`: auto-loaded config helpers (`env_map`, `env_keys`, `env_fetch`)
 - `examples/prelude/ini_parse.crn`: auto-loaded INI helpers (`ini_map`, `ini_sections`, `ini_fetch`)
-- `examples/prelude/web_helpers.crn`: auto-loaded web helpers (`http_html_ok`, `html_escape`, `http_text_method_not_allowed`, `route_get_html_file`, `route_get_text`, `route_finish_get`)
+- `examples/prelude/web_helpers.crn`: auto-loaded web helpers (`http_html_ok`, `html_escape`, `http_add_header`, `http_text_method_not_allowed`, `route_get_html_file`, `route_get_text`, `route_finish_get`)
 - `examples/practical/mini_grep.crn`: bounded grep-like CLI utility
 - `examples/practical/mini_env.crn`: bounded `.env` query utility
 - `examples/practical/mini_ini.crn`: bounded INI query utility
 - `examples/ambitious/orchestrator.crn`: verbose local orchestrator with monitored failure and restart
 - `examples/policy/approval/main.crn`: typed access-control policy gate with a paired `verify.crn` runner and native `test.crn` scenarios
-- `examples/web/hello_static.crn`: tiny multi-route server with Cairn-owned `GET` route helpers, parsed query visibility, explicit bind address support, bounded transport defaults, and a safe dynamic HTML greeting route that escapes user input (`HTTP_SERVE`)
+- `examples/web/hello_static.crn`: tiny multi-route server with Cairn-owned `GET` route helpers, parsed query/header/cookie visibility, explicit bind address support, bounded transport defaults, and safe dynamic routes for escaped HTML and `Set-Cookie` headers (`HTTP_SERVE`)
 - `examples/web/todo_app.crn`: Mnesia-backed web todo app with escaped HTML rendering plus bounded `POST /add` and `POST /done` form mutations
 - `examples/web/afford_app.crn`: affordability decision web app with a clean `POST` form shell and a paired `examples/web/afford_verify.crn` runner that proves the core policy helpers
 - `examples/concurrency/protocol_ping_pong.crn`: bounded protocol-checked actor handshake

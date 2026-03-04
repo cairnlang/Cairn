@@ -1,4 +1,4 @@
-DEF handle_static_route : str -> str str int EFFECT http
+DEF handle_static_route : str -> str map[str str] int EFFECT http
   DUP "/" "examples/web/static/index.html" route_html_file
   SWAP "/about" "examples/web/static/about.html" route_html_file
   route_or
@@ -44,12 +44,54 @@ DEF route_get_hello_html : map[str str] str str -> result EFFECT pure
   END
 END
 
-DEF handle_static_request : str str map[str str] map[str str] -> str str int EFFECT http
+DEF route_get_cookie : map[str str] str str -> result EFFECT pure
+  LET cookies
+  LET method
+  LET path
+
+  method "GET" EQ
+  path "/cookie" EQ
+  AND
+  IF
+    "theme" cookies "none" map_get_or
+    "cookie:{}\n" FMT
+    http_text_ok
+    http_pack_response
+    Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_get_set_cookie : str str -> result EFFECT pure
+  LET method
+  LET path
+
+  method "GET" EQ
+  path "/set-cookie" EQ
+  AND
+  IF
+    "cookie set\n"
+    http_text_ok
+    "Set-Cookie"
+    "theme=night; Path=/; SameSite=Lax"
+    http_add_header
+    http_pack_response
+    Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF handle_static_request : str str map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT http
   LET path
   LET method
   LET query
   LET form
+  LET headers
+  LET cookies
   form DROP
+  headers DROP
 
   path method "/" "examples/web/static/index.html" route_get_html_file
   path method "/about" "examples/web/static/about.html" route_get_html_file
@@ -57,6 +99,10 @@ DEF handle_static_request : str str map[str str] map[str str] -> str str int EFF
   path method query route_get_echo
   route_or
   path method query route_get_hello_html
+  route_or
+  path method cookies route_get_cookie
+  route_or
+  path method route_get_set_cookie
   route_or
   method route_finish_get
 END

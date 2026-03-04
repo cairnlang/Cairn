@@ -179,6 +179,7 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert stderr =~ "ini_map"
     assert stderr =~ "lib/prelude/web.crn"
     assert stderr =~ "http_html_ok"
+    assert stderr =~ "http_add_header"
     assert stderr =~ "html_escape"
     assert stderr =~ "http_text_method_not_allowed"
     assert stderr =~ "route_get_html_file"

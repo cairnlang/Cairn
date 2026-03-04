@@ -537,14 +537,18 @@ defmodule Cairn.Evaluator do
   defp run_http_serve(rest, pos, block_tokens, block_env, bind_host, port, options, stack, env) do
     handler_env = Map.merge(block_env, env)
 
-    Cairn.HTTP.serve(bind_host, port, options, fn method, path, query, form ->
-      case eval_tokens(block_tokens, [path, method, query, form], handler_env) do
+    Cairn.HTTP.serve(bind_host, port, options, fn method, path, query, form, headers, cookies ->
+      case eval_tokens(block_tokens, [path, method, query, form, headers, cookies], handler_env) do
+        [body, response_headers, status]
+            when is_binary(body) and is_map(response_headers) and is_integer(status) ->
+          {status, response_headers, body}
+
         [body, content_type, status] when is_binary(body) and is_binary(content_type) and is_integer(status) ->
           {status, content_type, body}
 
         other ->
           raise Cairn.RuntimeError,
-            "HTTP_SERVE at word #{pos + 1}: handler must leave exactly [body, content_type, status], got #{inspect(other)}"
+            "HTTP_SERVE at word #{pos + 1}: handler must leave exactly [body, content_type|headers, status], got #{inspect(other)}"
       end
     end)
 

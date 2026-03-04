@@ -5,8 +5,8 @@ defmodule Cairn.HTTP do
   The current slice stays intentionally narrow:
   - one long-lived listener
   - one lightweight worker per connection
-  - minimal request parsing (`method`, `path`, `query`, `form`)
-  - simple response framing
+  - minimal request parsing (`method`, `path`, `query`, `form`, `headers`, `cookies`)
+  - simple response framing with optional response headers
 
   This keeps the transport boundary honest while letting Cairn own routing and
   response decisions.
@@ -25,6 +25,15 @@ defmodule Cairn.HTTP do
     serve("127.0.0.1", port, @default_options, handler)
   end
 
+  @spec serve(
+          integer(),
+          (String.t(), String.t(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()} | {integer(), map(), String.t()})
+        ) :: no_return()
+  def serve(port, handler) when is_integer(port) and is_function(handler, 6) do
+    serve("127.0.0.1", port, @default_options, handler)
+  end
+
   @spec serve(integer(), map(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(port, options, handler)
@@ -32,10 +41,32 @@ defmodule Cairn.HTTP do
     serve("127.0.0.1", port, options, handler)
   end
 
+  @spec serve(
+          integer(),
+          map(),
+          (String.t(), String.t(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()} | {integer(), map(), String.t()})
+        ) :: no_return()
+  def serve(port, options, handler)
+      when is_integer(port) and is_map(options) and is_function(handler, 6) do
+    serve("127.0.0.1", port, options, handler)
+  end
+
   @spec serve(String.t(), integer(), (String.t(), String.t(), map(), map() -> {integer(), String.t(), String.t()})) ::
           no_return()
   def serve(bind_host, port, handler)
       when is_binary(bind_host) and is_integer(port) and is_function(handler, 4) do
+    serve(bind_host, port, @default_options, handler)
+  end
+
+  @spec serve(
+          String.t(),
+          integer(),
+          (String.t(), String.t(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()} | {integer(), map(), String.t()})
+        ) :: no_return()
+  def serve(bind_host, port, handler)
+      when is_binary(bind_host) and is_integer(port) and is_function(handler, 6) do
     serve(bind_host, port, @default_options, handler)
   end
 
@@ -61,19 +92,46 @@ defmodule Cairn.HTTP do
     serve_loop(listener, handler, options)
   end
 
+  @spec serve(
+          String.t(),
+          integer(),
+          map(),
+          (String.t(), String.t(), map(), map(), map(), map() ->
+             {integer(), String.t(), String.t()} | {integer(), map(), String.t()})
+        ) :: no_return()
+  def serve(bind_host, port, options, handler)
+      when is_binary(bind_host) and is_integer(port) and is_map(options) and is_function(handler, 6) do
+    if port <= 0 or port > 65_535 do
+      raise Cairn.RuntimeError, "HTTP_SERVE expects a port in 1..65535, got #{inspect(port)}"
+    end
+
+    ip = resolve_bind_ip!(bind_host)
+    options = normalize_options!(options)
+
+    {:ok, listener} =
+      case :gen_tcp.listen(port, Keyword.put(@listen_opts, :ip, ip)) do
+        {:ok, socket} -> {:ok, socket}
+        {:error, reason} ->
+          raise Cairn.RuntimeError,
+            "HTTP_SERVE: cannot listen on #{bind_host}:#{port}: #{inspect(reason)}"
+      end
+
+    serve_loop(listener, handler, options)
+  end
+
   defp response_for_request(client, options, handler) do
     case read_request(client, options) do
       {:error, :bad_request} ->
-        http_response(400, "text/plain; charset=utf-8", "bad request\n")
+        http_response(400, %{"Content-Type" => "text/plain; charset=utf-8"}, "bad request\n")
 
       {:error, :too_long} ->
-        http_response(414, "text/plain; charset=utf-8", "uri too long\n")
+        http_response(414, %{"Content-Type" => "text/plain; charset=utf-8"}, "uri too long\n")
 
       {:error, :payload_too_large} ->
-        http_response(413, "text/plain; charset=utf-8", "payload too large\n")
+        http_response(413, %{"Content-Type" => "text/plain; charset=utf-8"}, "payload too large\n")
 
       {:error, :unsupported_media_type} ->
-        http_response(415, "text/plain; charset=utf-8", "unsupported media type\n")
+        http_response(415, %{"Content-Type" => "text/plain; charset=utf-8"}, "unsupported media type\n")
 
       {:error, :timeout} ->
         :close
@@ -84,18 +142,39 @@ defmodule Cairn.HTTP do
       {:error, reason} ->
         raise Cairn.RuntimeError, "HTTP_SERVE: recv failed: #{inspect(reason)}"
 
-      {:ok, method, path, query, form} ->
-        case handler.(method, path, query, form) do
-          {status, content_type, body}
-              when is_integer(status) and is_binary(content_type) and is_binary(body) ->
-            http_response(status, content_type, body)
+      {:ok, method, path, query, form, headers, cookies} ->
+        result =
+          case :erlang.fun_info(handler, :arity) do
+            {:arity, 4} -> handler.(method, path, query, form)
+            {:arity, 6} -> handler.(method, path, query, form, headers, cookies)
+          end
 
-          other ->
+        case normalize_handler_response(result) do
+          {:ok, status, response_headers, body} ->
+            http_response(status, response_headers, body)
+
+          {:error, other} ->
             raise Cairn.RuntimeError,
-              "HTTP_SERVE handler must return {status_int, content_type_str, body_str}, got #{inspect(other)}"
+              "HTTP_SERVE handler must return {status_int, content_type_str, body_str} or {status_int, headers_map, body_str}, got #{inspect(other)}"
         end
     end
   end
+
+  defp normalize_handler_response({status, content_type, body})
+       when is_integer(status) and is_binary(content_type) and is_binary(body) do
+    {:ok, status, %{"Content-Type" => content_type}, body}
+  end
+
+  defp normalize_handler_response({status, headers, body})
+       when is_integer(status) and is_map(headers) and is_binary(body) do
+    if Enum.all?(headers, fn {name, value} -> is_binary(name) and is_binary(value) end) do
+      {:ok, status, headers, body}
+    else
+      {:error, {status, headers, body}}
+    end
+  end
+
+  defp normalize_handler_response(other), do: {:error, other}
 
   defp parse_request_line(line) do
     case String.split(line, " ", parts: 3) do
@@ -137,20 +216,18 @@ defmodule Cairn.HTTP do
     end)
   end
 
-  defp http_response(status, content_type, body) do
-    [
-      "HTTP/1.1 ",
-      status_line(status),
-      "\r\n",
-      "Content-Type: ",
-      content_type,
-      "\r\n",
-      "Content-Length: ",
-      Integer.to_string(byte_size(body)),
-      "\r\n",
-      "Connection: close\r\n\r\n",
-      body
-    ]
+  defp http_response(status, headers, body) do
+    headers =
+      headers
+      |> Map.put_new("Content-Type", "text/plain; charset=utf-8")
+      |> Map.put("Content-Length", Integer.to_string(byte_size(body)))
+      |> Map.put("Connection", "close")
+
+    header_lines =
+      headers
+      |> Enum.map(fn {name, value} -> [name, ": ", value, "\r\n"] end)
+
+    ["HTTP/1.1 ", status_line(status), "\r\n", header_lines, "\r\n", body]
     |> IO.iodata_to_binary()
   end
 
@@ -221,7 +298,31 @@ defmodule Cairn.HTTP do
              options["body_max"],
              options["read_timeout_ms"]
            ) do
-      {:ok, method, path, query, form}
+      cookies = parse_cookies(headers)
+      {:ok, method, path, query, form, headers, cookies}
+    end
+  end
+
+  defp parse_cookies(headers) do
+    case Map.get(headers, "cookie") do
+      nil ->
+        %{}
+
+      raw_cookie ->
+        raw_cookie
+        |> String.split(";", trim: true)
+        |> Enum.reduce(%{}, fn pair, acc ->
+          case String.split(pair, "=", parts: 2) do
+            [raw_key, raw_value] ->
+              Map.put(acc, String.trim(raw_key), URI.decode_www_form(String.trim(raw_value)))
+
+            [raw_key] ->
+              Map.put(acc, String.trim(raw_key), "")
+
+            _ ->
+              acc
+          end
+        end)
     end
   end
 

@@ -16,7 +16,7 @@ ELSE
 END
 LET port
 
-port bind_host port bind_host "web: serving funny pages at http://{}:{}/ and http://{}:{}/about" FMT SAID
+port bind_host port bind_host "web: serving funny pages at http://{}:{}/ and http://{}:{}/about (plus /echo, /hello, /cookie, /set-cookie)" FMT SAID
 bind_host port {
   handle_static_request
 } HTTP_SERVE

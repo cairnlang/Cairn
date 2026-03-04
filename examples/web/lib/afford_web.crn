@@ -79,7 +79,7 @@ DEF render_afford_page : map[str str] str -> str EFFECT pure
   panel_html kind_options proposed_value baseline_value income_value cash_value "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Can I Afford This?</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n    <style>\n      .result-safe { border-left: 0.35rem solid #15803d; }\n      .result-caution { border-left: 0.35rem solid #d97706; }\n      .result-danger { border-left: 0.35rem solid #b91c1c; }\n      .stacked-grid { display: grid; gap: 1rem; }\n    </style>\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Can I Afford This?</h1>\n      <p>Estimate whether a proposed purchase or subscription is financially safe.</p>\n      <section class=\"stacked-grid\">\n        <form action=\"/evaluate\" method=\"post\">\n          <label>Current cash\n            <input name=\"cash\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Monthly income\n            <input name=\"income\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Monthly baseline expenses\n            <input name=\"baseline\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Proposed cost\n            <input name=\"proposed\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Cost type\n            <select name=\"kind\">\n{}\n            </select>\n          </label>\n          <button type=\"submit\">Evaluate</button>\n        </form>\n{}\n      </section>\n    </main>\n  </body>\n</html>\n" FMT
 END
 
-DEF render_afford_response : map[str str] str -> str str int EFFECT pure
+DEF render_afford_response : map[str str] str -> str map[str str] int EFFECT pure
   render_afford_page
   http_html_ok
 END
@@ -104,13 +104,13 @@ DEF form_kind_valid : map[str str] -> bool EFFECT pure
   kind "recurring" EQ OR
 END
 
-DEF handle_afford_index : -> str str int EFFECT pure
+DEF handle_afford_index : -> str map[str str] int EFFECT pure
   render_result_panel_empty
   M[]
   render_afford_response
 END
 
-DEF handle_afford_evaluate : map[str str] -> str str int EFFECT pure
+DEF handle_afford_evaluate : map[str str] -> str map[str str] int EFFECT pure
   LET form
 
   form form_numbers_valid
@@ -155,11 +155,16 @@ DEF handle_afford_evaluate : map[str str] -> str str int EFFECT pure
   END
 END
 
-DEF handle_afford_request : str str map[str str] map[str str] -> str str int EFFECT pure
+DEF handle_afford_request : str str map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT pure
   LET path
   LET method
   LET query
   LET form
+  LET headers
+  LET cookies
+  query DROP
+  headers DROP
+  cookies DROP
 
   method "GET" EQ
   IF

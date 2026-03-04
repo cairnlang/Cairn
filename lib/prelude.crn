@@ -9,21 +9,21 @@ IMPORT "prelude/web.crn"
 
 # Convenience wrappers around safe parsing and I/O
 # Signature: str int -> int (text on top, default below)
-DEF to_int_or : str int -> int
+DEF to_int_or : str int -> int EFFECT pure
   TO_INT result_unwrap_or
 END
 
 # Signature: str float -> float (text on top, default below)
-DEF to_float_or : str float -> float
+DEF to_float_or : str float -> float EFFECT pure
   TO_FLOAT result_unwrap_or
 END
 
 # Signature: str str -> str (path on top, fallback below)
-DEF read_file_or : str str -> str
+DEF read_file_or : str str -> str EFFECT io
   READ_FILE result_unwrap_or
 END
 
 # Signature: str str -> str (prompt on top, fallback below)
-DEF ask_or : str str -> str
+DEF ask_or : str str -> str EFFECT io
   ASK result_unwrap_or
 END

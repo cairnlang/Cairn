@@ -858,12 +858,15 @@ path method "/about" "<p>About</p>" route_get_text
 route_or
 method route_finish_get
 
-# HTTP_SERVE handlers now receive path, method, query, and form (path on top):
+# HTTP_SERVE handlers now receive path, method, query, form, headers, and cookies (path on top):
 LET path
 LET method
 LET query
 LET form
+LET headers
+LET cookies
 "name" query "friend" map_get_or
+"theme" cookies "none" map_get_or
 
 # Escape untrusted text before embedding it into HTML:
 "<script>alert('hola')</script>" html_escape
@@ -887,52 +890,57 @@ The web prelude is deliberately small, but the route helpers are easiest to use 
 ```text
 http_html_ok
 before: [body:str]
-after:  [body:str, content_type:str, status:int]
+after:  [body:str, headers:map[str str], status:int]
 
 http_text_ok
 before: [body:str]
-after:  [body:str, content_type:str, status:int]
+after:  [body:str, headers:map[str str], status:int]
 
 http_text_not_found
 before: [body:str]
-after:  [body:str, content_type:str, status:int]
+after:  [body:str, headers:map[str str], status:int]
 
 http_text_method_not_allowed
 before: [body:str]
-after:  [body:str, content_type:str, status:int]
+after:  [body:str, headers:map[str str], status:int]
 
 http_html_file_ok
 before: [path:str]
-after:  [body:str, content_type:str, status:int]
+after:  [body:str, headers:map[str str], status:int]
 
 html_escape
 before: [raw:str]
 after:  [escaped:str]
 
 http_pack_response
-before: [status:int, content_type:str, body:str]
+before: [body:str, headers:map[str str], status:int]
 after:  [packed:[any]]
 note: this packs the HTTP_SERVE response triple into one value for route chaining
 
 http_unpack_response
 before: [packed:[any]]
-after:  [body:str, content_type:str, status:int]
+after:  [body:str, headers:map[str str], status:int]
+
+http_add_header
+before: [value:str, key:str, body:str, headers:map[str str], status:int]
+after:  [body:str, headers:map[str str], status:int]
+note: used to add Set-Cookie, Location, or other response headers from Cairn
 
 route_get_html_file
-before: [path:str, method:str, route:str, file:str]
+before: [file:str, route:str, method:str, path:str]
 after:  [candidate:result]
 
 route_get_text
-before: [path:str, method:str, route:str, body:str]
+before: [body:str, route:str, method:str, path:str]
 after:  [candidate:result]
 
 route_or
-before: [preferred:result, fallback:result]
+before: [fallback:result, preferred:result]
 after:  [chosen:result]
 
 route_finish_get
-before: [candidate:result, method:str]
-after:  [body:str, content_type:str, status:int]
+before: [method:str, candidate:result]
+after:  [body:str, headers:map[str str], status:int]
 ```
 
 So a typical GET route chain reads like this:
@@ -950,7 +958,7 @@ with the stack evolving as:
 after first route:  [candidate_for_/]
 after second route: [candidate_for_/about, candidate_for_/]
 after route_or:     [best_candidate]
-after route_finish_get: [body, content_type, status]
+after route_finish_get: [body, headers, status]
 ```
 
 ## Examples

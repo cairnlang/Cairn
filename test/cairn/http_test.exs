@@ -117,6 +117,37 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "HTTP_SERVE exposes parsed cookies to the handler" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, index_path, about_path)
+
+    response = http_request(port, "GET", "/cookie", [{"Cookie", "theme=night"}], "")
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "cookie:night"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
+  test "HTTP_SERVE allows handlers to return explicit response headers" do
+    index_path = Path.expand("examples/web/static/index.html", File.cwd!())
+    about_path = Path.expand("examples/web/static/about.html", File.cwd!())
+    port = free_port()
+
+    task = start_server("127.0.0.1", port, index_path, about_path)
+
+    response = http_get(port, "/set-cookie")
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "Set-Cookie: theme=night; Path=/"
+    assert response =~ "cookie set"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   test "HTTP_SERVE exposes parsed POST form parameters to the handler" do
     index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
@@ -538,6 +569,9 @@ defmodule Cairn.HTTPTest do
         LET method
         LET query
         LET form
+        LET headers
+        LET cookies
+        headers DROP
 
         method "GET" EQ
         IF
@@ -569,10 +603,36 @@ defmodule Cairn.HTTPTest do
                 END
                 "hello, {}\\n" FMT
               ELSE
-                DROP
-                404
-                "text/plain; charset=utf-8"
-                "not found\\n"
+                DUP "/cookie" EQ
+                IF
+                  DROP
+                  200
+                  "text/plain; charset=utf-8"
+                  cookies DUP "theme" HAS
+                  IF
+                    "theme" GET
+                  ELSE
+                    DROP
+                    "none"
+                  END
+                  "cookie:{}\\n" FMT
+                ELSE
+                  DUP "/set-cookie" EQ
+                  IF
+                    DROP
+                    200
+                    M[
+                      "Content-Type" "text/plain; charset=utf-8"
+                      "Set-Cookie" "theme=night; Path=/"
+                    ]
+                    "cookie set\\n"
+                  ELSE
+                    DROP
+                    404
+                    "text/plain; charset=utf-8"
+                    "not found\\n"
+                  END
+                END
               END
             END
           END

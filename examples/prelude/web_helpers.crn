@@ -1,10 +1,10 @@
 "<h1>Cairn</h1>" http_html_ok
 LET html_body
-LET html_type
+LET html_headers
 LET html_status
 
 html_status "html_status={}" FMT SAID
-html_type "html_type={}" FMT SAID
+html_headers "html_headers={}" FMT SAID
 html_body "html_body={}" FMT SAID
 
 "<script>alert('hola')</script> & friends" html_escape
@@ -13,33 +13,43 @@ escaped_html "escaped_html={}" FMT SAID
 
 "missing\n" http_text_not_found
 LET missing_body
-LET missing_type
+LET missing_headers
 LET missing_status
 
 missing_status "missing_status={}" FMT SAID
-missing_type "missing_type={}" FMT SAID
+missing_headers "missing_headers={}" FMT SAID
 missing_body "missing_body={}" FMT SAID
 
 "method not allowed\n" http_text_method_not_allowed
 LET method_body
-LET method_type
+LET method_headers
 LET method_status
 
 method_status "method_status={}" FMT SAID
-method_type "method_type={}" FMT SAID
+method_headers "method_headers={}" FMT SAID
 method_body "method_body={}" FMT SAID
+
+"ok\n" http_text_ok
+"X-Demo" "demo=yes" http_add_header
+LET custom_body
+LET custom_headers
+LET custom_status
+
+custom_status "custom_status={}" FMT SAID
+custom_headers "custom_headers={}" FMT SAID
+custom_body "custom_body={}" FMT SAID
 
 "/"
 "GET"
-"/"
+"/" 
 "<p>Home</p>" route_get_text
 "GET" route_finish_get
 LET get_body
-LET get_type
+LET get_headers
 LET get_status
 
 get_status "get_status={}" FMT SAID
-get_type "get_type={}" FMT SAID
+get_headers "get_headers={}" FMT SAID
 get_body "get_body={}" FMT SAID
 
 "/"
@@ -48,11 +58,11 @@ get_body "get_body={}" FMT SAID
 "<p>Home</p>" route_get_text
 "POST" route_finish_get
 LET post_body
-LET post_type
+LET post_headers
 LET post_status
 
 post_status "post_status={}" FMT SAID
-post_type "post_type={}" FMT SAID
+post_headers "post_headers={}" FMT SAID
 post_body "post_body={}" FMT SAID
 
 "/about"
@@ -61,19 +71,19 @@ SWAP "/about" "<p>About</p>" route_text_ok
 route_or
 route_finish
 LET route_body
-LET route_type
+LET route_headers
 LET route_status
 
 route_status "route_status={}" FMT SAID
-route_type "route_type={}" FMT SAID
+route_headers "route_headers={}" FMT SAID
 route_body "route_body={}" FMT SAID
 
 "/missing" "/" "<p>Home</p>" route_text_ok
 route_finish
 LET miss_route_body
-LET miss_route_type
+LET miss_route_headers
 LET miss_route_status
 
 miss_route_status "miss_route_status={}" FMT SAID
-miss_route_type "miss_route_type={}" FMT SAID
+miss_route_headers "miss_route_headers={}" FMT SAID
 miss_route_body "miss_route_body={}" FMT SAID

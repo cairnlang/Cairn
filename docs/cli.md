@@ -49,6 +49,8 @@ mix cairn.run [options] <file.crn> [args...]
 - `CAIRN_SKIP_ASSURANCE=1`: skip inline `VERIFY` and `PROVE` directives during evaluation
 - `CAIRN_PROVE_TRACE=summary|verbose|json`: enable PROVE trace diagnostics on stderr
 - `CAIRN_DB_DIR=/path/to/data`: override the on-disk Mnesia directory for the bounded `DB_*` storage layer and the web todo app
+- `CAIRN_DATA_STORE_BACKEND=mnesia|postgres`: choose DataStore backend (default: `mnesia`)
+- `CAIRN_PG_HOST`, `CAIRN_PG_PORT`, `CAIRN_PG_DATABASE`, `CAIRN_PG_USER`, `CAIRN_PG_PASSWORD`, `CAIRN_PG_SSLMODE=disable|require`, `CAIRN_PG_TIMEOUT_MS`: Postgres DataStore connection settings
 
 ### Effect annotations
 

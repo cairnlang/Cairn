@@ -127,41 +127,37 @@ END
   - mark item done
 - Kept runtime generic (no todo-specific runtime module), preserving clean language/framework boundaries.
 
-## Postgres Migration Track (Planned)
+## Slice F Postgres DataStore Backend (Completed)
 
-Objective: move the todo web app from the Mnesia default backend to PostgreSQL while preserving the same Cairn-side effect discipline (`EFFECT db`) and avoiding direct host interop in Cairn source.
-
-### Slice F Postgres DataStore Backend (Bounded)
-
-- Implement `Cairn.DataStore.Backend.Postgres` with the same contract as `Cairn.DataStore`.
-- Keep parity with current key/value behavior for first cut:
+- Implemented `Cairn.DataStore.Backend.Postgres` with the same key/value contract as `Cairn.DataStore`:
   - string key
   - string value
-  - list pairs
-- Backend selection stays runtime-configurable through `:data_store_backend`.
-- Failures map to runtime errors/result paths consistently with current DB behavior.
+  - ordered key/value pairs
+- `DB_*` runtime operations continue to flow through `Cairn.DataStore`; selecting `postgres` switches behavior without changing Cairn source.
+- Added bounded Postgres table bootstrapping (`CREATE TABLE IF NOT EXISTS cairn_kv`) and consistent runtime error mapping.
 
-Why second: establishes a production-oriented backend without changing Cairn syntax or app contracts.
+## Slice G Environment + Boot Wiring (Completed)
 
-### Slice G Environment + Boot Wiring
+- Added explicit runtime backend selection via `CAIRN_DATA_STORE_BACKEND=mnesia|postgres`.
+- Added bounded Postgres config inputs:
+  - `CAIRN_PG_HOST`
+  - `CAIRN_PG_PORT`
+  - `CAIRN_PG_DATABASE`
+  - `CAIRN_PG_USER`
+  - `CAIRN_PG_PASSWORD`
+  - `CAIRN_PG_SSLMODE=disable|require`
+  - `CAIRN_PG_TIMEOUT_MS`
+- Kept safe fallback behavior:
+  - default remains `mnesia` unless backend is explicitly set to `postgres`.
 
-- Add bounded runtime config for Postgres connection inputs (host/port/db/user/password/sslmode).
-- Keep a safe default path:
-  - Mnesia remains default if Postgres config is absent.
-  - explicit opt-in switches backend to Postgres.
-- Add startup diagnostics so backend choice is visible and misconfiguration fails fast.
+## Slice H Verification + Regression Matrix (In Progress)
 
-Why third: makes backend switching operationally usable and debuggable.
-
-### Slice H Verification + Regression Matrix
-
-- Add integration coverage for both backends:
-  - Mnesia path
-  - Postgres path (gated by env/config)
-- Add behavior-parity tests for todo operations across backends.
-- Keep existing fake-backend delegation tests as fast guardrails.
-
-Why fourth: locks in backend-agnostic behavior and prevents regressions during later DB features.
+- Added gated Postgres integration coverage in `test/cairn/db_test.exs`:
+  - `CAIRN_PG_TEST=1` enables real Postgres round-trip tests for `DB_*`.
+  - default runs remain clean (tests skip when Postgres is not requested).
+- Kept existing fake-backend delegation tests as fast guardrails.
+- Remaining work:
+  - parity checks at todo-domain behavior level across backends.
 
 ## Postgres Discipline Rules
 

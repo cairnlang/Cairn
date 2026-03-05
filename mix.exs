@@ -26,7 +26,8 @@ defmodule Cairn.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:stream_data, "~> 0.5"}
+      {:stream_data, "~> 0.5"},
+      {:postgrex, "~> 0.16.5"}
     ]
   end
 

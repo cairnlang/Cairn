@@ -8,6 +8,15 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xf — Postgres DataStore Backend + Runtime Wiring
+- Added `Cairn.DataStore.Backend.Postgres` with the same key/value contract as the Mnesia backend.
+- Added runtime backend selection via `CAIRN_DATA_STORE_BACKEND=mnesia|postgres` (default remains `mnesia`).
+- Added bounded Postgres connection env wiring:
+  - `CAIRN_PG_HOST`, `CAIRN_PG_PORT`, `CAIRN_PG_DATABASE`, `CAIRN_PG_USER`, `CAIRN_PG_PASSWORD`
+  - `CAIRN_PG_SSLMODE=disable|require`
+  - `CAIRN_PG_TIMEOUT_MS`
+- Added gated Postgres integration tests in `test/cairn/db_test.exs` (`CAIRN_PG_TEST=1`) while keeping default test runs dependency-clean.
+
 ### v0.10.xe — Cairn-Side Todo Domain Store Extraction
 - Added `examples/web/lib/todo_store.crn` as a domain-specific Cairn storage module layered over generic `data_*` helpers.
 - Moved todo persistence details out of `examples/web/lib/todo_web.crn`:

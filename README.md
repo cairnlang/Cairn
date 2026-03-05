@@ -143,6 +143,7 @@ The README is intentionally the front page. The reference material lives in dedi
 - `examples/web/hello_static.crn`: tiny multi-route server with Cairn-owned `GET` route helpers, parsed query/header/cookie visibility, explicit bind address support, bounded transport defaults, and safe dynamic routes for escaped HTML and `Set-Cookie` headers (`HTTP_SERVE`)
 - `examples/web/todo_app.crn`: Mnesia-backed web todo app with escaped HTML rendering plus bounded `POST /add` and `POST /done` form mutations
   - now routed through prelude `data_*` helpers (`data_put`, `data_get`, `data_del`, `data_pairs`) over the runtime `Cairn.DataStore` boundary
+  - `Cairn.DataStore` now supports `mnesia` (default) and bounded `postgres` backend selection via runtime config/env
 - `examples/web/afford_app.crn`: affordability decision web app with a clean `POST` form shell and a paired `examples/web/afford_verify.crn` runner that proves the core policy helpers
 - `examples/web/session_demo.crn`: bounded server-side session demo with cookie-backed request state and a Mnesia-backed default session store
 - `examples/web/login_app.crn`: bounded login/logout demo with a protected profile page and an admin-only route, built on server-side sessions and a runtime-side user-store boundary

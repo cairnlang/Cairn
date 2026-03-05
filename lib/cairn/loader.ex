@@ -15,18 +15,18 @@ defmodule Cairn.Loader do
           | {:prove, String.t()}
           | {:test, String.t(), [Cairn.Types.token()]}
 
-  @spec load_items(String.t()) :: {:ok, [parsed_item()]} | {:error, String.t()}
-  def load_items(path) do
+  @spec load_items(String.t(), MapSet.t(String.t())) :: {:ok, [parsed_item()]} | {:error, String.t()}
+  def load_items(path, external_known_types \\ MapSet.new()) do
     path
     |> Path.expand()
-    |> load_recursive(MapSet.new(), [])
+    |> load_recursive(MapSet.new(), [], external_known_types)
     |> case do
       {:ok, _loaded, items} -> {:ok, items}
       {:error, _} = err -> err
     end
   end
 
-  defp load_recursive(path, loaded, loading) do
+  defp load_recursive(path, loaded, loading, external_known_types) do
     cond do
       MapSet.member?(loaded, path) ->
         {:ok, loaded, []}
@@ -38,15 +38,15 @@ defmodule Cairn.Loader do
       true ->
         with {:ok, source} <- read_source(path),
              {:ok, tokens} <- wrap(Lexer.tokenize(source), path, "tokenize"),
-             {:ok, loaded, imported_items} <- load_imports_from_tokens(tokens, path, loaded, [path | loading]),
-             {:ok, items} <- wrap(Parser.parse(tokens, collect_imported_type_names(imported_items)), path, "parse") do
+             {:ok, loaded, imported_items} <- load_imports_from_tokens(tokens, path, loaded, [path | loading], external_known_types),
+             {:ok, items} <- wrap(Parser.parse(tokens, MapSet.union(external_known_types, collect_imported_type_names(imported_items))), path, "parse") do
           local_items = Enum.reject(items, &match?({:import, _}, &1))
           {:ok, MapSet.put(loaded, path), imported_items ++ local_items}
         end
     end
   end
 
-  defp load_imports_from_tokens(tokens, current_path, loaded, loading) do
+  defp load_imports_from_tokens(tokens, current_path, loaded, loading, external_known_types) do
     current_dir = Path.dirname(current_path)
 
     tokens
@@ -54,7 +54,7 @@ defmodule Cairn.Loader do
     |> Enum.reduce_while({:ok, loaded, []}, fn import_path, {:ok, loaded_acc, items_acc} ->
       resolved = resolve_import_path(import_path, current_dir)
 
-      case load_recursive(resolved, loaded_acc, loading) do
+      case load_recursive(resolved, loaded_acc, loading, external_known_types) do
         {:ok, loaded_next, imported_items} ->
           {:cont, {:ok, loaded_next, items_acc ++ imported_items}}
 

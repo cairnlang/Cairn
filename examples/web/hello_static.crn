@@ -6,5 +6,6 @@ IMPORT "lib/web_config.crn"
 
 port bind_host port bind_host "web: serving funny pages at http://{}:{}/ and http://{}:{}/about (plus /echo, /hello, /cookie, /set-cookie)" FMT SAID
 bind_host port {
-  handle_static_request
+  request_pack
+  handle_static_request_env
 } HTTP_SERVE

@@ -27,6 +27,22 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
   - `examples/web/lib/afford_web.crn`
   - `examples/web/lib/todo_store.crn`
 
+### v0.10.xi — TODO NEXT N2: Typed Web Envelope Helpers
+- Added typed request-envelope helpers in `lib/prelude/web.crn`:
+  - `request_pack`
+  - `request_unpack`
+- Standardized a nested tuple envelope shape that is representable with current tuple access operators:
+  - `request_envelope = tuple[str str tuple[query form tuple[headers cookies session]]]`
+- Migrated web entrypoints to pass one typed envelope through the handler boundary:
+  - `examples/web/hello_static.crn`
+  - `examples/web/todo_app.crn`
+- Added env-wrapper handlers that consume the envelope before delegating to existing route logic:
+  - `examples/web/lib/hello_static.crn`
+  - `examples/web/lib/todo_web.crn`
+- Hardened type parsing for nested signatures/aliases and loader parse context:
+  - depth-aware nested type arg splitting in `lib/cairn/lexer.ex`
+  - loader parse now receives prelude-known type names in `lib/cairn/loader.ex` + `lib/cairn.ex`
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`
@@ -759,10 +775,10 @@ The current best return comes from improving substrate features first so multipl
 - Decide one preferred representation path and document it (records/products first, maps as compatibility edge only).
 - Done: type aliases are committed in prelude modules and referenced by web/store examples.
 
-2. **Slice N2 — Typed web envelope helpers**
+2. **Slice N2 — Typed web envelope helpers** (landed)
 - Add/upgrade prelude helpers so handlers can consume/produce typed envelopes instead of long raw `map[str str]` argument bundles.
 - Keep runtime behavior unchanged; this is a Cairn-surface ergonomics/type-safety slice.
-- Done when: `examples/web/hello_static.crn` and at least one stateful app (`todo_app` or `login_app`) compile and run with typed envelopes.
+- Done: `request_pack`/`request_unpack` are in prelude, and both `examples/web/hello_static.crn` + `examples/web/todo_app.crn` run through typed envelope handlers.
 
 3. **Slice N3 — Field-aware checker tightening**
 - Strengthen checker diagnostics for structured-field access: missing field and mismatched field type should fail early with readable messages.

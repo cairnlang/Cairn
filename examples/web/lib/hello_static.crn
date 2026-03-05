@@ -83,6 +83,11 @@ DEF route_get_set_cookie : str str -> route_result EFFECT pure
   END
 END
 
+DEF handle_static_request_env : tuple[str str tuple[query form tuple[headers cookies session]]] -> str headers int EFFECT http
+  request_unpack
+  handle_static_request
+END
+
 DEF handle_static_request : str str query form headers cookies session -> str headers int EFFECT http
   LET path
   LET method

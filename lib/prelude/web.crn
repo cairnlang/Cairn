@@ -7,7 +7,7 @@ TYPEALIAS form = map[str str]
 TYPEALIAS cookies = map[str str]
 TYPEALIAS http_response = tuple[str headers int]
 TYPEALIAS route_result = result[http_response str]
-TYPEALIAS request_envelope = tuple[str str query form headers cookies session]
+TYPEALIAS request_envelope = tuple[str str tuple[query form tuple[headers cookies session]]]
 
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
 DEF http_html_ok : str -> str headers int EFFECT pure
@@ -81,6 +81,40 @@ DEF http_unpack_response : http_response -> str headers int EFFECT pure
   DUP SND LET headers
   TRD LET status
   status headers body
+END
+
+# Pack request fields into a typed request envelope for cleaner handler signatures.
+DEF request_pack : str str query form headers cookies session -> request_envelope EFFECT pure
+  LET path
+  LET method
+  LET query
+  LET form
+  LET headers
+  LET cookies
+  LET session
+
+  #( headers cookies session ) LET tail
+  #( query form tail ) LET middle
+  #( path method middle )
+END
+
+# Unpack a request envelope into raw request fields in HTTP_SERVE order.
+DEF request_unpack : request_envelope -> str str query form headers cookies session EFFECT pure
+  LET env
+
+  env FST LET path
+  env SND LET method
+  env TRD LET middle
+
+  middle FST LET query
+  middle SND LET form
+  middle TRD LET tail
+
+  tail FST LET headers
+  tail SND LET cookies
+  tail TRD LET session
+
+  session cookies headers form query method path
 END
 
 

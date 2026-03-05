@@ -189,10 +189,7 @@ defmodule Cairn.Lexer do
       # tuple type like tuple[int str] or tuple[T U]
       Regex.match?(~r/^tuple\[.+\]$/, word) ->
         inner = String.slice(word, 6..-2)
-
-        parts =
-          Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|pid\[(?:[^\[\]]|\[[^\]]*\])*\]|monitor\[(?:[^\[\]]|\[[^\]]*\])*\]|block\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/, inner)
-          |> Enum.map(fn [match] -> match end)
+        parts = split_top_level_type_parts(inner)
 
         parsed = Enum.map(parts, &parse_map_inner_type/1)
 
@@ -232,12 +229,18 @@ defmodule Cairn.Lexer do
       # map type like map[str int]
       Regex.match?(~r/^map\[.+\s+.+\]$/, word) ->
         inner = String.slice(word, 4..-2)
-        [key_str, val_str] = String.split(inner, ~r/\s+/, parts: 2)
-        key_type = parse_map_inner_type(key_str)
-        val_type = parse_map_inner_type(val_str)
-        case {key_type, val_type} do
-          {{:ok, k}, {:ok, v}} -> {:ok, {:type, {:map, k, v}}}
-          _ -> {:error, "unknown map type: #{word}"}
+        case split_top_level_type_parts(inner) do
+          [key_str, val_str] ->
+            key_type = parse_map_inner_type(key_str)
+            val_type = parse_map_inner_type(val_str)
+
+            case {key_type, val_type} do
+              {{:ok, k}, {:ok, v}} -> {:ok, {:type, {:map, k, v}}}
+              _ -> {:error, "unknown map type: #{word}"}
+            end
+
+          _ ->
+            {:error, "unknown map type: #{word}"}
         end
 
       # float literal
@@ -273,15 +276,12 @@ defmodule Cairn.Lexer do
   end
 
   defp scan_type_args(source) do
-    Regex.scan(
-      ~r/tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|map\[(?:[^\[\]]|\[[^\]]*\])*\]|[a-z_][a-z0-9_]*\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/,
-      source
-    )
-    |> Enum.map(fn [match] -> match end)
-    |> merge_bracketed_words([])
+    split_top_level_type_parts(source)
   end
 
   defp parse_map_inner_type(s) do
+    s = String.trim(s)
+
     if s in @type_names do
       {:ok, String.to_atom(s)}
     else
@@ -295,10 +295,7 @@ defmodule Cairn.Lexer do
 
         Regex.match?(~r/^tuple\[.+\]$/, s) ->
           inner = String.slice(s, 6..-2)
-
-          parts =
-            Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|pid\[(?:[^\[\]]|\[[^\]]*\])*\]|monitor\[(?:[^\[\]]|\[[^\]]*\])*\]|block\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/, inner)
-            |> Enum.map(fn [match] -> match end)
+          parts = split_top_level_type_parts(inner)
 
           parsed = Enum.map(parts, &parse_map_inner_type/1)
 
@@ -310,10 +307,15 @@ defmodule Cairn.Lexer do
 
         Regex.match?(~r/^map\[.+\s+.+\]$/, s) ->
           inner = String.slice(s, 4..-2)
-          [k, v] = String.split(inner, ~r/\s+/, parts: 2)
-          case {parse_map_inner_type(k), parse_map_inner_type(v)} do
-            {{:ok, kt}, {:ok, vt}} -> {:ok, {:map, kt, vt}}
-            _ -> :error
+          case split_top_level_type_parts(inner) do
+            [k, v] ->
+              case {parse_map_inner_type(k), parse_map_inner_type(v)} do
+                {{:ok, kt}, {:ok, vt}} -> {:ok, {:map, kt, vt}}
+                _ -> :error
+              end
+
+            _ ->
+              :error
           end
 
         Regex.match?(~r/^pid\[.+\]$/, s) ->
@@ -343,10 +345,7 @@ defmodule Cairn.Lexer do
         Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*\[.+\]$/, s) ->
           [name, args_str] = String.split(s, "[", parts: 2)
           inner = String.trim_trailing(args_str, "]")
-
-          parts =
-            Regex.scan(~r/map\[(?:[^\[\]]|\[[^\]]*\])*\]|tuple\[(?:[^\[\]]|\[[^\]]*\])*\]|\[(?:[^\[\]]|\[[^\]]*\])*\]|pid\[(?:[^\[\]]|\[[^\]]*\])*\]|monitor\[(?:[^\[\]]|\[[^\]]*\])*\]|block\[(?:[^\[\]]|\[[^\]]*\])*\]|[A-Za-z_][A-Za-z0-9_]*\[(?:[^\[\]]|\[[^\]]*\])*\]|[^\s]+/, inner)
-            |> Enum.map(fn [match] -> match end)
+          parts = split_top_level_type_parts(inner)
 
           parsed = Enum.map(parts, &parse_map_inner_type/1)
 
@@ -364,4 +363,33 @@ defmodule Cairn.Lexer do
       end
     end
   end
+
+  defp split_top_level_type_parts(source) do
+    source
+    |> String.trim()
+    |> String.graphemes()
+    |> Enum.reduce({[], "", 0}, fn ch, {parts, current, depth} ->
+      cond do
+        ch == "[" ->
+          {parts, current <> ch, depth + 1}
+
+        ch == "]" ->
+          {parts, current <> ch, depth - 1}
+
+        Regex.match?(~r/\s/, ch) and depth == 0 ->
+          if current == "" do
+            {parts, current, depth}
+          else
+            {[current | parts], "", depth}
+          end
+
+        true ->
+          {parts, current <> ch, depth}
+      end
+    end)
+    |> finalize_type_parts()
+  end
+
+  defp finalize_type_parts({parts, "", _depth}), do: Enum.reverse(parts)
+  defp finalize_type_parts({parts, current, _depth}), do: Enum.reverse([current | parts])
 end

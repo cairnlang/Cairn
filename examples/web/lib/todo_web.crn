@@ -76,6 +76,11 @@ DEF handle_todo_index : -> str map[str str] int EFFECT db
   render_todo_response
 END
 
+DEF handle_todo_request_env : tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]] -> str map[str str] int EFFECT db
+  request_unpack
+  handle_todo_request
+END
+
 DEF handle_todo_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT db
   LET path
   LET method

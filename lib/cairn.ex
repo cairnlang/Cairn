@@ -61,7 +61,7 @@ defmodule Cairn do
     path = Path.expand(path)
 
     with {:ok, prelude_items} <- load_prelude_items(path),
-         {:ok, items} <- Loader.load_items(path) do
+         {:ok, items} <- Loader.load_items(path, known_type_names_from_items(prelude_items)) do
       eval_items(prelude_items ++ items, env, stack)
     else
       {:error, msg} ->
@@ -305,6 +305,14 @@ defmodule Cairn do
     type_names = env |> Map.get("__types__", %{}) |> Map.keys()
     alias_names = env |> Map.get("__type_aliases__", %{}) |> Map.keys()
     MapSet.new(type_names ++ alias_names)
+  end
+
+  defp known_type_names_from_items(items) do
+    Enum.reduce(items, MapSet.new(), fn
+      %TypeDef{name: name}, acc -> MapSet.put(acc, name)
+      %TypeAlias{name: name}, acc -> MapSet.put(acc, name)
+      _, acc -> acc
+    end)
   end
 
   @doc """

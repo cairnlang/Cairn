@@ -99,6 +99,23 @@ defmodule CairnTest do
       assert {:ok, [{:type, {:list, :int}, 0}]} = Cairn.Lexer.tokenize("[int]")
     end
 
+    test "tokenizes nested tuple/map type annotations" do
+      assert {:ok, [{:type, {:tuple, [:str, {:map, :str, :str}, :int]}, 0}]} =
+               Cairn.Lexer.tokenize("tuple[str map[str str] int]")
+
+      assert {:ok, [{:type, {:map, {:tuple, [:str, :int]}, :str}, 0}]} =
+               Cairn.Lexer.tokenize("map[tuple[str int] str]")
+    end
+
+    test "tokenizes generic identifiers with nested type args" do
+      assert {:ok,
+              [
+                {:generic_ident,
+                 {"wrap", ["tuple[str map[str str] int]", "result[str int]"]}, 0}
+              ]} =
+               Cairn.Lexer.tokenize("wrap[tuple[str map[str str] int] result[str int]]")
+    end
+
     test "tokenizes identifiers" do
       assert {:ok, [{:ident, "foo", 0}]} = Cairn.Lexer.tokenize("foo")
       assert {:ok, [{:ident, "my_func", 0}]} = Cairn.Lexer.tokenize("my_func")

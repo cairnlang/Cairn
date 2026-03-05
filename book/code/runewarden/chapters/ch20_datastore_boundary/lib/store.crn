@@ -1,0 +1,34 @@
+IMPORT "shell.crn"
+
+DEF incident_not_crimson : incident -> bool EFFECT pure
+  incident_alert Crimson EQ
+  IF
+    FALSE
+  ELSE
+    TRUE
+  END
+END
+
+DEF store_load_incidents : str -> [incident] EFFECT io
+  load_incidents_with_fallback
+END
+
+DEF store_append_incident : incident str -> [incident] EFFECT io
+  LET incident
+  LET source_path
+
+  source_path load_incidents_with_fallback LET incidents
+  incidents incident [] CONS CONCAT LET updated
+  source_path updated save_incidents_to_path
+  updated
+END
+
+DEF store_clear_crimson_incidents : str -> [incident] EFFECT io
+  LET source_path
+
+  source_path load_incidents_with_fallback
+  { incident_not_crimson } FILTER
+  LET cleaned
+  source_path cleaned save_incidents_to_path
+  cleaned
+END

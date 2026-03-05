@@ -1,0 +1,12 @@
+IMPORT "risk.crn"
+
+DEF shift_summary_line : str int -> str
+  LET mine_name
+  clamp_risk LET bounded_risk
+  bounded_risk classify_alert LET alert_level
+  alert_level bounded_risk mine_name "mine={} risk={} alert={}" FMT
+END
+
+DEF print_shift_summary : str int -> void
+  shift_summary_line SAID
+END

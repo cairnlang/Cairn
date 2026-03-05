@@ -1,0 +1,2 @@
+gas_leak,3
+rune_flare,1

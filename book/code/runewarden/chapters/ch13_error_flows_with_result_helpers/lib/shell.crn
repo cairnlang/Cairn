@@ -1,0 +1,32 @@
+IMPORT "core.crn"
+
+DEF parse_file_text : str -> result[[incident] str] EFFECT io
+  READ_FILE
+  { parse_incident_lines Ok } result_and_then
+  { "cannot load incidents: {}" FMT } result_map_err
+END
+
+DEF emit_load_warning_if_any : result[[incident] str] -> void EFFECT io
+  MATCH
+    Ok { DROP }
+    Err { "warn={}" FMT SAID }
+  END
+END
+
+DEF load_incidents_with_fallback : str -> [incident] EFFECT io
+  parse_file_text LET loaded
+  loaded emit_load_warning_if_any
+  [] loaded result_unwrap_or
+END
+
+DEF emit_shift_summary : [incident] str -> void EFFECT io
+  LET incidents
+  LET source_path
+
+  source_path "Runewarden v0.5: source={}" FMT SAID
+  incidents LEN "incident_count={}" FMT SAID
+  incidents shift_total_score "total_score={}" FMT SAID
+  incidents shift_max_score "max_score={}" FMT SAID
+  incidents shift_crimson_count "crimson_count={}" FMT SAID
+  incidents shift_alert_count_pairs "grouped_by_alert={}" FMT SAID
+END

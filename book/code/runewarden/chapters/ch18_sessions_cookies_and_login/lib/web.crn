@@ -1,0 +1,197 @@
+IMPORT "shell.crn"
+
+DEF logged_in_p : map[str str] -> bool EFFECT pure
+  session_has_user
+END
+
+DEF current_user_name : map[str str] -> str EFFECT pure
+  "user" SWAP "" map_get_or
+END
+
+DEF with_session : map[str str] str map[str str] int -> str map[str str] map[str str] int EFFECT pure
+  LET session
+  LET body
+  LET headers
+  LET status
+  status session headers body
+END
+
+DEF render_login_page : str -> str map[str str] int EFFECT pure
+  LET error_message
+
+  error_message LEN 0 GT
+  IF
+    error_message html_escape
+    "<p><mark>{}</mark></p>" FMT
+  ELSE
+    ""
+  END
+  LET error_html
+
+  error_html "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Runewarden Login</title>\n  </head>\n  <body>\n    <main>\n      <h1>Runewarden Access</h1>\n      <p>Sign in to inspect and amend the shift report.</p>\n      {}\n      <form method=\"post\" action=\"/login\">\n        <label>username <input name=\"username\" value=\"warden\" /></label>\n        <label>password <input name=\"password\" type=\"password\" value=\"ironhold\" /></label>\n        <button type=\"submit\">sign in</button>\n      </form>\n    </main>\n  </body>\n</html>\n" FMT
+  http_html_ok
+END
+
+DEF form_incident_kind : map[str str] -> str EFFECT pure
+  "kind" SWAP "gas_leak" map_get_or LOWER
+END
+
+DEF form_incident_magnitude : map[str str] -> int EFFECT pure
+  "magnitude" SWAP "1" map_get_or
+  1 SWAP to_int_or
+  DUP 0 LT
+  IF
+    DROP 0
+  END
+END
+
+DEF form_to_incident : map[str str] -> incident EFFECT pure
+  LET form
+  form form_incident_kind LET kind
+  form form_incident_magnitude LET magnitude
+
+  kind "cave_in" EQ
+  IF
+    magnitude CaveIn
+  ELSE
+    kind "rune_flare" EQ
+    IF
+      magnitude RuneFlare
+    ELSE
+      magnitude GasLeak
+    END
+  END
+END
+
+DEF render_incident_item_html : incident -> str EFFECT pure
+  incident_to_line
+  html_escape
+  "<li>{}</li>" FMT
+END
+
+DEF render_incident_items_html : [incident] -> str EFFECT pure
+  DUP LEN 0 EQ
+  IF
+    DROP
+    "<li>no incidents yet</li>"
+  ELSE
+    { render_incident_item_html } MAP
+    "\n" JOIN
+  END
+END
+
+DEF render_report_page_html : [incident] str str -> str map[str str] int EFFECT pure
+  LET incidents
+  LET source_path
+  LET username
+
+  incidents LEN LET incident_count
+  incidents shift_total_score LET total_score
+  incidents shift_max_score LET max_score
+  incidents shift_crimson_count LET crimson_count
+  incidents shift_alert_count_pairs LET grouped
+  incidents render_incident_items_html LET items_html
+  source_path html_escape LET safe_source
+  username html_escape LET safe_user
+
+  items_html grouped crimson_count max_score total_score incident_count safe_source safe_user "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Runewarden</title>\n  </head>\n  <body>\n    <main>\n      <h1>Runewarden Report</h1>\n      <p>watch officer: <strong>{}</strong></p>\n      <p>source: {}</p>\n      <p>incidents: {} | total_score: {} | max_score: {} | crimson_count: {}</p>\n      <p>alerts: {}</p>\n      <form method=\"post\" action=\"/add\">\n        <label>kind\n          <select name=\"kind\">\n            <option value=\"gas_leak\">gas_leak</option>\n            <option value=\"cave_in\">cave_in</option>\n            <option value=\"rune_flare\">rune_flare</option>\n          </select>\n        </label>\n        <label>magnitude\n          <input name=\"magnitude\" value=\"1\" />\n        </label>\n        <button type=\"submit\">add incident</button>\n      </form>\n      <form method=\"post\" action=\"/logout\">\n        <button type=\"submit\">log out</button>\n      </form>\n      <ul>\n{}\n      </ul>\n    </main>\n  </body>\n</html>\n" FMT
+  http_html_ok
+END
+
+DEF handle_report_routes_with_source : str str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] map[str str] int EFFECT io
+  LET source_path
+  LET path
+  LET method
+  LET query
+  LET form
+  LET headers
+  LET cookies
+  LET session
+  query DROP
+  headers DROP
+  cookies DROP
+
+  method "GET" EQ
+  IF
+    path "/" EQ
+    IF
+      session logged_in_p
+      IF
+        source_path load_incidents_with_fallback LET incidents
+        session current_user_name LET username
+        username source_path incidents render_report_page_html
+        session with_session
+      ELSE
+        "" render_login_page
+        session with_session
+      END
+    ELSE
+      path "/login" EQ
+      IF
+        "" render_login_page
+        session with_session
+      ELSE
+        path method "/health" "ok\n" route_get_text
+        route_finish
+        session with_session
+      END
+    END
+  ELSE
+    method "POST" EQ
+    IF
+      path "/login" EQ
+      IF
+        "username" form "" map_get_or TRIM LET username
+        "password" form "" map_get_or TRIM LET password
+
+        username "warden" EQ
+        password "ironhold" EQ
+        AND
+        IF
+          source_path load_incidents_with_fallback LET incidents
+          username source_path incidents render_report_page_html
+          LET body
+          LET headers
+          LET status
+          status session headers body "role" "watch" session_put
+          "user" username session_put
+        ELSE
+          "invalid credentials" render_login_page
+          session with_session
+        END
+      ELSE
+        path "/logout" EQ
+        IF
+          "" render_login_page
+          LET body
+          LET headers
+          LET status
+          status session headers body session_clear
+        ELSE
+          path "/add" EQ
+          IF
+            session logged_in_p
+            IF
+              source_path load_incidents_with_fallback LET incidents
+              form form_to_incident LET added
+              incidents added [] CONS CONCAT LET updated
+              source_path updated save_incidents_to_path
+              session current_user_name LET username
+              username source_path updated render_report_page_html
+              session with_session
+            ELSE
+              "login required\n" http_text_unauthorized
+              session with_session
+            END
+          ELSE
+            "not found\n" http_text_not_found
+            session with_session
+          END
+        END
+      END
+    ELSE
+      "method not allowed\n" http_text_method_not_allowed
+      session with_session
+    END
+  END
+END

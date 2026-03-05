@@ -1,0 +1,79 @@
+IMPORT "lib/actor.crn"
+
+TYPE watch_msg = Scan str int | Report
+TYPE sensor_msg = SetWatcher pid[watch_msg]
+TYPE watch_state = WatchState int int bool
+
+DEF sensor_a_boot : pid[watch_msg] -> void EFFECT pure
+  LET watcher
+  "shaft-a" 5 Scan watcher SWAP SEND
+  "shaft-a" 9 Scan watcher SWAP SEND
+  "shaft-a" 4 Scan watcher SWAP SEND
+  watcher Report SEND
+END
+
+DEF step_watch : watch_state -> watch_state EFFECT io
+  MATCH
+    WatchState {
+      LET seen
+      LET critical
+      LET done
+
+      done
+      IF
+        seen critical done WatchState
+      ELSE
+        RECEIVE
+          Scan {
+            LET shaft
+            LET gas
+
+            gas shaft "scan shaft={} gas={}" FMT SAID
+
+            gas 7 GTE
+            IF
+              shaft "critical alert at {}" FMT SAID
+              critical 1 ADD LET critical
+            END
+
+            seen 1 ADD LET seen
+            seen critical FALSE WatchState
+          }
+          Report {
+            critical seen "mine-watch summary scans={} critical={}" FMT SAID
+            seen critical TRUE WatchState
+          }
+        END
+      END
+    }
+  END
+END
+
+SPAWN watch_msg {
+  0
+  0
+  FALSE
+  WatchState
+
+  {
+    4 {
+      STEP step_watch
+    } REPEAT
+  } WITH_STATE
+
+  DROP
+  DROP
+}
+LET watcher
+
+SPAWN sensor_msg {
+  RECEIVE
+    SetWatcher { sensor_a_boot }
+  END
+  DROP
+}
+LET sensor_a
+
+sensor_a watcher SetWatcher SEND
+watcher MONITOR AWAIT
+"watcher_exit={}" FMT SAID

@@ -1,0 +1,108 @@
+IMPORT "lib/actor.crn"
+
+TYPE watch_msg = Scan str int | Report
+TYPE sensor_msg = SetWatcher pid[watch_msg]
+
+DEF handle_scan : str int int int -> int int EFFECT io
+  LET shaft
+  LET gas
+  LET seen
+  LET critical
+
+  gas shaft "scan shaft={} gas={}" FMT SAID
+
+  gas 7 GTE
+  IF
+    shaft "critical alert at {}" FMT SAID
+    critical 1 ADD LET critical
+  END
+
+  seen 1 ADD LET seen
+  critical seen
+END
+
+DEF sensor_a_boot : pid[watch_msg] -> void EFFECT pure
+  LET watcher
+  "shaft-a" 5 Scan watcher SWAP SEND
+  "shaft-a" 9 Scan watcher SWAP SEND
+  "shaft-a" 4 Scan watcher SWAP SEND
+  watcher Report SEND
+END
+
+SPAWN watch_msg {
+  0 LET critical
+  0 LET seen
+
+  RECEIVE
+    Scan {
+      LET gas
+      LET shaft
+      critical seen shaft gas handle_scan
+      LET critical
+      LET seen
+      critical seen
+    }
+    Report { critical seen }
+  END
+  LET critical
+  LET seen
+
+  RECEIVE
+    Scan {
+      LET gas
+      LET shaft
+      critical seen shaft gas handle_scan
+      LET critical
+      LET seen
+      critical seen
+    }
+    Report { critical seen }
+  END
+  LET critical
+  LET seen
+
+  RECEIVE
+    Scan {
+      LET gas
+      LET shaft
+      critical seen shaft gas handle_scan
+      LET critical
+      LET seen
+      critical seen
+    }
+    Report { critical seen }
+  END
+  LET critical
+  LET seen
+
+  RECEIVE
+    Report {
+      critical seen "mine-watch summary scans={} critical={}" FMT SAID
+      critical seen
+    }
+    Scan {
+      LET shaft
+      LET gas
+      shaft DROP
+      gas DROP
+      critical seen
+    }
+  END
+  LET critical
+  LET seen
+
+  DROP
+}
+LET watcher
+
+SPAWN sensor_msg {
+  RECEIVE
+    SetWatcher { sensor_a_boot }
+  END
+  DROP
+}
+LET sensor_a
+
+sensor_a watcher SetWatcher SEND
+watcher MONITOR AWAIT
+"watcher_exit={}" FMT SAID

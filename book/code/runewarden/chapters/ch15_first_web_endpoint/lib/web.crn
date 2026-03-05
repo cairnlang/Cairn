@@ -1,0 +1,46 @@
+IMPORT "core.crn"
+IMPORT "shell.crn"
+
+DEF render_shift_summary_text : [incident] str -> str EFFECT pure
+  LET incidents
+  LET source_path
+
+  incidents LEN LET incident_count
+  incidents shift_total_score LET total_score
+  incidents shift_max_score LET max_score
+  incidents shift_crimson_count LET crimson_count
+  incidents shift_alert_count_pairs LET grouped
+
+  grouped crimson_count max_score total_score incident_count source_path
+  "source={}\nincident_count={}\ntotal_score={}\nmax_score={}\ncrimson_count={}\ngrouped_by_alert={}\n" FMT
+END
+
+DEF handle_report_request_with_source : str str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT io
+  LET source_path
+  LET path
+  LET method
+  LET query
+  LET form
+  LET headers
+  LET cookies
+  LET session
+  query DROP
+  form DROP
+  headers DROP
+  cookies DROP
+  session DROP
+
+  method "GET" EQ
+  IF
+    path "/" EQ
+    IF
+      source_path load_incidents_with_fallback LET incidents
+      source_path incidents render_shift_summary_text
+      http_text_ok
+    ELSE
+      "not found\n" http_text_not_found
+    END
+  ELSE
+    "method not allowed\n" http_text_method_not_allowed
+  END
+END

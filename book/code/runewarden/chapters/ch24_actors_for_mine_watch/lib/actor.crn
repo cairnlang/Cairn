@@ -1,0 +1,5 @@
+# Small shared helpers for actor examples.
+
+DEF send_self[T] : T -> void EFFECT pure
+  SELF SWAP SEND
+END

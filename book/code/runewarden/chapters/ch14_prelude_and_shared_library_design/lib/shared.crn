@@ -1,0 +1,11 @@
+# Chapter-local shared helpers. This is the first step toward a project prelude.
+
+DEF argv_head_or : str -> str EFFECT io
+  LET fallback
+  ARGV LEN 0 GT
+  IF
+    ARGV HEAD
+  ELSE
+    fallback
+  END
+END

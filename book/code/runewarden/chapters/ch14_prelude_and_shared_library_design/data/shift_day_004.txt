@@ -1,0 +1,3 @@
+gas_leak,5
+rune_flare,2
+cave_in,4

@@ -1,0 +1,6 @@
+IMPORT "lib/workflow.crn"
+
+PROVE clamp_to_ten
+PROVE risk_band
+PROVE risk_band_with_let
+PROVE clamp_idempotent_gap

@@ -1,0 +1,27 @@
+DEF clamp_risk : int -> int
+  PRE { DUP 0 GTE }
+  DUP 10 GT
+  IF
+    DROP 10
+  END
+  POST DUP 0 GTE SWAP 10 LTE AND
+END
+
+DEF classify_alert : int -> str
+  PRE {
+    DUP 0 GTE
+    SWAP 10 LTE
+    AND
+  }
+  DUP 7 GTE
+  IF
+    DROP "high"
+  ELSE
+    DUP 4 GTE
+    IF
+      DROP "elevated"
+    ELSE
+      DROP "low"
+    END
+  END
+END

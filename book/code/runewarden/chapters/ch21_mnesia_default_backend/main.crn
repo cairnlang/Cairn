@@ -1,0 +1,11 @@
+IMPORT "lib/shared.crn"
+IMPORT "lib/web.crn"
+
+"book/code/runewarden/chapters/ch21_mnesia_default_backend/data/shift_day_011.txt" argv_head_or LET source_path
+8131 argv_second_int_or LET port
+"127.0.0.1" LET bind_host
+
+source_path port bind_host "Runewarden v1.3 web: serving http://{}:{}/ (source={})" FMT SAID
+bind_host port {
+  source_path handle_report_routes_with_source
+} HTTP_SERVE

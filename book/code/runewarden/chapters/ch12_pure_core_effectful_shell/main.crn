@@ -1,0 +1,12 @@
+IMPORT "lib/shell.crn"
+
+ARGV LEN 0 GT
+IF
+  ARGV HEAD
+ELSE
+  "book/code/runewarden/chapters/ch12_pure_core_effectful_shell/data/shift_day_002.txt"
+END
+LET source_path
+
+source_path load_incidents_from_path LET incidents
+source_path incidents emit_shift_summary

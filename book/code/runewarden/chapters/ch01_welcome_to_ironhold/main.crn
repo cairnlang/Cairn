@@ -1,0 +1,15 @@
+"Runewarden: shift ledger opening." SAID
+"mine=North Deep" SAID
+"status=green" SAID
+
+2 3 ADD "sample_load={}" FMT SAID
+
+ARGV LEN 0 GT
+IF
+  ARGV HEAD
+ELSE
+  "apprentice"
+END
+LET scribe
+
+scribe "scribe={}" FMT SAID

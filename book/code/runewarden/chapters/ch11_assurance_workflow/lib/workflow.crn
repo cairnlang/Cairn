@@ -1,0 +1,90 @@
+DEF clamp_to_ten : int -> int EFFECT pure
+  PRE { DUP 0 GTE }
+  DUP 10 GT
+  IF
+    DROP 10
+  END
+  POST DUP 0 GTE SWAP 10 LTE AND
+END
+
+DEF risk_band : int -> int EFFECT pure
+  PRE { DUP 0 GTE }
+  clamp_to_ten
+  DUP 7 GTE
+  IF
+    DROP 2
+  ELSE
+    DUP 4 GTE
+    IF
+      DROP 1
+    ELSE
+      DROP 0
+    END
+  END
+  POST DUP 0 GTE SWAP 2 LTE AND
+END
+
+DEF risk_band_with_let : int -> int EFFECT pure
+  PRE { DUP 0 GTE }
+  clamp_to_ten LET score
+  score 7 GTE
+  IF
+    2
+  ELSE
+    score 4 GTE
+    IF
+      1
+    ELSE
+      0
+    END
+  END
+  POST DUP 0 GTE SWAP 2 LTE AND
+END
+
+DEF risk_label : int -> str EFFECT pure
+  PRE { DUP 0 GTE SWAP 2 LTE AND }
+  DUP 2 EQ
+  IF
+    DROP "crimson"
+  ELSE
+    DUP 1 EQ
+    IF
+      DROP "amber"
+    ELSE
+      DROP "green"
+    END
+  END
+END
+
+DEF risk_label_for_score : int -> str EFFECT pure
+  PRE { DUP 0 GTE }
+  risk_band_with_let
+  risk_label
+END
+
+DEF risk_label_known : int -> bool EFFECT pure
+  PRE { DUP 0 GTE }
+  clamp_to_ten
+  risk_band
+  risk_label
+  DUP "green" EQ
+  OVER "amber" EQ OR
+  SWAP "crimson" EQ OR
+  POST DUP
+END
+
+DEF risk_label_for_score_known : int -> bool EFFECT pure
+  PRE { DUP 0 GTE }
+  risk_label_known
+  POST DUP
+END
+
+DEF clamp_idempotent_gap : int -> int EFFECT pure
+  PRE { DUP 0 GTE }
+  DUP
+  clamp_to_ten
+  SWAP
+  clamp_to_ten
+  SUB
+  POST DUP 0 EQ
+END

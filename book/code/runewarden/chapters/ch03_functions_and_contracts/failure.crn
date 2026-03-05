@@ -1,0 +1,20 @@
+DEF classify_alert : int -> str
+  PRE {
+    DUP 0 GTE
+    SWAP 10 LTE
+    AND
+  }
+  DUP 7 GTE
+  IF
+    DROP "high"
+  ELSE
+    DUP 4 GTE
+    IF
+      DROP "elevated"
+    ELSE
+      DROP "low"
+    END
+  END
+END
+
+12 classify_alert

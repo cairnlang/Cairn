@@ -1,0 +1,21 @@
+# Response hardening helpers kept at the web boundary.
+
+DEF http_text_bad_request : str -> str map[str str] int EFFECT pure
+  400
+  M[ "Content-Type" "text/plain; charset=utf-8" ]
+  ROT
+END
+
+DEF http_html_bad_request : str -> str map[str str] int EFFECT pure
+  400
+  M[ "Content-Type" "text/html; charset=utf-8" ]
+  ROT
+END
+
+DEF harden_response_headers : str map[str str] int -> str map[str str] int EFFECT pure
+  "X-Content-Type-Options" "nosniff" http_add_header
+  "X-Frame-Options" "DENY" http_add_header
+  "Referrer-Policy" "no-referrer" http_add_header
+  "Cache-Control" "no-store" http_add_header
+  "Content-Security-Policy" "default-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" http_add_header
+END

@@ -1,0 +1,6 @@
+IMPORT "lib/risk_props.crn"
+
+VERIFY clamp_risk 80
+VERIFY risk_band 80
+VERIFY risk_band_known 80
+VERIFY clamp_idempotent_gap 80

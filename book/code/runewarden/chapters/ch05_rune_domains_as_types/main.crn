@@ -1,0 +1,7 @@
+IMPORT "lib/domain.crn"
+
+"Runewarden v0.1: typed incident ledger online." SAID
+
+9 CaveIn describe_incident SAID
+3 GasLeak describe_incident SAID
+2 RuneFlare describe_incident SAID

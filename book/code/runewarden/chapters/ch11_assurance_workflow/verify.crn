@@ -1,0 +1,7 @@
+IMPORT "lib/workflow.crn"
+
+VERIFY clamp_to_ten 80
+VERIFY risk_band 80
+VERIFY risk_label_known 80
+VERIFY risk_label_for_score_known 80
+VERIFY clamp_idempotent_gap 80

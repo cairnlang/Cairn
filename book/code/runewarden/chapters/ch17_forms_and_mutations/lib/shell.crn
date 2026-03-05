@@ -1,0 +1,47 @@
+IMPORT "core.crn"
+
+DEF parse_file_text : str -> result[[incident] str] EFFECT io
+  READ_FILE
+  { parse_incident_lines Ok } result_and_then
+  { "cannot load incidents: {}" FMT } result_map_err
+END
+
+DEF emit_load_warning_if_any : result[[incident] str] -> void EFFECT io
+  MATCH
+    Ok { DROP }
+    Err { "warn={}" FMT SAID }
+  END
+END
+
+DEF load_incidents_with_fallback : str -> [incident] EFFECT io
+  parse_file_text LET loaded
+  loaded emit_load_warning_if_any
+  [] loaded result_unwrap_or
+END
+
+DEF incident_to_line : incident -> str EFFECT pure
+  MATCH
+    CaveIn { "cave_in,{}" FMT }
+    GasLeak { "gas_leak,{}" FMT }
+    RuneFlare { "rune_flare,{}" FMT }
+  END
+END
+
+DEF serialize_incidents : [incident] -> str EFFECT pure
+  { incident_to_line } MAP
+  "\n" JOIN
+END
+
+DEF save_incidents_to_path : [incident] str -> void EFFECT io
+  LET incidents
+  LET source_path
+
+  incidents serialize_incidents LET body
+  body LEN 0 GT
+  IF
+    body "\n" CONCAT LET final
+    final source_path WRITE_FILE!
+  ELSE
+    "" source_path WRITE_FILE!
+  END
+END

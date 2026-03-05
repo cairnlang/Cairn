@@ -1,0 +1,6 @@
+IMPORT "lib/shared.crn"
+IMPORT "lib/shell.crn"
+
+"book/code/runewarden/chapters/ch14_prelude_and_shared_library_design/data/shift_day_004.txt"
+argv_head_or
+run_shift_report

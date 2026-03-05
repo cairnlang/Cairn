@@ -1,0 +1,37 @@
+DEF clamp_risk : int -> int
+  PRE { DUP 0 GTE }
+  DUP 10 GT
+  IF
+    DROP 10
+  END
+  POST DUP 0 GTE SWAP 10 LTE AND
+END
+
+DEF classify_alert : int -> str
+  PRE {
+    DUP 0 GTE
+    SWAP 10 LTE
+    AND
+  }
+  DUP 7 GTE
+  IF
+    DROP "high"
+  ELSE
+    DUP 4 GTE
+    IF
+      DROP "elevated"
+    ELSE
+      DROP "low"
+    END
+  END
+END
+
+"Runewarden: contract drill." SAID
+
+12 clamp_risk LET risk_a
+risk_a "risk_a={}" FMT SAID
+risk_a classify_alert "alert_a={}" FMT SAID
+
+5 clamp_risk LET risk_b
+risk_b "risk_b={}" FMT SAID
+risk_b classify_alert "alert_b={}" FMT SAID

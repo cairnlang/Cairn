@@ -1,0 +1,5 @@
+IMPORT "lib/proofs.crn"
+
+PROVE clamp_to_ten
+PROVE score_band
+PROVE score_band_with_let

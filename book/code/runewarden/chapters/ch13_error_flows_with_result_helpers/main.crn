@@ -1,0 +1,12 @@
+IMPORT "lib/shell.crn"
+
+ARGV LEN 0 GT
+IF
+  ARGV HEAD
+ELSE
+  "book/code/runewarden/chapters/ch13_error_flows_with_result_helpers/data/shift_day_003.txt"
+END
+LET source_path
+
+source_path load_incidents_with_fallback LET incidents
+source_path incidents emit_shift_summary

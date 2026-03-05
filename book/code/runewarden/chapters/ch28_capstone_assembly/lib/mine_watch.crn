@@ -1,0 +1,101 @@
+IMPORT "supervision.crn"
+
+TYPE mine_msg = Crash | ScanA5 | ScanA9 | ScanA4 | Report
+
+PROTOCOL crash_once =
+  RECV Crash
+END
+
+PROTOCOL watch_cycle =
+  RECV ScanA5
+  RECV ScanA9
+  RECV ScanA4
+  RECV Report
+END
+
+DEF apply_scan : str int int int -> int int EFFECT io
+  LET shaft
+  LET gas
+  LET seen
+  LET critical
+
+  gas shaft "scan shaft={} gas={}" FMT SAID
+
+  gas 7 GTE
+  IF
+    shaft "critical alert at {}" FMT SAID
+    critical 1 ADD LET critical
+  END
+
+  seen 1 ADD LET seen
+  critical seen
+END
+
+DEF start_failing_watcher : pid[mine_msg] EFFECT pure
+  SPAWN mine_msg USING crash_once {
+    RECEIVE
+      Crash { "watcher_crash_simulated" SWAP DROP EXIT }
+    END
+  }
+END
+
+DEF start_healthy_watcher : pid[mine_msg] EFFECT io
+  SPAWN mine_msg USING watch_cycle {
+    0 LET critical
+    0 LET seen
+
+    RECEIVE
+      ScanA5 {
+        critical seen 5 "shaft-a" apply_scan
+        LET seen
+        LET critical
+      }
+    END
+
+    RECEIVE
+      ScanA9 {
+        critical seen 9 "shaft-a" apply_scan
+        LET seen
+        LET critical
+      }
+    END
+
+    RECEIVE
+      ScanA4 {
+        critical seen 4 "shaft-a" apply_scan
+        LET seen
+        LET critical
+      }
+    END
+
+    RECEIVE
+      Report {
+        critical seen "mine-watch summary scans={} critical={}" FMT SAID
+        critical seen
+        LET seen
+        LET critical
+      }
+    END
+
+    DROP
+  }
+END
+
+DEF run_mine_watch_preflight : void EFFECT io
+  "preflight=mine_watch starting failing watcher" SAID
+  start_failing_watcher LET failing
+  failing watch_exit LET first_mon
+  failing Crash SEND
+  first_mon await_exit "preflight first_exit={}" FMT SAID
+
+  "preflight=mine_watch restarting watcher" SAID
+  start_healthy_watcher LET watcher
+  watcher watch_exit LET second_mon
+
+  watcher ScanA5 SEND
+  watcher ScanA9 SEND
+  watcher ScanA4 SEND
+  watcher Report SEND
+
+  second_mon await_exit "preflight second_exit={}" FMT SAID
+END

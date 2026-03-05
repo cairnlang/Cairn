@@ -1,0 +1,48 @@
+TYPE incident = CaveIn int | GasLeak int | RuneFlare int
+TYPE alert = Green | Amber | Crimson
+
+DEF incident_name : incident -> str
+  MATCH
+    CaveIn { DROP "cave_in" }
+    GasLeak { DROP "gas_leak" }
+    RuneFlare { DROP "rune_flare" }
+  END
+END
+
+DEF incident_score : incident -> int
+  MATCH
+    CaveIn { 3 MUL }
+    GasLeak { 2 MUL }
+    RuneFlare { 4 MUL }
+  END
+END
+
+DEF incident_alert : incident -> alert
+  incident_score
+  DUP 7 GTE
+  IF
+    DROP Crimson
+  ELSE
+    DUP 4 GTE
+    IF
+      DROP Amber
+    ELSE
+      DROP Green
+    END
+  END
+END
+
+DEF alert_text : alert -> str
+  MATCH
+    Green { "green" }
+    Amber { "amber" }
+    Crimson { "crimson" }
+  END
+END
+
+DEF describe_incident : incident -> str
+  DUP incident_name LET name
+  DUP incident_score LET score
+  incident_alert alert_text LET level
+  level score name "incident={} score={} alert={}" FMT
+END

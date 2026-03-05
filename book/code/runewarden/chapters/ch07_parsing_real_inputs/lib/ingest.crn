@@ -1,0 +1,30 @@
+IMPORT "domain.crn"
+
+DEF parse_incident_line : str -> incident
+  "," SPLIT LET parts
+  parts HEAD TRIM LOWER LET kind
+  parts TAIL "," JOIN TRIM 0 SWAP to_int_or LET magnitude
+  kind "cave_in" EQ
+  IF
+    magnitude CaveIn
+  ELSE
+    kind "gas_leak" EQ
+    IF
+      magnitude GasLeak
+    ELSE
+      magnitude RuneFlare
+    END
+  END
+END
+
+DEF parse_incident_lines : str -> [incident]
+  LINES
+  { TRIM } MAP
+  { LEN 0 GT } FILTER
+  { parse_incident_line } MAP
+END
+
+DEF load_incidents_or_empty : str -> [incident] EFFECT io
+  "" SWAP read_file_or
+  parse_incident_lines
+END

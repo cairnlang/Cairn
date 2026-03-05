@@ -1,0 +1,21 @@
+IMPORT "lib/workflow.crn"
+
+TEST "score above ten still maps to crimson"
+  12 risk_label_for_score
+  "crimson" ASSERT_EQ
+END
+
+TEST "mid score maps to amber"
+  5 risk_label_for_score
+  "amber" ASSERT_EQ
+END
+
+TEST "small score maps to green"
+  1 risk_label_for_score
+  "green" ASSERT_EQ
+END
+
+TEST "clamping remains idempotent for concrete score"
+  9 clamp_idempotent_gap
+  0 ASSERT_EQ
+END

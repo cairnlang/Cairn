@@ -1,0 +1,35 @@
+IMPORT "domain.crn"
+
+DEF shift_total_score : [incident] -> int
+  { incident_score } MAP
+  SUM
+END
+
+DEF shift_max_score : [incident] -> int
+  0 { incident_score MAX } REDUCE
+END
+
+DEF shift_crimson_count : [incident] -> int
+  { incident_alert Crimson EQ } FILTER
+  LEN
+END
+
+DEF shift_incident_names : [incident] -> [str]
+  { incident_name } MAP
+END
+
+DEF shift_incidents_by_alert : [incident] -> [tuple[str [incident]]]
+  { incident_alert alert_text } GROUP_BY
+  PAIRS
+END
+
+DEF alert_group_pair_count : tuple[str [incident]] -> tuple[str int]
+  DUP FST LET level
+  SND LEN LET count
+  #( level count )
+END
+
+DEF shift_alert_count_pairs : [incident] -> [tuple[str int]]
+  shift_incidents_by_alert
+  { alert_group_pair_count } MAP
+END

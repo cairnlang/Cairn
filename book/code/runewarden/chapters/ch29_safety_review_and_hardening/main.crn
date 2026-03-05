@@ -1,0 +1,16 @@
+IMPORT "lib/shared.crn"
+IMPORT "lib/mine_watch.crn"
+IMPORT "lib/web.crn"
+
+"book/code/runewarden/chapters/ch29_safety_review_and_hardening/data/shift_day_015.txt" argv_head_or LET source_path
+8135 argv_second_int_or LET port
+"127.0.0.1" LET bind_host
+"mnesia" data_backend_or LET active_backend
+
+"capstone=run preflight checks" SAID
+run_mine_watch_preflight
+
+active_backend source_path port bind_host "capstone=v1.6 web serving http://{}:{}/ (source={}, backend={})" FMT SAID
+bind_host port {
+  source_path handle_report_routes_with_source
+} HTTP_SERVE

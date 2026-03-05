@@ -1,0 +1,95 @@
+TYPE incident = CaveIn int | GasLeak int | RuneFlare int
+TYPE alert = Green | Amber | Crimson
+
+DEF incident_name : incident -> str EFFECT pure
+  MATCH
+    CaveIn { DROP "cave_in" }
+    GasLeak { DROP "gas_leak" }
+    RuneFlare { DROP "rune_flare" }
+  END
+END
+
+DEF incident_score : incident -> int EFFECT pure
+  MATCH
+    CaveIn { 3 MUL }
+    GasLeak { 2 MUL }
+    RuneFlare { 4 MUL }
+  END
+END
+
+DEF incident_alert : incident -> alert EFFECT pure
+  incident_score
+  DUP 7 GTE
+  IF
+    DROP Crimson
+  ELSE
+    DUP 4 GTE
+    IF
+      DROP Amber
+    ELSE
+      DROP Green
+    END
+  END
+END
+
+DEF alert_text : alert -> str EFFECT pure
+  MATCH
+    Green { "green" }
+    Amber { "amber" }
+    Crimson { "crimson" }
+  END
+END
+
+DEF parse_incident_line : str -> incident EFFECT pure
+  "," SPLIT LET parts
+  parts HEAD TRIM LOWER LET kind
+  parts TAIL "," JOIN TRIM 0 SWAP to_int_or LET magnitude
+  kind "cave_in" EQ
+  IF
+    magnitude CaveIn
+  ELSE
+    kind "gas_leak" EQ
+    IF
+      magnitude GasLeak
+    ELSE
+      magnitude RuneFlare
+    END
+  END
+END
+
+DEF parse_incident_lines : str -> [incident] EFFECT pure
+  LINES
+  { TRIM } MAP
+  { LEN 0 GT } FILTER
+  { parse_incident_line } MAP
+END
+
+DEF shift_total_score : [incident] -> int EFFECT pure
+  { incident_score } MAP
+  SUM
+END
+
+DEF shift_max_score : [incident] -> int EFFECT pure
+  0 { incident_score MAX } REDUCE
+END
+
+DEF shift_crimson_count : [incident] -> int EFFECT pure
+  { incident_alert Crimson EQ } FILTER
+  LEN
+END
+
+DEF shift_incidents_by_alert : [incident] -> [tuple[str [incident]]] EFFECT pure
+  { incident_alert alert_text } GROUP_BY
+  PAIRS
+END
+
+DEF alert_group_pair_count : tuple[str [incident]] -> tuple[str int] EFFECT pure
+  DUP FST LET level
+  SND LEN LET count
+  #( level count )
+END
+
+DEF shift_alert_count_pairs : [incident] -> [tuple[str int]] EFFECT pure
+  shift_incidents_by_alert
+  { alert_group_pair_count } MAP
+END

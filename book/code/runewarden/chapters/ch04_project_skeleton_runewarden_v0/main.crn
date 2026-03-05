@@ -1,0 +1,6 @@
+IMPORT "lib/report.crn"
+
+"Runewarden v0: module skeleton online." SAID
+
+12 "north-deep" print_shift_summary
+5 "river-gate" print_shift_summary

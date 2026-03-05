@@ -1,0 +1,12 @@
+"Runewarden: stack drill begins." SAID
+
+12 3 MUL LET ore_load
+ore_load "ore_load={}" FMT SAID
+
+ore_load 5 ADD LET reinforced_load
+reinforced_load "reinforced_load={}" FMT SAID
+
+reinforced_load DUP ADD LET twin_total
+twin_total "twin_total={}" FMT SAID
+
+"green" "north-deep" "shaft={} status={}" FMT SAID

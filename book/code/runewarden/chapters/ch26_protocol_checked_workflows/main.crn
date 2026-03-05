@@ -1,0 +1,73 @@
+TYPE msg = ScanA5 | ScanA9 | ScanA4 | Report
+
+PROTOCOL watch_cycle =
+  RECV ScanA5
+  RECV ScanA9
+  RECV ScanA4
+  RECV Report
+END
+DEF apply_scan : str int int int -> int int EFFECT io
+  LET shaft
+  LET gas
+  LET seen
+  LET critical
+
+  gas shaft "scan shaft={} gas={}" FMT SAID
+
+  gas 7 GTE
+  IF
+    shaft "critical alert at {}" FMT SAID
+    critical 1 ADD LET critical
+  END
+
+  seen 1 ADD LET seen
+  critical seen
+END
+
+SPAWN msg USING watch_cycle {
+  0 LET critical
+  0 LET seen
+
+  RECEIVE
+    ScanA5 {
+      critical seen 5 "shaft-a" apply_scan
+      LET seen
+      LET critical
+    }
+  END
+
+  RECEIVE
+    ScanA9 {
+      critical seen 9 "shaft-a" apply_scan
+      LET seen
+      LET critical
+    }
+  END
+
+  RECEIVE
+    ScanA4 {
+      critical seen 4 "shaft-a" apply_scan
+      LET seen
+      LET critical
+    }
+  END
+
+  RECEIVE
+    Report {
+      critical seen "mine-watch summary scans={} critical={}" FMT SAID
+      critical seen
+      LET seen
+      LET critical
+    }
+  END
+
+  DROP
+}
+LET watcher
+
+watcher ScanA5 SEND
+watcher ScanA9 SEND
+watcher ScanA4 SEND
+watcher Report SEND
+watcher MONITOR AWAIT
+"watcher_exit={}" FMT SAID

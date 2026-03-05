@@ -1,0 +1,9 @@
+# Small supervision helpers for actor lifecycle examples.
+
+DEF watch_exit[T] : pid[T] -> monitor[T] EFFECT pure
+  MONITOR
+END
+
+DEF await_exit[T] : monitor[T] -> str EFFECT pure
+  AWAIT
+END

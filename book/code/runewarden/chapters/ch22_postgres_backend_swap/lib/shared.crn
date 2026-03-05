@@ -1,0 +1,32 @@
+# Chapter-local shared helpers.
+
+DEF argv_head_or : str -> str EFFECT io
+  LET fallback
+  ARGV LEN 0 GT
+  IF
+    ARGV HEAD
+  ELSE
+    fallback
+  END
+END
+
+DEF argv_second_int_or : int -> int EFFECT io
+  LET fallback
+  ARGV LEN 1 GT
+  IF
+    fallback ARGV TAIL HEAD to_int_or
+  ELSE
+    fallback
+  END
+END
+
+DEF data_backend_or : str -> str EFFECT io
+  LET fallback
+  [ "CAIRN_DATA_STORE_BACKEND" ] HOST_CALL env_get LET configured
+  configured LEN 0 GT
+  IF
+    configured
+  ELSE
+    fallback
+  END
+END

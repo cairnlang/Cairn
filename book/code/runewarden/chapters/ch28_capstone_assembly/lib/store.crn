@@ -1,0 +1,61 @@
+IMPORT "shell.crn"
+
+DEF store_key_for_source : str -> str EFFECT pure
+  "runewarden:{}" FMT
+END
+
+DEF incident_not_crimson : incident -> bool EFFECT pure
+  incident_alert Crimson EQ
+  IF
+    FALSE
+  ELSE
+    TRUE
+  END
+END
+
+DEF store_put_incidents : [incident] str -> void EFFECT db
+  LET incidents
+  LET source_path
+
+  source_path store_key_for_source LET key
+  incidents serialize_incidents LET body
+  body key data_put
+END
+
+DEF store_load_incidents : str -> [incident] EFFECT io
+  LET source_path
+  source_path store_key_for_source LET key
+
+  key data_get
+  MATCH
+    Ok {
+      parse_incident_lines
+    }
+    Err {
+      DROP
+      source_path load_incidents_with_fallback LET seeded
+      source_path seeded store_put_incidents
+      seeded
+    }
+  END
+END
+
+DEF store_append_incident : incident str -> [incident] EFFECT io
+  LET incident
+  LET source_path
+
+  source_path store_load_incidents LET incidents
+  incidents incident [] CONS CONCAT LET updated
+  source_path updated store_put_incidents
+  updated
+END
+
+DEF store_clear_crimson_incidents : str -> [incident] EFFECT io
+  LET source_path
+
+  source_path store_load_incidents
+  { incident_not_crimson } FILTER
+  LET cleaned
+  source_path cleaned store_put_incidents
+  cleaned
+END

@@ -1,0 +1,16 @@
+TYPE msg = ScanA5 | ScanA9 | ScanA4 | Report
+
+PROTOCOL watch_cycle =
+  RECV ScanA5
+  RECV ScanA9
+  RECV ScanA4
+  RECV Report
+END
+
+SPAWN msg USING watch_cycle {
+  RECEIVE
+    ScanA9 { }
+  END
+  DROP
+}
+DROP

@@ -3,6 +3,10 @@
 #   ./cairn tools/pebbles/main.crn init
 #   ./cairn tools/pebbles/main.crn add <title...>
 #   ./cairn tools/pebbles/main.crn ls
+#   ./cairn tools/pebbles/main.crn next
+#   ./cairn tools/pebbles/main.crn do <id>
+#   ./cairn tools/pebbles/main.crn done <id>
+#   ./cairn tools/pebbles/main.crn block <id> <reason...>
 
 IMPORT "lib/store.crn"
 
@@ -12,17 +16,11 @@ DEF emit_lines : [str] -> void EFFECT io
 END
 
 DEF pebble_row_line : pebble_row -> str EFFECT pure
-  LET pair
-
-  pair FST pebble_key_to_id LET id
-  pair SND pebble_decode_status LET status
-  pair SND pebble_decode_title LET title
-
-  title status id NUM_STR "#{} [{}] {}" FMT
+  pebble_decode_row pebble_line
 END
 
 DEF usage : -> void EFFECT io
-  "usage: pebbles <init|add|ls> [args]" SAID
+  "usage: pebbles <init|add|ls|next|do|done|block> [args]" SAID
 END
 
 DEF command_init : -> void EFFECT db
@@ -54,6 +52,102 @@ DEF command_ls : -> void EFFECT db
   END
 END
 
+DEF command_next : -> void EFFECT db
+  pebbles_store_next_open
+  MATCH
+    Ok {
+      pebble_line SAID
+    }
+    Err {
+      DROP
+      "pebbles: no open items" SAID
+    }
+  END
+END
+
+DEF command_do : [str] -> void EFFECT db
+  LET args
+
+  args LEN 2 EQ
+  IF
+    args TAIL HEAD TO_INT
+    MATCH
+      Ok {
+        pebbles_store_mark_do
+        MATCH
+          Ok {
+            pebble_line SAID
+          }
+          Err {
+            "pebbles: {}" FMT SAID
+          }
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles do <id>" SAID
+  END
+END
+
+DEF command_done : [str] -> void EFFECT db
+  LET args
+
+  args LEN 2 EQ
+  IF
+    args TAIL HEAD TO_INT
+    MATCH
+      Ok {
+        pebbles_store_mark_done
+        MATCH
+          Ok {
+            pebble_line SAID
+          }
+          Err {
+            "pebbles: {}" FMT SAID
+          }
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles done <id>" SAID
+  END
+END
+
+DEF command_block : [str] -> void EFFECT db
+  LET args
+
+  args LEN 3 GTE
+  IF
+    args TAIL HEAD TO_INT
+    MATCH
+      Ok {
+        LET target_id
+        args TAIL TAIL " " JOIN LET reason
+        target_id reason pebbles_store_mark_block
+        MATCH
+          Ok {
+            pebble_line SAID
+          }
+          Err {
+            "pebbles: {}" FMT SAID
+          }
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles block <id> <reason>" SAID
+  END
+END
+
 ARGV LEN 0 EQ
 IF
   usage
@@ -72,7 +166,27 @@ ELSE
       IF
         command_ls
       ELSE
-        usage
+        cmd "next" EQ
+        IF
+          command_next
+        ELSE
+          cmd "do" EQ
+          IF
+            ARGV command_do
+          ELSE
+            cmd "done" EQ
+            IF
+              ARGV command_done
+            ELSE
+              cmd "block" EQ
+              IF
+                ARGV command_block
+              ELSE
+                usage
+              END
+            END
+          END
+        END
       END
     END
   END

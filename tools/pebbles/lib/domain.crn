@@ -1,0 +1,134 @@
+# Pebbles pure domain model and transition rules.
+
+TYPE pebble = Pebble int str str str
+
+DEF pebble_id : pebble -> int EFFECT pure
+  MATCH
+    Pebble {
+      LET id
+      DROP
+      DROP
+      DROP
+      id
+    }
+  END
+END
+
+DEF pebble_status : pebble -> str EFFECT pure
+  MATCH
+    Pebble {
+      DROP
+      LET status
+      DROP
+      DROP
+      status
+    }
+  END
+END
+
+DEF pebble_title : pebble -> str EFFECT pure
+  MATCH
+    Pebble {
+      DROP
+      DROP
+      LET title
+      DROP
+      title
+    }
+  END
+END
+
+DEF pebble_reason : pebble -> str EFFECT pure
+  MATCH
+    Pebble {
+      DROP
+      DROP
+      DROP
+      LET reason
+      reason
+    }
+  END
+END
+
+DEF pebble_is_open : pebble -> bool EFFECT pure
+  pebble_status "open" EQ
+END
+
+DEF pebble_line : pebble -> str EFFECT pure
+  LET peb
+
+  peb pebble_id LET id
+  peb pebble_status LET status
+  peb pebble_title LET title
+  peb pebble_reason LET reason
+
+  status "blocked" EQ
+  reason LEN 0 GT AND
+  IF
+    reason title status id NUM_STR "#{} [{}] {} -- {}" FMT
+  ELSE
+    title status id NUM_STR "#{} [{}] {}" FMT
+  END
+END
+
+DEF pebble_transition_do : pebble -> result[pebble str] EFFECT pure
+  LET peb
+  peb pebble_status LET status
+
+  status "open" EQ
+  status "blocked" EQ OR
+  IF
+    peb pebble_id
+    "doing"
+    peb pebble_title
+    ""
+    Pebble
+    Ok
+  ELSE
+    status "doing" EQ
+    IF
+      "already doing" Err
+    ELSE
+      "cannot move done pebble to doing" Err
+    END
+  END
+END
+
+DEF pebble_transition_done : pebble -> result[pebble str] EFFECT pure
+  LET peb
+  peb pebble_status LET status
+
+  status "done" EQ
+  IF
+    "already done" Err
+  ELSE
+    peb pebble_id
+    "done"
+    peb pebble_title
+    ""
+    Pebble
+    Ok
+  END
+END
+
+DEF pebble_transition_block : str pebble -> result[pebble str] EFFECT pure
+  LET reason
+  LET peb
+
+  reason LEN 0 EQ
+  IF
+    "block reason required" Err
+  ELSE
+    peb pebble_status "done" EQ
+    IF
+      "cannot block a done pebble" Err
+    ELSE
+      peb pebble_id
+      "blocked"
+      peb pebble_title
+      reason
+      Pebble
+      Ok
+    END
+  END
+END

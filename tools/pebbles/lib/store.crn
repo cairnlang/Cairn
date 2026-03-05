@@ -1,5 +1,7 @@
 # Pebbles store boundary over Cairn DataStore (DB_* via prelude data_* helpers).
 
+IMPORT "domain.crn"
+
 TYPEALIAS pebble_row = data_row
 TYPEALIAS pebble_rows = [pebble_row]
 
@@ -30,6 +32,65 @@ END
 
 DEF pebble_decode_title : str -> str EFFECT pure
   "|" SPLIT TAIL "|" JOIN
+END
+
+DEF pebble_decode_parts_second_or_empty : [str] -> str EFFECT pure
+  DUP LEN 1 GT
+  IF
+    TAIL HEAD
+  ELSE
+    DROP
+    ""
+  END
+END
+
+DEF pebble_decode_parts_third_or_empty : [str] -> str EFFECT pure
+  DUP LEN 2 GT
+  IF
+    TAIL TAIL HEAD
+  ELSE
+    DROP
+    ""
+  END
+END
+
+DEF pebble_sanitize_text : str -> str EFFECT pure
+  "|" "/" REPLACE
+  "\n" " " REPLACE
+  "\r" " " REPLACE
+END
+
+DEF pebble_encode_record : pebble -> str EFFECT pure
+  MATCH
+    Pebble {
+      DROP
+      LET status
+      LET title
+      LET reason
+      reason pebble_sanitize_text LET clean_reason
+      title pebble_sanitize_text LET clean_title
+      clean_reason clean_title status "{}|{}|{}" FMT
+    }
+  END
+END
+
+DEF pebble_decode_record : str int -> pebble EFFECT pure
+  LET raw
+  LET id
+
+  raw "|" SPLIT LET parts
+  parts HEAD LET status
+  parts pebble_decode_parts_second_or_empty LET title
+  parts pebble_decode_parts_third_or_empty LET reason
+
+  id status title reason Pebble
+END
+
+DEF pebble_decode_row : pebble_row -> pebble EFFECT pure
+  LET pair
+  pair FST pebble_key_to_id LET id
+  pair SND LET raw
+  id raw pebble_decode_record
 END
 
 DEF pebble_pair_is_item : pebble_row -> bool EFFECT pure
@@ -83,4 +144,114 @@ END
 DEF pebbles_store_pairs : -> pebble_rows EFFECT db
   data_pairs
   { pebble_pair_is_item } FILTER
+END
+
+DEF pebbles_store_all : -> [pebble] EFFECT db
+  pebbles_store_pairs
+  { pebble_decode_row } MAP
+END
+
+DEF pebbles_store_fetch : int -> result[pebble str] EFFECT db
+  LET target_id
+
+  target_id pebble_key_from_id data_get
+  MATCH
+    Ok {
+      target_id SWAP pebble_decode_record
+      Ok
+    }
+    Err {
+      DROP
+      target_id NUM_STR "unknown pebble #{}" FMT Err
+    }
+  END
+END
+
+DEF pebbles_store_save : pebble -> void EFFECT db
+  DUP pebble_id pebble_key_from_id LET key
+  pebble_encode_record
+  key
+  data_put
+END
+
+DEF pebbles_store_next_open : -> result[pebble str] EFFECT db
+  pebbles_store_all
+  { pebble_is_open } FILTER
+  DUP LEN 0 EQ
+  IF
+    DROP
+    "no open items" Err
+  ELSE
+    HEAD Ok
+  END
+END
+
+DEF pebbles_store_mark_do : int -> result[pebble str] EFFECT db
+  LET target_id
+
+  target_id pebbles_store_fetch
+  MATCH
+    Ok {
+      pebble_transition_do
+      MATCH
+        Ok {
+          DUP pebbles_store_save
+          Ok
+        }
+        Err {
+          Err
+        }
+      END
+    }
+    Err {
+      Err
+    }
+  END
+END
+
+DEF pebbles_store_mark_done : int -> result[pebble str] EFFECT db
+  LET target_id
+
+  target_id pebbles_store_fetch
+  MATCH
+    Ok {
+      pebble_transition_done
+      MATCH
+        Ok {
+          DUP pebbles_store_save
+          Ok
+        }
+        Err {
+          Err
+        }
+      END
+    }
+    Err {
+      Err
+    }
+  END
+END
+
+DEF pebbles_store_mark_block : str int -> result[pebble str] EFFECT db
+  LET reason
+  LET target_id
+
+  target_id pebbles_store_fetch
+  MATCH
+    Ok {
+      reason pebble_transition_block
+      MATCH
+        Ok {
+          DUP pebbles_store_save
+          Ok
+        }
+        Err {
+          Err
+        }
+      END
+    }
+    Err {
+      Err
+    }
+  END
 END

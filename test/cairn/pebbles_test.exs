@@ -32,8 +32,8 @@ defmodule Cairn.PebblesTest do
   end
 
   test "shows usage for no args and unknown command" do
-    assert run_pebbles([]) =~ "usage: pebbles <init|add|ls> [args]"
-    assert run_pebbles(["wat"]) =~ "usage: pebbles <init|add|ls> [args]"
+    assert run_pebbles([]) =~ "usage: pebbles <init|add|ls|next|do|done|block> [args]"
+    assert run_pebbles(["wat"]) =~ "usage: pebbles <init|add|ls|next|do|done|block> [args]"
   end
 
   test "init, add, and ls round-trip through DataStore" do
@@ -49,6 +49,20 @@ defmodule Cairn.PebblesTest do
       |> String.split("\n")
 
     assert lines == ["#1 [open] first task", "#2 [open] second"]
+  end
+
+  test "next, do, done, and block enforce lifecycle transitions" do
+    assert run_pebbles(["add", "first"]) =~ "pebbles: added #1"
+    assert run_pebbles(["add", "second"]) =~ "pebbles: added #2"
+
+    assert run_pebbles(["next"]) =~ "#1 [open] first"
+    assert run_pebbles(["do", "1"]) =~ "#1 [doing] first"
+    assert run_pebbles(["block", "2", "waiting", "on", "deps"]) =~ "#2 [blocked] second -- waiting on deps"
+    assert run_pebbles(["done", "1"]) =~ "#1 [done] first"
+
+    assert run_pebbles(["do", "1"]) =~ "pebbles: cannot move done pebble to doing"
+    assert run_pebbles(["next"]) =~ "pebbles: no open items"
+    assert run_pebbles(["done", "404"]) =~ "pebbles: unknown pebble #404"
   end
 
   test "cairn-native pebbles tests run through --test mode" do
@@ -72,7 +86,10 @@ defmodule Cairn.PebblesTest do
     assert stdout =~ "PASS init keeps next id at least one"
     assert stdout =~ "PASS add returns monotonic ids"
     assert stdout =~ "PASS encoded row title round-trips through decode helper"
-    assert stderr =~ "TEST SUMMARY: total=3 passed=3 failed=0"
+    assert stdout =~ "PASS do transition moves open pebble to doing"
+    assert stdout =~ "PASS done transition rejects already done pebbles"
+    assert stdout =~ "PASS block transition requires reason"
+    assert stderr =~ "TEST SUMMARY: total=6 passed=6 failed=0"
   end
 
   defp run_pebbles(argv) do

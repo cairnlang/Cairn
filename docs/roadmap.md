@@ -14,6 +14,25 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xvi — Pebbles P2: Lifecycle Transitions + Validation
+- Split Pebbles domain logic into a dedicated pure module:
+  - `tools/pebbles/lib/domain.crn`
+  - canonical `pebble` type, render helper, and transition rules
+- Extended store boundary in `tools/pebbles/lib/store.crn` with lifecycle primitives:
+  - `pebbles_store_next_open`
+  - `pebbles_store_mark_do`
+  - `pebbles_store_mark_done`
+  - `pebbles_store_mark_block`
+- Added CLI lifecycle commands in `tools/pebbles/main.crn`:
+  - `next`
+  - `do <id>`
+  - `done <id>`
+  - `block <id> <reason>`
+- Added coverage updates:
+  - Cairn-native transition tests in `tools/pebbles/test.crn`
+  - Elixir integration flow for lifecycle commands in `test/cairn/pebbles_test.exs`
+  - updated usage docs in `tools/pebbles/README.md`
+
 ### v0.10.xv — Pebbles P1: Scaffold + Store Boundary + init/add/ls
 - Added `tools/pebbles/` as a Cairn-native single-agent CLI tracker workspace.
 - Added bounded storage boundary in `tools/pebbles/lib/store.crn` over `data_*` helpers (`DB_*` runtime boundary), including:

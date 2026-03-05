@@ -256,6 +256,10 @@ defmodule Cairn.Solver.Prove do
     Map.get(model, "p#{i}", "?")
   end
 
+  defp format_param_value(type_name, i, model, env) when is_binary(type_name) do
+    format_param_value({:user_type, type_name}, i, model, env)
+  end
+
   defp format_param_value({:user_type, "option", _}, i, model, _env) do
     case Map.get(model, "p#{i}_tag", 0) do
       1 -> "Some(#{Map.get(model, "p#{i}_val", "?")})"
@@ -354,6 +358,7 @@ defmodule Cairn.Solver.Prove do
 
   defp format_unknown({:list, _}), do: "[]"
   defp format_unknown({:tuple, _}), do: "#(...)"
+  defp format_unknown(type_name) when is_binary(type_name), do: "#{type_name}(?)"
   defp format_unknown({:user_type, "option", _}), do: "None"
   defp format_unknown({:user_type, "option"}), do: "None"
   defp format_unknown({:user_type, "result", _}), do: "Err(?)"

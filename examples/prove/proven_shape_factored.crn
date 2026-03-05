@@ -2,20 +2,20 @@
 
 TYPE shape = Circle int | Square int
 
-DEF is_square : shape -> bool
+DEF is_square : shape -> bool EFFECT pure
   MATCH
     Circle { DROP FALSE }
     Square { DROP TRUE }
   END
 END
 
-DEF square_and_gt5 : int shape -> bool
+DEF square_and_gt5 : int shape -> bool EFFECT pure
   SWAP is_square
   SWAP 5 GT
   AND
 END
 
-DEF square_and_lte5 : int shape -> bool
+DEF square_and_lte5 : int shape -> bool EFFECT pure
   SWAP is_square
   SWAP 5 LTE
   AND
@@ -24,7 +24,7 @@ END
 # PRE shape:
 # (is_square(shape) AND amount > 5) OR (is_square(shape) AND amount <= 5)
 # Factoring should expose is_square(shape) AND (amount > 5 OR amount <= 5).
-DEF square_only_abs_factored : int shape -> int
+DEF square_only_abs_factored : int shape -> int EFFECT pure
   PRE {
     OVER OVER
     square_and_gt5

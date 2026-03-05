@@ -2,7 +2,7 @@
 
 TYPE shape = Circle int | Square int
 
-DEF is_square : shape -> bool
+DEF is_square : shape -> bool EFFECT pure
   MATCH
     Circle { DROP FALSE }
     Square { DROP TRUE }
@@ -10,20 +10,20 @@ DEF is_square : shape -> bool
 END
 
 # Logically always false, but written as a composed helper branch.
-DEF impossible_square : shape -> bool
+DEF impossible_square : shape -> bool EFFECT pure
   is_square
   DUP NOT
   AND
 END
 
 # Equivalent to is_square OR false, so PRE still narrows to Square.
-DEF square_by_composed_guard : shape -> bool
+DEF square_by_composed_guard : shape -> bool EFFECT pure
   DUP is_square
   SWAP impossible_square
   OR
 END
 
-DEF square_only_abs_composed : shape -> int
+DEF square_only_abs_composed : shape -> int EFFECT pure
   PRE { square_by_composed_guard }
   MATCH
     Circle { LEN }

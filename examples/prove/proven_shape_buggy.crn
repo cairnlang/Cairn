@@ -5,7 +5,7 @@ TYPE shape = Circle int | Square int
 # Intentionally buggy: returns raw size and claims it's non-negative.
 # PROVE should fail and print a decoded ADT counterexample, e.g.:
 #   counterexample: p0 = Circle(-1)
-DEF bad_shape_nonneg : shape -> int
+DEF bad_shape_nonneg : shape -> int EFFECT pure
   MATCH
     Circle { }
     Square { }

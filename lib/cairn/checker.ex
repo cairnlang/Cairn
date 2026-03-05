@@ -234,6 +234,9 @@ defmodule Cairn.Checker do
 
     {body_actor_type, body_protocol_steps, body_types, body_env} =
       cond do
+        MapSet.member?(state.actor_required, func.name) ->
+          {:any, nil, state.types, state.env}
+
         is_list(helper_protocol_steps) and helper_protocol_steps != [] ->
           helper_type_name = "__protocol_helper__#{func.name}"
 
@@ -258,9 +261,6 @@ defmodule Cairn.Checker do
             Map.put(state.types, helper_type_name, helper_typedef),
             helper_env
           }
-
-        MapSet.member?(state.actor_required, func.name) ->
-          {:any, nil, state.types, state.env}
 
         true ->
           {nil, nil, state.types, state.env}
@@ -2189,6 +2189,7 @@ defmodule Cairn.Checker do
   defp format_type({:user_type, name, args}),
     do: "#{name}[#{Enum.map_join(args, " ", &format_type/1)}]"
   defp format_type({:user_type, name}), do: name
+  defp format_type(type_name) when is_binary(type_name), do: type_name
   defp format_type(other), do: inspect(other)
 
   defp check_literal_host_call(name, arg_tokens, pos, rest, state) do

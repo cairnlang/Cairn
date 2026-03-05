@@ -602,6 +602,12 @@ defmodule Cairn.Evaluator do
       nil ->
         raise Cairn.RuntimeError, "unknown constructor '#{name}' at word #{pos + 1}"
 
+      %{type_name: type_name, field_types: field_types} ->
+        arity = length(field_types)
+        {fields, remaining_items} = Enum.split(items, arity)
+        variant = {:variant, type_name, name, fields}
+        collect_list_tokens(rest, [variant | remaining_items], env)
+
       {type_name, field_types} ->
         arity = length(field_types)
         {fields, remaining_items} = Enum.split(items, arity)
@@ -646,6 +652,12 @@ defmodule Cairn.Evaluator do
     case Map.get(ctors, name) do
       nil ->
         raise Cairn.RuntimeError, "unknown constructor '#{name}' at word #{pos + 1}"
+
+      %{type_name: type_name, field_types: field_types} ->
+        arity = length(field_types)
+        {fields, remaining_items} = Enum.split(items, arity)
+        variant = {:variant, type_name, name, fields}
+        collect_map_tokens(rest, [variant | remaining_items], env)
 
       {type_name, field_types} ->
         arity = length(field_types)

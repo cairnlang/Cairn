@@ -2,7 +2,7 @@
 
 TYPE shape = Circle int | Square int
 
-DEF is_square_code : shape -> int
+DEF is_square_code : shape -> int EFFECT pure
   MATCH
     Circle { DROP 1 }
     Square { DROP 0 }
@@ -10,7 +10,7 @@ DEF is_square_code : shape -> int
 END
 
 # PRE helper comparison is_square_code(shape) == 0 narrows to Square.
-DEF square_only_abs_bounds_eq : shape -> int
+DEF square_only_abs_bounds_eq : shape -> int EFFECT pure
   PRE { DUP is_square_code 0 EQ }
   MATCH
     Circle { LEN }

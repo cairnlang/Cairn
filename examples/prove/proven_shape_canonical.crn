@@ -2,14 +2,14 @@
 
 TYPE shape = Circle int | Square int
 
-DEF is_square : shape -> bool
+DEF is_square : shape -> bool EFFECT pure
   MATCH
     Circle { DROP FALSE }
     Square { DROP TRUE }
   END
 END
 
-DEF has_pos_payload : shape -> bool
+DEF has_pos_payload : shape -> bool EFFECT pure
   MATCH
     Circle { 0 GT }
     Square { 0 GT }
@@ -18,7 +18,7 @@ END
 
 # Equivalent to is_square, but intentionally noisy:
 # is_square AND is_square AND (has_pos OR NOT has_pos)
-DEF square_guard_noisy : shape -> bool
+DEF square_guard_noisy : shape -> bool EFFECT pure
   DUP has_pos_payload
   SWAP is_square
   DUP
@@ -28,7 +28,7 @@ DEF square_guard_noisy : shape -> bool
   AND
 END
 
-DEF square_only_abs_noisy : shape -> int
+DEF square_only_abs_noisy : shape -> int EFFECT pure
   PRE { square_guard_noisy }
   MATCH
     Circle { LEN }

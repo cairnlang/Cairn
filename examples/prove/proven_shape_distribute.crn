@@ -2,7 +2,7 @@
 
 TYPE shape = Circle int | Square int
 
-DEF is_square : shape -> bool
+DEF is_square : shape -> bool EFFECT pure
   MATCH
     Circle { DROP FALSE }
     Square { DROP TRUE }
@@ -15,7 +15,7 @@ END
 # Distribution yields:
 # (NOT c) AND (is_square OR c) AND (is_square OR q),
 # then implication collapse with NOT c derives is_square.
-DEF square_only_abs_distribute : int shape -> int
+DEF square_only_abs_distribute : int shape -> int EFFECT pure
   PRE {
     DUP 0 GT
     DUP NOT

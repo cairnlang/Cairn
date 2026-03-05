@@ -29,11 +29,11 @@ defmodule Cairn.DBTest do
 
     assert [{:variant, "result", "Ok", ["value one"]}] = Cairn.eval("\"alpha\" DB_GET")
     assert [{:variant, "result", "Ok", ["value two"]}] = Cairn.eval("\"beta\" DB_GET")
-    assert [[ ["alpha", "value one"], ["beta", "value two"] ]] = Cairn.eval("DB_PAIRS")
+    assert [[{:tuple, ["alpha", "value one"]}, {:tuple, ["beta", "value two"]}]] = Cairn.eval("DB_PAIRS")
 
     assert [] = Cairn.eval("\"alpha\" DB_DEL")
     assert [{:variant, "result", "Err", ["missing key 'alpha'"]}] = Cairn.eval("\"alpha\" DB_GET")
-    assert [[ ["beta", "value two"] ]] = Cairn.eval("DB_PAIRS")
+    assert [[{:tuple, ["beta", "value two"]}]] = Cairn.eval("DB_PAIRS")
   end
 
   test "DB data survives a Mnesia restart in the same directory" do

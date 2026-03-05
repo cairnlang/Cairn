@@ -1157,9 +1157,7 @@ defmodule Cairn.SolverTest do
 
     test "MATCH on result type can be disproven" do
       source = """
-      TYPE result = Ok int | Err str
-
-      DEF bad_match : result -> int
+      DEF bad_match : result[int str] -> int EFFECT pure
         MATCH
           Ok  { }
           Err { DROP 0 }
@@ -1181,7 +1179,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE option = None | Some int
 
-      DEF unwrap_or_abs : option int -> int
+      DEF unwrap_or_abs : option int -> int EFFECT pure
         MATCH
           None { ABS }
           Some { SWAP DROP ABS }
@@ -1200,7 +1198,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE option = None | Some int
 
-      DEF is_some_bool : option -> bool
+      DEF is_some_bool : option -> bool EFFECT pure
         MATCH
           None { FALSE }
           Some { DROP TRUE }
@@ -1219,7 +1217,7 @@ defmodule Cairn.SolverTest do
   describe "Prove.prove — result MATCH (v0.6.0b slice)" do
     test "proves unwrap_ok_or_default is non-negative" do
       source = """
-      DEF unwrap_ok_or_default : result int -> int
+      DEF unwrap_ok_or_default : result int -> int EFFECT pure
         PRE { OVER 0 GTE }
         MATCH
           Ok  { ABS SWAP DROP }
@@ -1237,7 +1235,7 @@ defmodule Cairn.SolverTest do
 
     test "proves is_ok_bool has boolean tautology postcondition" do
       source = """
-      DEF is_ok_bool : result -> bool
+      DEF is_ok_bool : result -> bool EFFECT pure
         MATCH
           Ok  { DROP TRUE }
           Err { DROP FALSE }
@@ -1258,7 +1256,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF size_nonneg : shape -> int
+      DEF size_nonneg : shape -> int EFFECT pure
         MATCH
           Circle { ABS }
           Square { ABS }
@@ -1277,7 +1275,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF square_only_abs : shape -> int
+      DEF square_only_abs : shape -> int EFFECT pure
         PRE {
           MATCH
             Circle { DROP FALSE }
@@ -1302,7 +1300,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF square_only_abs_or : shape -> int
+      DEF square_only_abs_or : shape -> int EFFECT pure
         PRE {
           MATCH
             Circle { DROP FALSE }
@@ -1328,7 +1326,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF square_only_abs_not : shape -> int
+      DEF square_only_abs_not : shape -> int EFFECT pure
         PRE {
           MATCH
             Circle { DROP TRUE }
@@ -1354,14 +1352,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF square_only_abs_eq_true : shape -> int
+      DEF square_only_abs_eq_true : shape -> int EFFECT pure
         PRE { is_square TRUE EQ }
         MATCH
           Circle { LEN }
@@ -1381,26 +1379,26 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF impossible_square : shape -> bool
+      DEF impossible_square : shape -> bool EFFECT pure
         is_square
         DUP NOT
         AND
       END
 
-      DEF square_by_composed_guard : shape -> bool
+      DEF square_by_composed_guard : shape -> bool EFFECT pure
         DUP is_square
         SWAP impossible_square
         OR
       END
 
-      DEF square_only_abs_composed : shape -> int
+      DEF square_only_abs_composed : shape -> int EFFECT pure
         PRE { square_by_composed_guard }
         MATCH
           Circle { LEN }
@@ -1420,20 +1418,20 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF any_shape : shape -> bool
+      DEF any_shape : shape -> bool EFFECT pure
         DUP is_square
         SWAP is_square NOT
         OR
       END
 
-      DEF square_only_abs_tautology : shape -> int
+      DEF square_only_abs_tautology : shape -> int EFFECT pure
         PRE { any_shape }
         MATCH
           Circle { LEN }
@@ -1454,21 +1452,21 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF has_pos_payload : shape -> bool
+      DEF has_pos_payload : shape -> bool EFFECT pure
         MATCH
           Circle { 0 GT }
           Square { 0 GT }
         END
       END
 
-      DEF split_alias : bool bool -> bool
+      DEF split_alias : bool bool -> bool EFFECT pure
         OVER OVER AND
         ROT
         NOT
@@ -1476,14 +1474,14 @@ defmodule Cairn.SolverTest do
         OR
       END
 
-      DEF square_guard_split : shape -> bool
+      DEF square_guard_split : shape -> bool EFFECT pure
         DUP is_square
         SWAP has_pos_payload
         SWAP
         split_alias
       END
 
-      DEF square_only_abs_split : shape -> int
+      DEF square_only_abs_split : shape -> int EFFECT pure
         PRE { square_guard_split }
         MATCH
           Circle { LEN }
@@ -1503,14 +1501,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF square_only_abs_implied : int shape -> int
+      DEF square_only_abs_implied : int shape -> int EFFECT pure
         PRE {
           DUP 0 GT
           ROT
@@ -1541,14 +1539,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF square_only_abs_implication_only : int shape -> int
+      DEF square_only_abs_implication_only : int shape -> int EFFECT pure
         PRE {
           DUP 0 GT
           NOT
@@ -1577,14 +1575,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF has_pos_payload : shape -> bool
+      DEF has_pos_payload : shape -> bool EFFECT pure
         MATCH
           Circle { 0 GT }
           Square { 0 GT }
@@ -1593,7 +1591,7 @@ defmodule Cairn.SolverTest do
 
       # Equivalent to is_square, but intentionally noisy:
       # is_square AND is_square AND (has_pos OR NOT has_pos)
-      DEF square_guard_noisy : shape -> bool
+      DEF square_guard_noisy : shape -> bool EFFECT pure
         DUP has_pos_payload
         SWAP is_square
         DUP
@@ -1603,7 +1601,7 @@ defmodule Cairn.SolverTest do
         AND
       END
 
-      DEF square_only_abs_noisy : shape -> int
+      DEF square_only_abs_noisy : shape -> int EFFECT pure
         PRE { square_guard_noisy }
         MATCH
           Circle { LEN }
@@ -1623,7 +1621,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
@@ -1632,7 +1630,7 @@ defmodule Cairn.SolverTest do
 
       # PRE computes NOT ((NOT is_square(shape)) OR (NOT (amount > 0)))
       # which normalizes to is_square(shape) AND (amount > 0).
-      DEF square_only_abs_demorgan : int shape -> int
+      DEF square_only_abs_demorgan : int shape -> int EFFECT pure
         PRE {
           DUP 0 GT NOT
           ROT
@@ -1661,7 +1659,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
@@ -1671,7 +1669,7 @@ defmodule Cairn.SolverTest do
       # PRE computes:
       #   ((amount > 5) AND (amount <= 3)) OR is_square(shape)
       # first branch is contradictory and normalizes to false.
-      DEF square_only_abs_pair_pruned : int shape -> int
+      DEF square_only_abs_pair_pruned : int shape -> int EFFECT pure
         PRE {
           DUP 5 GT
           OVER 3 LTE
@@ -1701,27 +1699,27 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF eq5 : int -> bool
+      DEF eq5 : int -> bool EFFECT pure
         DUP 5 GTE
         SWAP 5 LTE
         AND
       END
 
-      DEF neq5 : int -> bool
+      DEF neq5 : int -> bool EFFECT pure
         5 NEQ
       END
 
       # PRE computes:
       # (amount >= 5 AND amount <= 5) AND ((amount != 5) OR is_square(shape))
       # Interval merge yields amount == 5, which collapses implication branch to is_square(shape).
-      DEF square_only_abs_interval_merge : int shape -> int
+      DEF square_only_abs_interval_merge : int shape -> int EFFECT pure
         PRE {
           DUP
           eq5
@@ -1754,20 +1752,20 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF square_and_gt5 : int shape -> bool
+      DEF square_and_gt5 : int shape -> bool EFFECT pure
         SWAP is_square
         SWAP 5 GT
         AND
       END
 
-      DEF square_and_lte5 : int shape -> bool
+      DEF square_and_lte5 : int shape -> bool EFFECT pure
         SWAP is_square
         SWAP 5 LTE
         AND
@@ -1776,7 +1774,7 @@ defmodule Cairn.SolverTest do
       # PRE shape:
       # (is_square(shape) AND amount > 5) OR (is_square(shape) AND amount <= 5)
       # Factoring should expose is_square(shape) AND (amount > 5 OR amount <= 5).
-      DEF square_only_abs_factored : int shape -> int
+      DEF square_only_abs_factored : int shape -> int EFFECT pure
         PRE {
           OVER OVER
           square_and_gt5
@@ -1804,7 +1802,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
@@ -1817,7 +1815,7 @@ defmodule Cairn.SolverTest do
       # Distribution yields:
       # (NOT c) AND (is_square OR c) AND (is_square OR q),
       # then implication collapse with NOT c derives is_square.
-      DEF square_only_abs_distribute : int shape -> int
+      DEF square_only_abs_distribute : int shape -> int EFFECT pure
         PRE {
           DUP 0 GT
           DUP NOT
@@ -1851,14 +1849,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF is_square_or_pos : int shape -> bool
+      DEF is_square_or_pos : int shape -> bool EFFECT pure
         DUP 0 GT
         ROT
         is_square
@@ -1867,7 +1865,7 @@ defmodule Cairn.SolverTest do
         OR
       END
 
-      DEF is_square_or_not_pos : int shape -> bool
+      DEF is_square_or_not_pos : int shape -> bool EFFECT pure
         DUP 0 GT NOT
         ROT
         is_square
@@ -1876,7 +1874,7 @@ defmodule Cairn.SolverTest do
         OR
       END
 
-      DEF square_consensus_guard : int shape -> bool
+      DEF square_consensus_guard : int shape -> bool EFFECT pure
         OVER OVER
         is_square_or_pos
         SWAP
@@ -1889,7 +1887,7 @@ defmodule Cairn.SolverTest do
       # PRE shape:
       # (is_square(shape) OR amount > 0) AND (is_square(shape) OR amount <= 0)
       # Consensus reduction yields is_square(shape).
-      DEF square_only_abs_consensus : int shape -> int
+      DEF square_only_abs_consensus : int shape -> int EFFECT pure
         PRE { square_consensus_guard }
         SWAP
         MATCH
@@ -1911,7 +1909,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF tag_is_positive : shape -> bool
+      DEF tag_is_positive : shape -> bool EFFECT pure
         MATCH
           Circle { DROP 0 }
           Square { DROP 1 }
@@ -1919,7 +1917,7 @@ defmodule Cairn.SolverTest do
         0 GT
       END
 
-      DEF square_only_abs_bounds : shape -> int
+      DEF square_only_abs_bounds : shape -> int EFFECT pure
         PRE { DUP tag_is_positive }
         MATCH
           Circle { LEN }
@@ -1939,14 +1937,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square_code : shape -> int
+      DEF is_square_code : shape -> int EFFECT pure
         MATCH
           Circle { DROP 1 }
           Square { DROP 0 }
         END
       END
 
-      DEF square_only_abs_bounds_eq : shape -> int
+      DEF square_only_abs_bounds_eq : shape -> int EFFECT pure
         PRE { DUP is_square_code 0 EQ }
         MATCH
           Circle { LEN }
@@ -1966,14 +1964,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square_code : shape -> int
+      DEF is_square_code : shape -> int EFFECT pure
         MATCH
           Circle { DROP 0 }
           Square { DROP 1 }
         END
       END
 
-      DEF square_only_abs_bounds_mul : shape -> int
+      DEF square_only_abs_bounds_mul : shape -> int EFFECT pure
         PRE { DUP is_square_code 2 MUL 2 EQ }
         MATCH
           Circle { LEN }
@@ -1993,7 +1991,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF square_only_abs_trace : shape -> int
+      DEF square_only_abs_trace : shape -> int EFFECT pure
         PRE {
           MATCH
             Circle { DROP TRUE }
@@ -2039,7 +2037,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF square_only_abs_trace_verbose : shape -> int
+      DEF square_only_abs_trace_verbose : shape -> int EFFECT pure
         PRE {
           MATCH
             Circle { DROP TRUE }
@@ -2071,7 +2069,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF square_only_abs_trace_default : shape -> int
+      DEF square_only_abs_trace_default : shape -> int EFFECT pure
         PRE {
           MATCH
             Circle { DROP TRUE }
@@ -2101,7 +2099,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF square_only_abs_trace_json : shape -> int
+      DEF square_only_abs_trace_json : shape -> int EFFECT pure
         PRE {
           MATCH
             Circle { DROP TRUE }
@@ -2179,14 +2177,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square : shape -> bool
+      DEF is_square : shape -> bool EFFECT pure
         MATCH
           Circle { DROP FALSE }
           Square { DROP TRUE }
         END
       END
 
-      DEF is_square_or_pos : int shape -> bool
+      DEF is_square_or_pos : int shape -> bool EFFECT pure
         DUP 0 GT
         ROT
         is_square
@@ -2195,7 +2193,7 @@ defmodule Cairn.SolverTest do
         OR
       END
 
-      DEF is_square_or_not_pos : int shape -> bool
+      DEF is_square_or_not_pos : int shape -> bool EFFECT pure
         DUP 0 GT NOT
         ROT
         is_square
@@ -2204,7 +2202,7 @@ defmodule Cairn.SolverTest do
         OR
       END
 
-      DEF square_only_abs_trace_rewrites_test : int shape -> int
+      DEF square_only_abs_trace_rewrites_test : int shape -> int EFFECT pure
         PRE {
           OVER OVER
           is_square_or_pos
@@ -2259,7 +2257,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF tag_is_positive : shape -> bool
+      DEF tag_is_positive : shape -> bool EFFECT pure
         MATCH
           Circle { DROP 0 }
           Square { DROP 1 }
@@ -2267,7 +2265,7 @@ defmodule Cairn.SolverTest do
         0 GT
       END
 
-      DEF square_only_abs_trace_helper_cmp : shape -> int
+      DEF square_only_abs_trace_helper_cmp : shape -> int EFFECT pure
         PRE { DUP tag_is_positive }
         MATCH
           Circle { LEN }
@@ -2309,14 +2307,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square_code : shape -> int
+      DEF is_square_code : shape -> int EFFECT pure
         MATCH
           Circle { DROP 0 }
           Square { DROP 1 }
         END
       END
 
-      DEF square_only_abs_trace_helper_mul : shape -> int
+      DEF square_only_abs_trace_helper_mul : shape -> int EFFECT pure
         PRE { DUP is_square_code 2 MUL 2 EQ }
         MATCH
           Circle { LEN }
@@ -2353,7 +2351,7 @@ defmodule Cairn.SolverTest do
 
     test "trace json mode includes unknown_reason in run_end for UNKNOWN proofs" do
       source = """
-      DEF trace_unknown_json : int -> int
+      DEF trace_unknown_json : int -> int EFFECT pure
         LEN
         POST DUP 0 GTE
       END
@@ -2390,14 +2388,14 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF is_square_code : shape -> int
+      DEF is_square_code : shape -> int EFFECT pure
         MATCH
           Circle { DROP 0 }
           Square { DROP 1 }
         END
       END
 
-      DEF square_only_abs_trace_ordering : shape -> int
+      DEF square_only_abs_trace_ordering : shape -> int EFFECT pure
         PRE { DUP is_square_code 2 MUL 2 EQ }
         MATCH
           Circle { LEN }
@@ -2578,7 +2576,7 @@ defmodule Cairn.SolverTest do
   describe "full PROVE pipeline — via Cairn.eval" do
     test "PROVE deposit succeeds" do
       source = """
-      DEF deposit : int int -> int
+      DEF deposit : int int -> int EFFECT pure
         PRE { OVER 0 GTE SWAP 0 GT AND }
         ADD
         POST DUP 0 GTE
@@ -2594,7 +2592,7 @@ defmodule Cairn.SolverTest do
 
     test "PROVE withdraw succeeds" do
       source = """
-      DEF withdraw : int int -> int
+      DEF withdraw : int int -> int EFFECT pure
         PRE { OVER OVER GTE SWAP 0 GT AND }
         SUB
         POST DUP 0 GTE
@@ -2610,7 +2608,7 @@ defmodule Cairn.SolverTest do
 
     test "PROVE withdraw_buggy fails with counterexample" do
       source = """
-      DEF withdraw_buggy : int int -> int
+      DEF withdraw_buggy : int int -> int EFFECT pure
         PRE { DUP 0 GT }
         SUB
         POST DUP 0 GTE
@@ -2627,7 +2625,7 @@ defmodule Cairn.SolverTest do
       source = """
       TYPE shape = Circle int | Square int
 
-      DEF bad_shape_nonneg : shape -> int
+      DEF bad_shape_nonneg : shape -> int EFFECT pure
         MATCH
           Circle { }
           Square { }
@@ -2645,7 +2643,7 @@ defmodule Cairn.SolverTest do
 
     test "PROVE abs_func with IF/ELSE is proven" do
       source = """
-      DEF abs_func : int -> int
+      DEF abs_func : int -> int EFFECT pure
         DUP 0 GTE IF ELSE NEG END
         POST DUP 0 GTE
       END
@@ -2660,7 +2658,7 @@ defmodule Cairn.SolverTest do
 
     test "PROVE on function with unsupported ops prints UNKNOWN" do
       source = """
-      DEF list_sum : int -> int
+      DEF list_sum : int -> int EFFECT pure
         RANGE SUM
         POST DUP 0 GTE
       END
@@ -2684,7 +2682,7 @@ defmodule Cairn.SolverTest do
 
     test "PROVE squares are non-negative (nonlinear)" do
       source = """
-      DEF square : int -> int
+      DEF square : int -> int EFFECT pure
         DUP MUL
         POST DUP 0 GTE
       END
@@ -2699,7 +2697,7 @@ defmodule Cairn.SolverTest do
 
     test "PROVE with VERIFY in same file" do
       source = """
-      DEF deposit : int int -> int
+      DEF deposit : int int -> int EFFECT pure
         PRE { OVER 0 GTE SWAP 0 GT AND }
         ADD
         POST DUP 0 GTE
@@ -2717,7 +2715,7 @@ defmodule Cairn.SolverTest do
 
     test "PROVE function with no PRE and no POST is vacuously proven" do
       source = """
-      DEF add_nums : int int -> int
+      DEF add_nums : int int -> int EFFECT pure
         ADD
       END
       PROVE add_nums

@@ -2,7 +2,7 @@
 
 TYPE shape = Circle int | Square int
 
-DEF tag_is_positive : shape -> bool
+DEF tag_is_positive : shape -> bool EFFECT pure
   MATCH
     Circle { DROP 0 }
     Square { DROP 1 }
@@ -11,7 +11,7 @@ DEF tag_is_positive : shape -> bool
 END
 
 # PRE helper comparison implies shape tag > 0, which narrows to Square for this 2-constructor ADT.
-DEF square_only_abs_bounds : shape -> int
+DEF square_only_abs_bounds : shape -> int EFFECT pure
   PRE { DUP tag_is_positive }
   MATCH
     Circle { LEN }

@@ -568,8 +568,7 @@ defmodule Cairn.SumTypeTest do
     test "result type safe divide" do
       {_, env} =
         Cairn.eval_with_env("""
-        TYPE result = Ok int | Err str
-        DEF safe_div : int int -> result
+        DEF safe_div : int int -> result[int str]
           DUP 0 EQ
           IF
             DROP DROP "division by zero" Err
@@ -594,8 +593,7 @@ defmodule Cairn.SumTypeTest do
     test "result type safe divide by zero" do
       {_, env} =
         Cairn.eval_with_env("""
-        TYPE result = Ok int | Err str
-        DEF safe_div : int int -> result
+        DEF safe_div : int int -> result[int str]
           DUP 0 EQ
           IF
             DROP DROP "division by zero" Err

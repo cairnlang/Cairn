@@ -2,14 +2,14 @@
 
 TYPE shape = Circle int | Square int
 
-DEF is_square : shape -> bool
+DEF is_square : shape -> bool EFFECT pure
   MATCH
     Circle { DROP FALSE }
     Square { DROP TRUE }
   END
 END
 
-DEF has_pos_payload : shape -> bool
+DEF has_pos_payload : shape -> bool EFFECT pure
   MATCH
     Circle { 0 GT }
     Square { 0 GT }
@@ -18,7 +18,7 @@ END
 
 # Boolean helper equivalent to left input:
 # (a AND b) OR (a AND NOT b) == a
-DEF split_alias : bool bool -> bool
+DEF split_alias : bool bool -> bool EFFECT pure
   OVER OVER AND
   ROT
   NOT
@@ -26,14 +26,14 @@ DEF split_alias : bool bool -> bool
   OR
 END
 
-DEF square_guard_split : shape -> bool
+DEF square_guard_split : shape -> bool EFFECT pure
   DUP is_square
   SWAP has_pos_payload
   SWAP
   split_alias
 END
 
-DEF square_only_abs_split : shape -> int
+DEF square_only_abs_split : shape -> int EFFECT pure
   PRE { square_guard_split }
   MATCH
     Circle { LEN }

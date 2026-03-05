@@ -2,7 +2,7 @@
 
 TYPE shape = Circle int | Square int
 
-DEF is_square : shape -> bool
+DEF is_square : shape -> bool EFFECT pure
   MATCH
     Circle { DROP FALSE }
     Square { DROP TRUE }
@@ -13,7 +13,7 @@ END
 #   c AND (NOT c OR is_square(shape))
 # where c is amount > 0.
 # Normalization reduces this to c AND is_square(shape), so MATCH narrows to Square.
-DEF square_only_abs_implied : int shape -> int
+DEF square_only_abs_implied : int shape -> int EFFECT pure
   PRE {
     DUP 0 GT
     ROT

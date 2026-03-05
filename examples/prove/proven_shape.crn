@@ -2,7 +2,7 @@
 
 TYPE shape = Circle int | Square int
 
-DEF size_nonneg : shape -> int
+DEF size_nonneg : shape -> int EFFECT pure
   MATCH
     Circle { ABS }
     Square { ABS }
@@ -10,7 +10,7 @@ DEF size_nonneg : shape -> int
   POST DUP 0 GTE
 END
 
-DEF is_circle_bool : shape -> bool
+DEF is_circle_bool : shape -> bool EFFECT pure
   MATCH
     Circle { DROP TRUE }
     Square { DROP FALSE }

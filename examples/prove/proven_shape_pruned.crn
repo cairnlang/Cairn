@@ -5,7 +5,7 @@ TYPE shape = Circle int | Square int
 # PRE narrows the input to Square only.
 # The Circle MATCH arm uses LEN (unsupported by PROVE), but it is unreachable
 # under PRE, so PROVE can still prove the contract.
-DEF square_only_abs : shape -> int
+DEF square_only_abs : shape -> int EFFECT pure
   PRE {
     MATCH
       Circle { DROP FALSE }

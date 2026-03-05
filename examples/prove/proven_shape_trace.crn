@@ -8,7 +8,7 @@
 
 TYPE shape = Circle int | Square int
 
-DEF square_only_abs_trace : shape -> int
+DEF square_only_abs_trace : shape -> int EFFECT pure
   PRE {
     MATCH
       Circle { DROP TRUE }

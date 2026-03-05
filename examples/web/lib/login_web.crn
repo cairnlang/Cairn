@@ -1,16 +1,16 @@
-DEF current_user_name : map[str str] -> str EFFECT pure
+DEF current_user_name : session -> str EFFECT pure
   "user" SWAP "" map_get_or
 END
 
-DEF current_user_role : map[str str] -> str EFFECT pure
+DEF current_user_role : session -> str EFFECT pure
   "role" SWAP "" map_get_or
 END
 
-DEF logged_in_p : map[str str] -> bool EFFECT pure
+DEF logged_in_p : session -> bool EFFECT pure
   session_has_user
 END
 
-DEF render_login_page : str -> str map[str str] int EFFECT pure
+DEF render_login_page : str -> str headers int EFFECT pure
   LET error_message
 
   error_message LEN 0 GT
@@ -26,7 +26,7 @@ DEF render_login_page : str -> str map[str str] int EFFECT pure
   http_html_ok
 END
 
-DEF render_home_page : str str -> str map[str str] int EFFECT pure
+DEF render_home_page : str str -> str headers int EFFECT pure
   LET username
   LET role
 
@@ -39,7 +39,7 @@ DEF render_home_page : str str -> str map[str str] int EFFECT pure
   http_html_ok
 END
 
-DEF render_profile_page : str str -> str map[str str] int EFFECT pure
+DEF render_profile_page : str str -> str headers int EFFECT pure
   LET username
   LET role
 
@@ -52,7 +52,7 @@ DEF render_profile_page : str str -> str map[str str] int EFFECT pure
   http_html_ok
 END
 
-DEF render_admin_page : str -> str map[str str] int EFFECT pure
+DEF render_admin_page : str -> str headers int EFFECT pure
   LET username
 
   username html_escape LET safe_user
@@ -62,7 +62,7 @@ DEF render_admin_page : str -> str map[str str] int EFFECT pure
   http_html_ok
 END
 
-DEF with_session : map[str str] str map[str str] int -> str map[str str] map[str str] int EFFECT pure
+DEF with_session : session str headers int -> str headers session int EFFECT pure
   LET session
   LET body
   LET headers
@@ -70,7 +70,7 @@ DEF with_session : map[str str] str map[str str] int -> str map[str str] map[str
   status session headers body
 END
 
-DEF with_user_session : str str str map[str str] int -> str map[str str] map[str str] int EFFECT pure
+DEF with_user_session : str str str headers int -> str headers session int EFFECT pure
   LET role
   LET user
   LET body
@@ -79,82 +79,77 @@ DEF with_user_session : str str str map[str str] int -> str map[str str] map[str
   status M[] headers body "role" role session_put "user" user session_put
 END
 
-DEF handle_login_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] map[str str] int EFFECT http
-  LET path
-  LET method
-  LET query
-  LET form
-  LET headers
-  LET cookies
-  LET session
-  query DROP
-  headers DROP
-  cookies DROP
+DEF handle_login_request_env : request_envelope -> str headers session int EFFECT http
+  handle_login_request_ctx
+END
 
-  method "GET" EQ
+DEF handle_login_request_ctx : request_ctx -> str headers session int EFFECT http
+  LET ctx
+
+  ctx request_ctx_method "GET" EQ
   IF
-    path "/" EQ
+    ctx request_ctx_path "/" EQ
     IF
-      session logged_in_p
+      ctx request_ctx_session logged_in_p
       IF
-        session current_user_role
-        session current_user_name
+        ctx request_ctx_session current_user_role
+        ctx request_ctx_session current_user_name
         render_home_page
-        session with_session
+        ctx request_ctx_session with_session
       ELSE
         "" render_login_page
-        session with_session
+        ctx request_ctx_session with_session
       END
     ELSE
-      path "/login" EQ
+      ctx request_ctx_path "/login" EQ
       IF
         "" render_login_page
-        session with_session
+        ctx request_ctx_session with_session
       ELSE
-        path "/profile" EQ
+        ctx request_ctx_path "/profile" EQ
         IF
-          session guard_require_login
+          ctx request_ctx_session guard_require_login
           IF
-            session current_user_role
-            session current_user_name
+            ctx request_ctx_session current_user_role
+            ctx request_ctx_session current_user_name
             render_profile_page
-            session with_session
+            ctx request_ctx_session with_session
           ELSE
             "login required\n" http_text_unauthorized
-            session with_session
+            ctx request_ctx_session with_session
           END
         ELSE
-          path "/admin" EQ
+          ctx request_ctx_path "/admin" EQ
           IF
-            session guard_require_login
+            ctx request_ctx_session guard_require_login
             IF
-              session "admin" guard_require_role
+              ctx request_ctx_session "admin" guard_require_role
               IF
-                session current_user_name
+                ctx request_ctx_session current_user_name
                 render_admin_page
-                session with_session
+                ctx request_ctx_session with_session
               ELSE
                 "forbidden\n" http_text_forbidden
-                session with_session
+                ctx request_ctx_session with_session
               END
             ELSE
               "login required\n" http_text_unauthorized
-              session with_session
+              ctx request_ctx_session with_session
             END
           ELSE
             "not found\n" http_text_not_found
-            session with_session
+            ctx request_ctx_session with_session
           END
         END
       END
     END
   ELSE
-    method "POST" EQ
+    ctx request_ctx_method "POST" EQ
     IF
-      path "/login" EQ
+      ctx request_ctx_path "/login" EQ
       IF
-        "username" form "" map_get_or TRIM LET username
-        "password" form "" map_get_or TRIM LET password
+        "username" ctx request_ctx_form "" map_get_or TRIM LET username
+        "password" ctx request_ctx_form "" map_get_or TRIM LET password
 
         username LEN 0 GT
         password LEN 0 GT AND
@@ -170,29 +165,29 @@ DEF handle_login_request : str str map[str str] map[str str] map[str str] map[st
             Err {
               DROP
               "Invalid username or password." render_login_page
-              session with_session
+              ctx request_ctx_session with_session
             }
           END
         ELSE
           "Invalid username or password." render_login_page
-          session with_session
+          ctx request_ctx_session with_session
         END
       ELSE
-        path "/logout" EQ
+        ctx request_ctx_path "/logout" EQ
         IF
           "" render_login_page
           LET body
           LET headers
           LET status
-          status session headers body session_clear
+          status ctx request_ctx_session headers body session_clear
         ELSE
           "not found\n" http_text_not_found
-          session with_session
+          ctx request_ctx_session with_session
         END
       END
     ELSE
       "method not allowed\n" http_text_method_not_allowed
-      session with_session
+      ctx request_ctx_session with_session
     END
   END
 END

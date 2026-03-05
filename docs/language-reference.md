@@ -1042,6 +1042,42 @@ http_unpack_response
 before: [packed:tuple[str map[str str] int]]
 after:  [body:str, headers:map[str str], status:int]
 
+request_pack
+before: [path:str, method:str, query:map[str str], form:map[str str], headers:map[str str], cookies:map[str str], session:map[str str]]
+after:  [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+
+request_unpack
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [path:str, method:str, query:map[str str], form:map[str str], headers:map[str str], cookies:map[str str], session:map[str str]]
+
+request_ctx_path
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [path:str]
+
+request_ctx_method
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [method:str]
+
+request_ctx_query
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [query:map[str str]]
+
+request_ctx_form
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [form:map[str str]]
+
+request_ctx_headers
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [headers:map[str str]]
+
+request_ctx_cookies
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [cookies:map[str str]]
+
+request_ctx_session
+before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
+after:  [session:map[str str]]
+
 http_add_header
 before: [value:str, key:str, body:str, headers:map[str str], status:int]
 after:  [body:str, headers:map[str str], status:int]
@@ -1088,12 +1124,32 @@ route_get_text
 before: [body:str, route:str, method:str, path:str]
 after:  [candidate:result]
 
+route_is_method_path
+before: [route:str, expected_method:str, method:str, path:str]
+after:  [match:bool]
+
+route_is_get
+before: [route:str, method:str, path:str]
+after:  [match:bool]
+
+route_is_post
+before: [route:str, method:str, path:str]
+after:  [match:bool]
+
+route_method_allowed
+before: [allowed:[str], method:str]
+after:  [allowed?:bool]
+
 route_or
 before: [fallback:result, preferred:result]
 after:  [chosen:result]
 
 route_finish_get
 before: [method:str, candidate:result]
+after:  [body:str, headers:map[str str], status:int]
+
+route_finish_allowed
+before: [allowed:[str], method:str, candidate:result]
 after:  [body:str, headers:map[str str], status:int]
 ```
 

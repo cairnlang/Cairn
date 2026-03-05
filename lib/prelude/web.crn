@@ -8,6 +8,7 @@ TYPEALIAS cookies = map[str str]
 TYPEALIAS http_response = tuple[str headers int]
 TYPEALIAS route_result = result[http_response str]
 TYPEALIAS request_envelope = tuple[str str tuple[query form tuple[headers cookies session]]]
+TYPEALIAS request_ctx = request_envelope
 
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
 DEF http_html_ok : str -> str headers int EFFECT pure
@@ -115,6 +116,35 @@ DEF request_unpack : request_envelope -> str str query form headers cookies sess
   tail TRD LET session
 
   session cookies headers form query method path
+END
+
+# Request context accessors (record-like typed boundary helpers).
+DEF request_ctx_path : request_ctx -> str EFFECT pure
+  FST
+END
+
+DEF request_ctx_method : request_ctx -> str EFFECT pure
+  SND
+END
+
+DEF request_ctx_query : request_ctx -> query EFFECT pure
+  TRD FST
+END
+
+DEF request_ctx_form : request_ctx -> form EFFECT pure
+  TRD SND
+END
+
+DEF request_ctx_headers : request_ctx -> headers EFFECT pure
+  TRD TRD FST
+END
+
+DEF request_ctx_cookies : request_ctx -> cookies EFFECT pure
+  TRD TRD SND
+END
+
+DEF request_ctx_session : request_ctx -> session EFFECT pure
+  TRD TRD TRD
 END
 
 

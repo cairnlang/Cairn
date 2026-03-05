@@ -79,6 +79,34 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Extended prelude web helper examples to exercise the new combinators, including explicit allowed-method fallback behavior.
 - Preserved behavior while improving route readability and reusability across handlers.
 
+### v0.10.xm — TODO NEXT N6: Web Edge Assurance Harness
+- Added a one-command web edge assurance harness script:
+  - `scripts/test_web_edges.sh`
+  - runs only web-edge integration checks with clear pass/fail output
+- Tagged the key effectful edge flows in `test/cairn/http_test.exs` with `:web_edge`:
+  - login/auth session lifecycle
+  - session remember/logout mutation flow
+  - todo mutation flow (`POST /add` and `POST /done`) plus persistence expectation
+  - invalid-input hardening path in affordability web app
+- Kept the assurance model complementary:
+  - `TEST`/`VERIFY`/`PROVE` remain for pure logic and contracts
+  - `web_edge` harness covers runtime boundary behavior (HTTP/session/mutation/error paths)
+
+### v0.10.xn — TODO NEXT N7: Typed Request-Context Accessor Migration
+- Added bounded request-context accessor helpers in `lib/prelude/web.crn`:
+  - `request_ctx_path`
+  - `request_ctx_method`
+  - `request_ctx_query`
+  - `request_ctx_form`
+  - `request_ctx_headers`
+  - `request_ctx_cookies`
+  - `request_ctx_session`
+- Introduced `request_ctx` alias (record-like typed boundary over the existing request envelope tuple).
+- Migrated key web handlers to context-style boundaries (no unpack-and-drop plumbing):
+  - `examples/web/lib/todo_web.crn`
+  - `examples/web/lib/login_web.crn`
+- Preserved behavior while reducing parameter-threading noise and making route/auth logic read against one typed request context value.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`
@@ -831,10 +859,10 @@ The current best return comes from improving substrate features first so multipl
 - Preserve explicit control flow and readability; avoid hidden framework magic.
 - Done: prelude route combinators now cover method/path predicates + allow-list finishing, and `hello_static` + `todo_app` route trees are flattened with no behavior regressions.
 
-6. **Slice N6 — Web edge assurance harness**
+6. **Slice N6 — Web edge assurance harness** (landed)
 - Add repeatable operational checks for auth/session/mutation/error paths (scriptable and CI-friendly).
 - Focus on effectful boundary confidence, complementing `TEST`/`VERIFY`/`PROVE` rather than replacing them.
-- Done when: one-command web edge checks run locally and in CI with clear pass/fail output.
+- Done: one-command `scripts/test_web_edges.sh` runs tagged web edge checks locally/CI with explicit pass/fail output.
 
 #### Acceptance gate for the whole TODO NEXT track
 - Web handlers no longer require long raw `map[str str]` boundary signatures.

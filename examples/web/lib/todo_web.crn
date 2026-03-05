@@ -76,11 +76,12 @@ DEF handle_todo_index : -> str headers int EFFECT db
   render_todo_response
 END
 
-DEF route_get_todo_index : str str -> route_result EFFECT db
-  LET method
-  LET path
+DEF route_get_todo_index_ctx : request_ctx -> route_result EFFECT db
+  LET ctx
 
-  path method "/" route_is_get
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/" route_is_get
   IF
     handle_todo_index http_pack_response Ok
   ELSE
@@ -88,55 +89,44 @@ DEF route_get_todo_index : str str -> route_result EFFECT db
   END
 END
 
-DEF route_post_todo_add : form str str -> route_result EFFECT db
-  LET form
-  LET method
-  LET path
+DEF route_post_todo_add_ctx : request_ctx -> route_result EFFECT db
+  LET ctx
 
-  path method "/add" route_is_post
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/add" route_is_post
   IF
-    form add_todo_item http_pack_response Ok
+    ctx request_ctx_form add_todo_item http_pack_response Ok
   ELSE
     "no_match" Err
   END
 END
 
-DEF route_post_todo_done : form str str -> route_result EFFECT db
-  LET form
-  LET method
-  LET path
+DEF route_post_todo_done_ctx : request_ctx -> route_result EFFECT db
+  LET ctx
 
-  path method "/done" route_is_post
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/done" route_is_post
   IF
-    form handle_todo_done http_pack_response Ok
+    ctx request_ctx_form handle_todo_done http_pack_response Ok
   ELSE
     "no_match" Err
   END
 END
 
 DEF handle_todo_request_env : request_envelope -> str headers int EFFECT db
-  request_unpack
-  handle_todo_request
+  handle_todo_request_ctx
 END
 
-DEF handle_todo_request : str str query form headers cookies session -> str headers int EFFECT db
-  LET path
-  LET method
-  LET query
-  LET form
-  LET headers
-  LET cookies
-  LET session
-  query DROP
-  headers DROP
-  cookies DROP
-  session DROP
+DEF handle_todo_request_ctx : request_ctx -> str headers int EFFECT db
+  LET ctx
 
-  path method route_get_todo_index
-  path method form route_post_todo_add
+  ctx route_get_todo_index_ctx
+  ctx route_post_todo_add_ctx
   route_or
-  path method form route_post_todo_done
+  ctx route_post_todo_done_ctx
   route_or
   LET candidate
-  [ "GET" "POST" ] method candidate route_finish_allowed
+  [ "GET" "POST" ] ctx request_ctx_method candidate route_finish_allowed
 END

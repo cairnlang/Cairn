@@ -8,6 +8,20 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xg — Web Config Loader + Postgres Test Harness
+- Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
+  - `web_bind_host`
+  - `web_bind_port`
+  - `web_data_backend`
+- Migrated web example launchers to this shared loader pattern:
+  - `examples/web/hello_static.crn`
+  - `examples/web/todo_app.crn`
+  - `examples/web/session_demo.crn`
+  - `examples/web/login_app.crn`
+  - `examples/web/afford_app.crn`
+- Extended narrow interop v1 whitelist with `HOST_CALL env_get` so Cairn entrypoints can read selected env keys without runtime-specific app glue.
+- Added `scripts/test_pg.sh` to run gated Postgres coverage against an ephemeral container (`db_test` + `http_test`) with one command.
+
 ### v0.10.xf — Postgres DataStore Backend + Runtime Wiring
 - Added `Cairn.DataStore.Backend.Postgres` with the same key/value contract as the Mnesia backend.
 - Added runtime backend selection via `CAIRN_DATA_STORE_BACKEND=mnesia|postgres` (default remains `mnesia`).

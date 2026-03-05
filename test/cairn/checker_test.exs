@@ -129,13 +129,18 @@ defmodule Cairn.CheckerTest do
     end
 
     test "string primitive operators have effects" do
-      assert {:ok, %{pops: [:str],             pushes: [{:list, :str}]}} = Effects.lookup(:chars)
-      assert {:ok, %{pops: [:str, :str],       pushes: [{:list, :str}]}} = Effects.lookup(:split)
-      assert {:ok, %{pops: [:str],             pushes: [:str]}}           = Effects.lookup(:trim)
-      assert {:ok, %{pops: [:str, :str],       pushes: [:bool]}}          = Effects.lookup(:starts_with)
-      assert {:ok, %{pops: [:int, :int, :str], pushes: [:str]}}           = Effects.lookup(:slice)
-      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result", [:int, :str]}]}} = Effects.lookup(:to_int)
-      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result", [:float, :str]}]}} = Effects.lookup(:to_float)
+      assert {:ok, %{pops: [:str], pushes: [{:list, :str}]}} = Effects.lookup(:chars)
+      assert {:ok, %{pops: [:str, :str], pushes: [{:list, :str}]}} = Effects.lookup(:split)
+      assert {:ok, %{pops: [:str], pushes: [:str]}} = Effects.lookup(:trim)
+      assert {:ok, %{pops: [:str, :str], pushes: [:bool]}} = Effects.lookup(:starts_with)
+      assert {:ok, %{pops: [:int, :int, :str], pushes: [:str]}} = Effects.lookup(:slice)
+
+      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result", [:int, :str]}]}} =
+               Effects.lookup(:to_int)
+
+      assert {:ok, %{pops: [:str], pushes: [{:user_type, "result", [:float, :str]}]}} =
+               Effects.lookup(:to_float)
+
       assert {:ok, %{pops: [:str], pushes: [:int]}} = Effects.lookup(:to_int!)
       assert {:ok, %{pops: [:str], pushes: [:float]}} = Effects.lookup(:to_float!)
     end
@@ -158,7 +163,8 @@ defmodule Cairn.CheckerTest do
     end
 
     test "collection helper operators have effects" do
-      assert {:ok, %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:tuple, [:any, :any]}}]}} =
+      assert {:ok,
+              %{pops: [{:list, :any}, {:list, :any}], pushes: [{:list, {:tuple, [:any, :any]}}]}} =
                Effects.lookup(:zip)
 
       assert {:ok, %{pops: [{:list, :any}], pushes: [{:list, {:tuple, [:int, :any]}}]}} =
@@ -293,7 +299,8 @@ defmodule Cairn.CheckerTest do
                END
                """)
 
-      assert {:error, "invalid EFFECT spooky; expected pure, io, db, or http"} = Cairn.Parser.parse(tokens)
+      assert {:error, "invalid EFFECT spooky; expected pure, io, db, or http"} =
+               Cairn.Parser.parse(tokens)
     end
 
     test "pure function can call another pure function" do
@@ -320,7 +327,13 @@ defmodule Cairn.CheckerTest do
         END
         """)
 
-      assert Enum.any?(errors, &String.contains?(&1.message, "pure function cannot call effectful function 'noisy'"))
+      assert Enum.any?(
+               errors,
+               &String.contains?(
+                 &1.message,
+                 "pure function cannot call effectful function 'noisy'"
+               )
+             )
     end
 
     test "pure function cannot use effectful operator" do
@@ -331,7 +344,13 @@ defmodule Cairn.CheckerTest do
         END
         """)
 
-      assert Enum.any?(errors, &String.contains?(&1.message, "pure function cannot use effectful operator 'RANDOM'"))
+      assert Enum.any?(
+               errors,
+               &String.contains?(
+                 &1.message,
+                 "pure function cannot use effectful operator 'RANDOM'"
+               )
+             )
     end
   end
 
@@ -542,33 +561,53 @@ defmodule Cairn.CheckerTest do
 
     test "explicit float math requires floats" do
       errors = check_errors("1 SIN")
-      assert Enum.any?(errors, fn e -> e.message =~ "SIN" and e.message =~ "expected float" and e.message =~ "got int" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "SIN" and e.message =~ "expected float" and e.message =~ "got int"
+             end)
 
       errors = check_errors("2 8.0 POW")
-      assert Enum.any?(errors, fn e -> e.message =~ "POW" and e.message =~ "expected float" and e.message =~ "got int" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "POW" and e.message =~ "expected float" and e.message =~ "got int"
+             end)
     end
 
     test "HOST_CALL accepts typed whitelisted helpers with literal arg lists" do
       check_ok("[ 42 ] HOST_CALL int_to_string")
       check_ok("[ 3.14 ] HOST_CALL float_to_string")
+      check_ok("[ \"CAIRN_DB_DIR\" ] HOST_CALL env_get")
     end
 
     test "HOST_CALL rejects unknown helper names" do
       errors = check_errors("[ \"hello\" ] HOST_CALL nope")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'nope' is not in the v1 whitelist" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "HOST_CALL 'nope' is not in the v1 whitelist"
+             end)
     end
 
     test "HOST_CALL enforces literal arg arity and types" do
       errors = check_errors("[ ] HOST_CALL int_to_string")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'int_to_string' expected 1 arg(s), got 0" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "HOST_CALL 'int_to_string' expected 1 arg(s), got 0"
+             end)
 
       errors = check_errors("[ \"42\" ] HOST_CALL int_to_string")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'int_to_string' arg type mismatch" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "HOST_CALL 'int_to_string' arg type mismatch"
+             end)
     end
 
     test "HOST_CALL rejects non-literal argument lists in v1" do
       errors = check_errors("[] LET args args HOST_CALL int_to_string")
-      assert Enum.any?(errors, fn e -> e.message =~ "HOST_CALL 'int_to_string' in v1 requires a literal argument list immediately before it" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~
+                 "HOST_CALL 'int_to_string' in v1 requires a literal argument list immediately before it"
+             end)
     end
 
     test "HTTP_SERVE accepts the explicit bind-address form" do
@@ -576,8 +615,13 @@ defmodule Cairn.CheckerTest do
     end
 
     test "HTTP_SERVE accepts an options map" do
-      check_ok(~s|M[ "request_line_max" 1024 "read_timeout_ms" 1000 ] 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|)
-      check_ok(~s|M[ "request_line_max" 1024 "read_timeout_ms" 1000 ] "0.0.0.0" 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|)
+      check_ok(
+        ~s|M[ "request_line_max" 1024 "read_timeout_ms" 1000 ] 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|
+      )
+
+      check_ok(
+        ~s|M[ "request_line_max" 1024 "read_timeout_ms" 1000 ] "0.0.0.0" 8080 { 200 "text/plain; charset=utf-8" "ok\\n" } HTTP_SERVE|
+      )
     end
   end
 
@@ -703,7 +747,9 @@ defmodule Cairn.CheckerTest do
     end
 
     test "IF/ELSE inside function body" do
-      check_ok("DEF sign : int -> int DUP 0 GT IF DROP 1 ELSE DUP 0 LT IF DROP -1 ELSE DROP 0 END END END")
+      check_ok(
+        "DEF sign : int -> int DUP 0 GT IF DROP 1 ELSE DUP 0 LT IF DROP -1 ELSE DROP 0 END END END"
+      )
     end
   end
 
@@ -749,12 +795,18 @@ defmodule Cairn.CheckerTest do
 
     test "return arity mismatch — too few" do
       errors = check_errors("DEF bad : int -> int DROP END")
-      assert Enum.any?(errors, fn e -> e.message =~ "1 return value" and e.message =~ "produces 0" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "1 return value" and e.message =~ "produces 0"
+             end)
     end
 
     test "return arity mismatch — too many" do
       errors = check_errors("DEF bad : int -> int DUP END")
-      assert Enum.any?(errors, fn e -> e.message =~ "1 return value" and e.message =~ "produces 2" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "1 return value" and e.message =~ "produces 2"
+             end)
     end
 
     test "return type mismatch" do
@@ -768,7 +820,10 @@ defmodule Cairn.CheckerTest do
 
     test "multi-return wrong count" do
       errors = check_errors("DEF bad : int int -> int int DROP END")
-      assert Enum.any?(errors, fn e -> e.message =~ "2 return value" and e.message =~ "produces 1" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "2 return value" and e.message =~ "produces 1"
+             end)
     end
 
     test "multiple function definitions" do
@@ -914,16 +969,23 @@ defmodule Cairn.CheckerTest do
 
     test "STATE outside WITH_STATE is an error" do
       errors = check_errors("STATE")
-      assert Enum.any?(errors, fn e -> e.message =~ "STATE is only available inside WITH_STATE" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "STATE is only available inside WITH_STATE"
+             end)
     end
 
     test "SET_STATE outside WITH_STATE is an error" do
       errors = check_errors("1 SET_STATE")
-      assert Enum.any?(errors, fn e -> e.message =~ "SET_STATE is only available inside WITH_STATE" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "SET_STATE is only available inside WITH_STATE"
+             end)
     end
 
     test "STEP outside WITH_STATE is an error" do
       errors = check_errors("STEP bump")
+
       assert Enum.any?(errors, fn e -> e.message =~ "STEP is only available inside WITH_STATE" end)
     end
 
@@ -934,7 +996,10 @@ defmodule Cairn.CheckerTest do
 
     test "WITH_STATE block must leave no visible values" do
       errors = check_errors("1 { STATE } WITH_STATE")
-      assert Enum.any?(errors, fn e -> e.message =~ "WITH_STATE block must leave no visible values" end)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "WITH_STATE block must leave no visible values"
+             end)
     end
   end
 
@@ -1217,8 +1282,7 @@ defmodule Cairn.CheckerTest do
 
   describe "user types in compound positions" do
     test "[user_type] is a valid list type in the lexer" do
-      assert {:ok, [{:type, {:list, {:user_type, "json"}}, 0}]} =
-               Cairn.Lexer.tokenize("[json]")
+      assert {:ok, [{:type, {:list, {:user_type, "json"}}, 0}]} = Cairn.Lexer.tokenize("[json]")
     end
 
     test "map[str user_type] is a valid map type in the lexer" do
@@ -1244,45 +1308,59 @@ defmodule Cairn.CheckerTest do
     end
 
     test "[json] works as a function parameter type" do
-      check_ok(@json_type <> """
-      DEF wrap_array : [json] -> json
-        JArr
-      END
-      """)
+      check_ok(
+        @json_type <>
+          """
+          DEF wrap_array : [json] -> json
+            JArr
+          END
+          """
+      )
     end
 
     test "map[str json] works as a function parameter type" do
-      check_ok(@json_type <> """
-      DEF wrap_object : map[str json] -> json
-        JObj
-      END
-      """)
+      check_ok(
+        @json_type <>
+          """
+          DEF wrap_object : map[str json] -> json
+            JObj
+          END
+          """
+      )
     end
 
     test "MATCH on json type-checks with exhaustive arms" do
-      check_ok(@json_type <> """
-      DEF is_null : json -> bool
-        MATCH
-          JNull { TRUE }
-          JBool { DROP FALSE }
-          JNum  { DROP FALSE }
-          JStr  { DROP FALSE }
-          JArr  { DROP FALSE }
-          JObj  { DROP FALSE }
-        END
-      END
-      """)
+      check_ok(
+        @json_type <>
+          """
+          DEF is_null : json -> bool
+            MATCH
+              JNull { TRUE }
+              JBool { DROP FALSE }
+              JNum  { DROP FALSE }
+              JStr  { DROP FALSE }
+              JArr  { DROP FALSE }
+              JObj  { DROP FALSE }
+            END
+          END
+          """
+      )
     end
 
     test "non-exhaustive MATCH on json is an error" do
-      errors = check_errors(@json_type <> """
-      DEF bad : json -> bool
-        MATCH
-          JNull { TRUE }
-          JBool { DROP FALSE }
-        END
-      END
-      """)
+      errors =
+        check_errors(
+          @json_type <>
+            """
+            DEF bad : json -> bool
+              MATCH
+                JNull { TRUE }
+                JBool { DROP FALSE }
+              END
+            END
+            """
+        )
+
       assert Enum.any?(errors, fn e -> e.message =~ "exhaustive" end)
     end
 

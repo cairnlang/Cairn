@@ -1,22 +1,12 @@
 IMPORT "lib/todo_web.crn"
+IMPORT "lib/web_config.crn"
 
-ARGV LEN 0 GT
-IF
-  ARGV HEAD
-ELSE
-  "127.0.0.1"
-END
-LET bind_host
+ "127.0.0.1" web_bind_host LET bind_host
 
-ARGV LEN 1 GT
-IF
-  8090 ARGV TAIL HEAD to_int_or
-ELSE
-  8090
-END
-LET port
+8090 web_bind_port LET port
+"mnesia" web_data_backend LET data_backend
 
-port bind_host port bind_host "web: serving Mnesia-backed todo app at http://{}:{}/ with POST forms at http://{}:{}/" FMT SAID
+port bind_host port bind_host data_backend "web: serving todo app (backend={}) at http://{}:{}/ with POST forms at http://{}:{}/" FMT SAID
 bind_host port {
   handle_todo_request
 } HTTP_SERVE

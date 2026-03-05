@@ -32,7 +32,8 @@ defmodule Cairn.Checker do
 
   @host_call_signatures %{
     "int_to_string" => %{args: [:int], return: :str},
-    "float_to_string" => %{args: [:float], return: :str}
+    "float_to_string" => %{args: [:float], return: :str},
+    "env_get" => %{args: [:str], return: :str}
   }
 
   @doc """

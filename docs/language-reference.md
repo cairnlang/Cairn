@@ -199,6 +199,7 @@ POW                           # binary: pop exponent + base (floats), push float
 
 # Narrow host interop (v1)
 HOST_CALL helper              # expects a literal arg list immediately before it, e.g. [ 42 ] HOST_CALL int_to_string
+                             # current whitelist: int_to_string, float_to_string, env_get
 AUTH_CHECK                    # pop password + username, push built-in result (Ok user_map | Err message)
 
 # Comparison (pop 2, push bool)
@@ -320,6 +321,7 @@ FMT
 before: [format:str, value_n, ..., value_1]
 after:  [formatted:str]
 note: the format string is on top; placeholder values sit underneath it
+note: push placeholder values from right to left, then push the format string
 
 ASSERT_EQ
 before: [expected, actual]
@@ -396,6 +398,7 @@ END
 42 "Score: {}!" FMT                           # => "Score: 42!"
 42 "Alice" "Name: {}, Age: {}" FMT            # => "Name: Alice, Age: 42"
 "use {{}} for placeholders" FMT               # => "use {} for placeholders"
+"postgres" "127.0.0.1" 8090 "backend={} host={} port={}" FMT  # => "backend=postgres host=127.0.0.1 port=8090"
 ```
 
 Values are auto-converted: integers and floats become their string representation, booleans become `"TRUE"` / `"FALSE"`, and everything else uses `inspect`.

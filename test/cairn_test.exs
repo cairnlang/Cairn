@@ -238,6 +238,20 @@ defmodule CairnTest do
       assert Cairn.eval("[ 3.14 ] HOST_CALL float_to_string") == ["3.14"]
     end
 
+    test "host interop v1 can read environment values through env_get" do
+      previous = System.get_env("CAIRN_TEST_ENV_GET")
+      System.put_env("CAIRN_TEST_ENV_GET", "ok")
+
+      assert Cairn.eval("[ \"CAIRN_TEST_ENV_GET\" ] HOST_CALL env_get") == ["ok"]
+      assert Cairn.eval("[ \"CAIRN_TEST_ENV_GET_MISSING\" ] HOST_CALL env_get") == [""]
+
+      if previous do
+        System.put_env("CAIRN_TEST_ENV_GET", previous)
+      else
+        System.delete_env("CAIRN_TEST_ENV_GET")
+      end
+    end
+
     test "comparison" do
       assert Cairn.eval("3 4 EQ") == [false]
       assert Cairn.eval("3 3 EQ") == [true]

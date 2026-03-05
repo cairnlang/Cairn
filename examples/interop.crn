@@ -1,2 +1,3 @@
 [ 42 ] HOST_CALL int_to_string "int={}" FMT SAID
 [ 3.14 ] HOST_CALL float_to_string "float={}" FMT SAID
+[ "CAIRN_DATA_STORE_BACKEND" ] HOST_CALL env_get "backend_env={}" FMT SAID

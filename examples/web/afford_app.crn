@@ -1,20 +1,8 @@
 IMPORT "lib/afford_web.crn"
+IMPORT "lib/web_config.crn"
 
-ARGV LEN 0 GT
-IF
-  ARGV HEAD
-ELSE
-  "127.0.0.1"
-END
-LET bind_host
-
-ARGV LEN 1 GT
-IF
-  8091 ARGV TAIL HEAD to_int_or
-ELSE
-  8091
-END
-LET port
+"127.0.0.1" web_bind_host LET bind_host
+8091 web_bind_port LET port
 
 port bind_host "web: serving affordability checker at http://{}:{}/" FMT SAID
 bind_host port {

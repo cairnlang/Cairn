@@ -1,20 +1,8 @@
 IMPORT "lib/hello_static.crn"
+IMPORT "lib/web_config.crn"
 
-ARGV LEN 0 GT
-IF
-  ARGV HEAD
-ELSE
-  "127.0.0.1"
-END
-LET bind_host
-
-ARGV LEN 1 GT
-IF
-  8089 ARGV TAIL HEAD to_int_or
-ELSE
-  8089
-END
-LET port
+"127.0.0.1" web_bind_host LET bind_host
+8089 web_bind_port LET port
 
 port bind_host port bind_host "web: serving funny pages at http://{}:{}/ and http://{}:{}/about (plus /echo, /hello, /cookie, /set-cookie)" FMT SAID
 bind_host port {

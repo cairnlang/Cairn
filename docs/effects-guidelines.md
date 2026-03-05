@@ -159,6 +159,20 @@ END
   - same add/mark-done/restart flow is exercised on Postgres backend.
 - Kept existing fake-backend delegation tests as fast guardrails.
 
+## Slice I Web Loader + Reproducible PG Test Harness (Completed)
+
+- Added `examples/web/lib/web_config.crn` as a shared config loader for web app entrypoints:
+  - `web_bind_host`
+  - `web_bind_port`
+  - `web_data_backend`
+- Migrated web app launchers (`hello_static`, `todo_app`, `session_demo`, `login_app`, `afford_app`) to that loader pattern.
+- Extended narrow host interop whitelist with `env_get` so Cairn entrypoints can read runtime env keys without bespoke runtime code.
+- Added `scripts/test_pg.sh`:
+  - boots an ephemeral Postgres container
+  - sets the `CAIRN_PG_*` + `CAIRN_DATA_STORE_BACKEND=postgres` env
+  - runs gated Postgres integration suites (`db_test` + `http_test`)
+  - tears down automatically
+
 ## Postgres Discipline Rules
 
 - Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.

@@ -37,7 +37,9 @@ defmodule Cairn.Runtime do
   end
 
   def execute(:sqrt, [a | rest]) when is_float(a) do
-    if a < 0.0, do: raise(Cairn.RuntimeError, "SQRT expects a non-negative float, got #{inspect(a)}")
+    if a < 0.0,
+      do: raise(Cairn.RuntimeError, "SQRT expects a non-negative float, got #{inspect(a)}")
+
     [:math.sqrt(a) | rest]
   end
 
@@ -53,11 +55,15 @@ defmodule Cairn.Runtime do
   def execute(:and, [a, b | rest]) when is_boolean(a) and is_boolean(b), do: [b and a | rest]
   def execute(:or, [a, b | rest]) when is_boolean(a) and is_boolean(b), do: [b or a | rest]
   def execute(:not, [a | rest]) when is_boolean(a), do: [not a | rest]
+
   def execute(:assert_eq, [expected, actual | rest]) do
     if actual == expected do
       rest
     else
-      raise(Cairn.RuntimeError, "ASSERT_EQ failed: expected #{inspect(expected)}, got #{inspect(actual)}")
+      raise(
+        Cairn.RuntimeError,
+        "ASSERT_EQ failed: expected #{inspect(expected)}, got #{inspect(actual)}"
+      )
     end
   end
 
@@ -89,8 +95,11 @@ defmodule Cairn.Runtime do
   def execute(:trd, [{:tuple, [_a, _b, c | _]} | rest]), do: [c | rest]
 
   # Math — binary
-  def execute(:min, [a, b | rest]) when is_number(a) and is_number(b), do: [Kernel.min(b, a) | rest]
-  def execute(:max, [a, b | rest]) when is_number(a) and is_number(b), do: [Kernel.max(b, a) | rest]
+  def execute(:min, [a, b | rest]) when is_number(a) and is_number(b),
+    do: [Kernel.min(b, a) | rest]
+
+  def execute(:max, [a, b | rest]) when is_number(a) and is_number(b),
+    do: [Kernel.max(b, a) | rest]
 
   # List operations — basic
   def execute(:len, [list | rest]) when is_list(list), do: [length(list) | rest]
@@ -100,15 +109,21 @@ defmodule Cairn.Runtime do
   def execute(:cons, [list, elem | rest]) when is_list(list), do: [[elem | list] | rest]
   def execute(:concat, [b, a | rest]) when is_list(a) and is_list(b), do: [a ++ b | rest]
   def execute(:concat, [b, a | rest]) when is_binary(a) and is_binary(b), do: [a <> b | rest]
+
   def execute(:zip, [b, a | rest]) when is_list(a) and is_list(b),
     do: [Enum.zip_with(a, b, fn left, right -> {:tuple, [left, right]} end) | rest]
 
   def execute(:enumerate, [list | rest]) when is_list(list),
     do: [Enum.with_index(list, 1) |> Enum.map(fn {elem, idx} -> {:tuple, [idx, elem]} end) | rest]
-  def execute(:take, [count, list | rest]) when is_list(list) and is_integer(count) and count >= 0, do: [Enum.take(list, count) | rest]
+
+  def execute(:take, [count, list | rest])
+      when is_list(list) and is_integer(count) and count >= 0,
+      do: [Enum.take(list, count) | rest]
 
   # CONTAINS: pop string, pop substring, push boolean
-  def execute(:contains, [sub, str | rest]) when is_binary(str) and is_binary(sub), do: [String.contains?(str, sub) | rest]
+  def execute(:contains, [sub, str | rest]) when is_binary(str) and is_binary(sub),
+    do: [String.contains?(str, sub) | rest]
+
   def execute(:sum, [list | rest]) when is_list(list), do: [Enum.sum(list) | rest]
   def execute(:sort, [list | rest]) when is_list(list), do: [Enum.sort(list) | rest]
   def execute(:reverse, [list | rest]) when is_list(list), do: [Enum.reverse(list) | rest]
@@ -221,8 +236,11 @@ defmodule Cairn.Runtime do
         result = Cairn.Evaluator.eval_tokens(block_tokens, [elem], env)
 
         case hd(result) do
-          value when is_list(value) -> value
-          other -> raise Cairn.RuntimeError, "FLAT_MAP block must return a list, got #{inspect(other)}"
+          value when is_list(value) ->
+            value
+
+          other ->
+            raise Cairn.RuntimeError, "FLAT_MAP block must return a list, got #{inspect(other)}"
         end
       end)
 
@@ -279,7 +297,10 @@ defmodule Cairn.Runtime do
 
   # Map operations
   def execute(:get, [key, map | rest]) when is_map(map), do: [Map.fetch!(map, key) | rest]
-  def execute(:put, [value, key, map | rest]) when is_map(map), do: [Map.put(map, key, value) | rest]
+
+  def execute(:put, [value, key, map | rest]) when is_map(map),
+    do: [Map.put(map, key, value) | rest]
+
   def execute(:del, [key, map | rest]) when is_map(map), do: [Map.delete(map, key) | rest]
   def execute(:keys, [map | rest]) when is_map(map), do: [Map.keys(map) | rest]
   def execute(:values, [map | rest]) when is_map(map), do: [Map.values(map) | rest]
@@ -299,13 +320,15 @@ defmodule Cairn.Runtime do
   def execute(:words, [s | rest]) when is_binary(s), do: [String.split(s) | rest]
 
   # LINES: split string into lines
-  def execute(:lines, [s | rest]) when is_binary(s), do: [String.split(s, "\n", trim: true) | rest]
+  def execute(:lines, [s | rest]) when is_binary(s),
+    do: [String.split(s, "\n", trim: true) | rest]
 
   # CHARS: split string into list of graphemes
   def execute(:chars, [s | rest]) when is_binary(s), do: [String.graphemes(s) | rest]
 
   # SPLIT: split string on delimiter
-  def execute(:split, [delim, s | rest]) when is_binary(s) and is_binary(delim), do: [String.split(s, delim) | rest]
+  def execute(:split, [delim, s | rest]) when is_binary(s) and is_binary(delim),
+    do: [String.split(s, delim) | rest]
 
   # TRIM: remove leading and trailing whitespace
   def execute(:trim, [s | rest]) when is_binary(s), do: [String.trim(s) | rest]
@@ -315,7 +338,8 @@ defmodule Cairn.Runtime do
   def execute(:upper, [s | rest]) when is_binary(s), do: [String.upcase(s) | rest]
 
   # STARTS_WITH: check if string starts with prefix
-  def execute(:starts_with, [prefix, s | rest]) when is_binary(s) and is_binary(prefix), do: [String.starts_with?(s, prefix) | rest]
+  def execute(:starts_with, [prefix, s | rest]) when is_binary(s) and is_binary(prefix),
+    do: [String.starts_with?(s, prefix) | rest]
 
   # ENDS_WITH: check if string ends with suffix
   def execute(:ends_with, [suffix, s | rest]) when is_binary(s) and is_binary(suffix),
@@ -330,7 +354,9 @@ defmodule Cairn.Runtime do
   def execute(:reverse_str, [s | rest]) when is_binary(s), do: [String.reverse(s) | rest]
 
   # SLICE: extract substring (zero-based start, length)
-  def execute(:slice, [len, start, s | rest]) when is_binary(s) and is_integer(start) and is_integer(len), do: [String.slice(s, start, len) | rest]
+  def execute(:slice, [len, start, s | rest])
+      when is_binary(s) and is_integer(start) and is_integer(len),
+      do: [String.slice(s, start, len) | rest]
 
   # TO_INT: parse string as integer (safe, returns result)
   def execute(:to_int, [s | rest]) when is_binary(s) do
@@ -349,7 +375,8 @@ defmodule Cairn.Runtime do
   end
 
   # JOIN: join list of strings with separator
-  def execute(:join, [sep, list | rest]) when is_list(list) and is_binary(sep), do: [Enum.join(list, sep) | rest]
+  def execute(:join, [sep, list | rest]) when is_list(list) and is_binary(sep),
+    do: [Enum.join(list, sep) | rest]
 
   # TO_FLOAT: parse string as float (safe, returns result)
   def execute(:to_float, [s | rest]) when is_binary(s) do
@@ -387,7 +414,8 @@ defmodule Cairn.Runtime do
   end
 
   # WRITE_FILE: pop contents and filename, write file, push result
-  def execute(:write_file, [path, contents | rest]) when is_binary(path) and is_binary(contents) do
+  def execute(:write_file, [path, contents | rest])
+      when is_binary(path) and is_binary(contents) do
     case File.write(path, contents) do
       :ok -> [ok(true) | rest]
       {:error, reason} -> [err("cannot write '#{path}': #{reason}") | rest]
@@ -395,7 +423,8 @@ defmodule Cairn.Runtime do
   end
 
   # WRITE_FILE!: pop contents and filename, write file or raise
-  def execute(:write_file!, [path, contents | rest]) when is_binary(path) and is_binary(contents) do
+  def execute(:write_file!, [path, contents | rest])
+      when is_binary(path) and is_binary(contents) do
     case File.write(path, contents) do
       :ok -> rest
       {:error, reason} -> raise Cairn.RuntimeError, "cannot write '#{path}': #{reason}"
@@ -477,31 +506,46 @@ defmodule Cairn.Runtime do
   def host_call(name, args) when is_binary(name) and is_list(args) do
     wrapper =
       case name do
-        "int_to_string" -> {:ok, 1, fn [value] when is_integer(value) -> Integer.to_string(value) end}
-        "float_to_string" -> {:ok, 1, fn [value] when is_float(value) -> Float.to_string(value) end}
-        _ -> :error
+        "int_to_string" ->
+          {:ok, 1, fn [value] when is_integer(value) -> Integer.to_string(value) end}
+
+        "float_to_string" ->
+          {:ok, 1, fn [value] when is_float(value) -> Float.to_string(value) end}
+
+        "env_get" ->
+          {:ok, 1, fn [name] when is_binary(name) -> System.get_env(name, "") end}
+
+        _ ->
+          :error
       end
 
     case wrapper do
       {:ok, arity, fun} ->
         if length(args) != arity do
-          raise Cairn.RuntimeError, "HOST_CALL #{name}: expected #{arity} arg(s), got #{length(args)}"
+          raise Cairn.RuntimeError,
+                "HOST_CALL #{name}: expected #{arity} arg(s), got #{length(args)}"
         end
 
         try do
           case fun.(args) do
-            result when is_binary(result) -> result
-            other -> raise Cairn.RuntimeError, "HOST_CALL #{name}: returned unsupported host value #{inspect(other)}"
+            result when is_binary(result) ->
+              result
+
+            other ->
+              raise Cairn.RuntimeError,
+                    "HOST_CALL #{name}: returned unsupported host value #{inspect(other)}"
           end
         rescue
           e in Cairn.RuntimeError ->
             reraise e, __STACKTRACE__
 
           FunctionClauseError ->
-            raise Cairn.RuntimeError, "HOST_CALL #{name}: argument types do not match the whitelist signature"
+            raise Cairn.RuntimeError,
+                  "HOST_CALL #{name}: argument types do not match the whitelist signature"
 
           e ->
-            raise Cairn.RuntimeError, "HOST_CALL #{name}: host wrapper raised #{Exception.message(e)}"
+            raise Cairn.RuntimeError,
+                  "HOST_CALL #{name}: host wrapper raised #{Exception.message(e)}"
         end
 
       :error ->
@@ -540,10 +584,13 @@ defmodule Cairn.Runtime do
   defp format_value(v) when is_float(v), do: Float.to_string(v)
   defp format_value(true), do: "TRUE"
   defp format_value(false), do: "FALSE"
+
   defp format_value(v) when is_list(v),
     do: "[" <> (v |> Enum.map(&format_value/1) |> Enum.join(", ")) <> "]"
+
   defp format_value({:tuple, vals}),
     do: "#(" <> (vals |> Enum.map(&format_value/1) |> Enum.join(" ")) <> ")"
+
   defp format_value(v), do: inspect(v)
 
   defp ok(value), do: {:variant, "result", "Ok", [value]}

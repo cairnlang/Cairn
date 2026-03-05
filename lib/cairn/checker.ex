@@ -9,26 +9,26 @@ defmodule Cairn.Checker do
   alias Cairn.Checker.{Error, Stack, Effects, Unify}
 
   @effectful_ops MapSet.new([
-                  :argv,
-                  :read_line,
-                  :say,
-                  :print,
-                  :said,
-                  :read_file,
-                  :write_file,
-                  :read_file!,
-                  :write_file!,
-                  :http_serve,
-                  :db_put,
-                  :db_get,
-                  :db_del,
-                  :db_pairs,
-                  :auth_check,
-                  :ask,
-                  :ask!,
-                  :random,
-                  :host_call
-                ])
+                   :argv,
+                   :read_line,
+                   :say,
+                   :print,
+                   :said,
+                   :read_file,
+                   :write_file,
+                   :read_file!,
+                   :write_file!,
+                   :http_serve,
+                   :db_put,
+                   :db_get,
+                   :db_del,
+                   :db_pairs,
+                   :auth_check,
+                   :ask,
+                   :ask!,
+                   :random,
+                   :host_call
+                 ])
 
   @host_call_signatures %{
     "int_to_string" => %{args: [:int], return: :str},
@@ -44,7 +44,17 @@ defmodule Cairn.Checker do
   The `env` parameter provides previously-defined function signatures
   for cross-expression checking (e.g., in the REPL).
   """
-  @spec check([Cairn.Types.Function.t() | Cairn.Types.TypeDef.t() | Cairn.Types.TypeAlias.t() | Cairn.Types.ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}], map()) ::
+  @spec check(
+          [
+            Cairn.Types.Function.t()
+            | Cairn.Types.TypeDef.t()
+            | Cairn.Types.TypeAlias.t()
+            | Cairn.Types.ProtocolDef.t()
+            | {:expr, [Cairn.Types.token()]}
+            | {:test, String.t(), [Cairn.Types.token()]}
+          ],
+          map()
+        ) ::
           :ok | {:error, [Error.t()]}
   def check(items, env \\ %{}) do
     {type_env, types, type_aliases, protocols} = build_checker_env(env)
@@ -84,9 +94,14 @@ defmodule Cairn.Checker do
           {te, tys, Map.put(aliases, alias_def.name, alias_def), protos}
 
         %Cairn.Types.Function{} = func, {te, tys, aliases, protos} ->
-          resolved_params = resolve_type_aliases(func.param_types, aliases, func.type_params || [])
-          resolved_returns = resolve_type_aliases(func.return_types, aliases, func.type_params || [])
-          protocol_effect_steps = protocol_helper_effect_for(func, actor_required, raw_protocol_effects)
+          resolved_params =
+            resolve_type_aliases(func.param_types, aliases, func.type_params || [])
+
+          resolved_returns =
+            resolve_type_aliases(func.return_types, aliases, func.type_params || [])
+
+          protocol_effect_steps =
+            protocol_helper_effect_for(func, actor_required, raw_protocol_effects)
 
           {Map.put(te, func.name, %{
              type_params: func.type_params,
@@ -95,10 +110,7 @@ defmodule Cairn.Checker do
              effect: func.effect || :io,
              actor_required: MapSet.member?(actor_required, func.name),
              protocol_effect_steps: protocol_effect_steps
-           }),
-           tys,
-           aliases,
-           protos}
+           }), tys, aliases, protos}
 
         %Cairn.Types.ProtocolDef{} = protocol, {te, tys, aliases, protos} ->
           {te, tys, aliases, Map.put(protos, protocol.name, protocol)}
@@ -139,7 +151,13 @@ defmodule Cairn.Checker do
       env
       |> Enum.filter(fn {_, v} -> match?(%Cairn.Types.Function{}, v) end)
       |> Enum.reduce(type_env, fn {name, func}, acc ->
-        {name, %{type_params: func.type_params || [], param_types: func.param_types, return_types: func.return_types, effect: func.effect || :io}}
+        {name,
+         %{
+           type_params: func.type_params || [],
+           param_types: func.param_types,
+           return_types: func.return_types,
+           effect: func.effect || :io
+         }}
         |> then(fn {k, v} -> Map.put(acc, k, v) end)
       end)
 
@@ -166,8 +184,8 @@ defmodule Cairn.Checker do
           {type_name, field_types} ->
             Map.put(acc, ctor_name, %{
               param_types: field_types,
-                return_types: [type_name]
-              })
+              return_types: [type_name]
+            })
         end
       end)
 
@@ -206,26 +224,44 @@ defmodule Cairn.Checker do
 
   defp check_item(%Cairn.Types.Function{} = func, state) do
     state = validate_type_params(state, func)
-    resolved_param_types = resolve_type_aliases(func.param_types, state.type_aliases, func.type_params || [])
-    resolved_return_types = resolve_type_aliases(func.return_types, state.type_aliases, func.type_params || [])
+
+    resolved_param_types =
+      resolve_type_aliases(func.param_types, state.type_aliases, func.type_params || [])
+
+    resolved_return_types =
+      resolve_type_aliases(func.return_types, state.type_aliases, func.type_params || [])
 
     state =
       state
-      |> validate_declared_types(resolved_param_types, "function '#{func.name}' parameter", func.type_params)
-      |> validate_declared_types(resolved_return_types, "function '#{func.name}' return", func.type_params)
+      |> validate_declared_types(
+        resolved_param_types,
+        "function '#{func.name}' parameter",
+        func.type_params
+      )
+      |> validate_declared_types(
+        resolved_return_types,
+        "function '#{func.name}' return",
+        func.type_params
+      )
 
     # Register function in type env
-    protocol_effect_steps = protocol_helper_effect_for(func, state.actor_required, compute_protocol_effect_functions([func]))
+    protocol_effect_steps =
+      protocol_helper_effect_for(
+        func,
+        state.actor_required,
+        compute_protocol_effect_functions([func])
+      )
 
-    state = put_in(state.env[func.name], %{
-      type_params: func.type_params,
-      param_types: resolved_param_types,
-      return_types: resolved_return_types,
-      effect: func.effect || :io,
-      actor_required: MapSet.member?(state.actor_required, func.name),
-      protocol_effect_steps:
-        Map.get(state.env[func.name] || %{}, :protocol_effect_steps) || protocol_effect_steps
-    })
+    state =
+      put_in(state.env[func.name], %{
+        type_params: func.type_params,
+        param_types: resolved_param_types,
+        return_types: resolved_return_types,
+        effect: func.effect || :io,
+        actor_required: MapSet.member?(state.actor_required, func.name),
+        protocol_effect_steps:
+          Map.get(state.env[func.name] || %{}, :protocol_effect_steps) || protocol_effect_steps
+      })
 
     helper_protocol_steps =
       state.env
@@ -282,10 +318,16 @@ defmodule Cairn.Checker do
         types: body_types,
         env: body_env
     }
+
     body_state = check_tokens(func.body, body_state)
 
     # Check return types
-    checked_func = %{func | param_types: resolved_param_types, return_types: resolved_return_types}
+    checked_func = %{
+      func
+      | param_types: resolved_param_types,
+        return_types: resolved_return_types
+    }
+
     body_state = check_return_shape(checked_func, body_state)
 
     # Check PRE condition if present
@@ -296,7 +338,16 @@ defmodule Cairn.Checker do
           |> Enum.reverse()
           |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
-        pre_state = %{body_state | stack: pre_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, current_effect: :pure, types: body_types, env: body_env}
+        pre_state = %{
+          body_state
+          | stack: pre_stack,
+            current_actor_type: body_actor_type,
+            current_protocol_steps: body_protocol_steps,
+            current_effect: :pure,
+            types: body_types,
+            env: body_env
+        }
+
         pre_state = check_tokens(func.pre_condition, pre_state)
         %{pre_state | stack: body_state.stack}
       else
@@ -315,7 +366,16 @@ defmodule Cairn.Checker do
             |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
           end
 
-        post_state = %{body_state | stack: post_stack, current_actor_type: body_actor_type, current_protocol_steps: body_protocol_steps, current_effect: :pure, types: body_types, env: body_env}
+        post_state = %{
+          body_state
+          | stack: post_stack,
+            current_actor_type: body_actor_type,
+            current_protocol_steps: body_protocol_steps,
+            current_effect: :pure,
+            types: body_types,
+            env: body_env
+        }
+
         post_state = check_tokens(func.post_condition, post_state)
         %{post_state | stack: body_state.stack}
       else
@@ -343,7 +403,13 @@ defmodule Cairn.Checker do
     state =
       Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
         resolved_field_types = resolve_type_aliases(field_types, st.type_aliases, type_params)
-        validate_declared_types(st, resolved_field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field", type_params)
+
+        validate_declared_types(
+          st,
+          resolved_field_types,
+          "TYPE #{typedef.name} constructor '#{ctor_name}' field",
+          type_params
+        )
       end)
 
     # Register each constructor as a pseudo-function in the checker env
@@ -369,11 +435,19 @@ defmodule Cairn.Checker do
   defp check_item(%Cairn.Types.TypeAlias{} = type_alias, state) do
     state =
       case duplicates(type_alias.type_params || []) do
-        [] -> state
-        dupes -> add_error(state, nil, "TYPEALIAS '#{type_alias.name}' declares duplicate type params #{Enum.join(dupes, ", ")}")
+        [] ->
+          state
+
+        dupes ->
+          add_error(
+            state,
+            nil,
+            "TYPEALIAS '#{type_alias.name}' declares duplicate type params #{Enum.join(dupes, ", ")}"
+          )
       end
 
-    resolved_target = resolve_type_alias(type_alias.target_type, state.type_aliases, type_alias.type_params || [])
+    resolved_target =
+      resolve_type_alias(type_alias.target_type, state.type_aliases, type_alias.type_params || [])
 
     state =
       validate_declared_type(
@@ -418,8 +492,11 @@ defmodule Cairn.Checker do
     depth = Stack.depth(state.stack)
 
     if depth != 0 do
-      add_error(state, nil,
-        "function '#{func.name}' declared -> void but body leaves #{depth} value(s) on stack")
+      add_error(
+        state,
+        nil,
+        "function '#{func.name}' declared -> void but body leaves #{depth} value(s) on stack"
+      )
     else
       state
     end
@@ -431,8 +508,11 @@ defmodule Cairn.Checker do
 
     cond do
       actual != expected ->
-        add_error(state, nil,
-          "function '#{func.name}' declared #{expected} return value(s) but body produces #{actual}")
+        add_error(
+          state,
+          nil,
+          "function '#{func.name}' declared #{expected} return value(s) but body produces #{actual}"
+        )
 
       true ->
         # Check types match
@@ -442,10 +522,15 @@ defmodule Cairn.Checker do
         |> Enum.zip(func.return_types)
         |> Enum.reduce(state, fn {actual_type, expected_type}, st ->
           case Unify.unify(actual_type, expected_type) do
-            {:ok, _} -> st
+            {:ok, _} ->
+              st
+
             :error ->
-              add_error(st, nil,
-                "function '#{func.name}' return type mismatch: expected #{format_type(expected_type)}, got #{format_type(actual_type)}")
+              add_error(
+                st,
+                nil,
+                "function '#{func.name}' return type mismatch: expected #{format_type(expected_type)}, got #{format_type(actual_type)}"
+              )
           end
         end)
     end
@@ -483,8 +568,14 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(base, :str)})
 
       :underflow ->
-        walk(rest, add_error(state, pos,
-          "FMT format string has #{n} placeholder(s) but not enough values on the stack"))
+        walk(
+          rest,
+          add_error(
+            state,
+            pos,
+            "FMT format string has #{n} placeholder(s) but not enough values on the stack"
+          )
+        )
     end
   end
 
@@ -548,7 +639,10 @@ defmodule Cairn.Checker do
     case Stack.pop(state.stack) do
       {:ok, type, new_stack} ->
         state = %{state | stack: new_stack}
-        state = put_in(state.env[name], %{param_types: [], return_types: [type], let_binding: true})
+
+        state =
+          put_in(state.env[name], %{param_types: [], return_types: [type], let_binding: true})
+
         walk(rest, state)
 
       :underflow ->
@@ -563,7 +657,16 @@ defmodule Cairn.Checker do
   end
 
   # SPAWN MessageType { ... } — static-only for now
-  defp walk([{:spawn_kw, _, pos}, type_token, {:using_kw, _, _}, {:ident, protocol_name, _}, {:block_open, _, _} | rest], state) do
+  defp walk(
+         [
+           {:spawn_kw, _, pos},
+           type_token,
+           {:using_kw, _, _},
+           {:ident, protocol_name, _},
+           {:block_open, _, _} | rest
+         ],
+         state
+       ) do
     check_spawn_form(rest, state, pos, type_token, protocol_name)
   end
 
@@ -572,11 +675,23 @@ defmodule Cairn.Checker do
   end
 
   defp walk([{:spawn_kw, _, pos} | rest], state) do
-    walk(rest, add_error(state, pos, "SPAWN requires a message type and block: SPAWN msg { ... }"))
+    walk(
+      rest,
+      add_error(state, pos, "SPAWN requires a message type and block: SPAWN msg { ... }")
+    )
   end
 
   # SPAWN_LINK MessageType { ... } — same static rules as SPAWN
-  defp walk([{:spawn_link_kw, _, pos}, type_token, {:using_kw, _, _}, {:ident, protocol_name, _}, {:block_open, _, _} | rest], state) do
+  defp walk(
+         [
+           {:spawn_link_kw, _, pos},
+           type_token,
+           {:using_kw, _, _},
+           {:ident, protocol_name, _},
+           {:block_open, _, _} | rest
+         ],
+         state
+       ) do
     check_spawn_form(rest, state, pos, type_token, protocol_name)
   end
 
@@ -585,7 +700,14 @@ defmodule Cairn.Checker do
   end
 
   defp walk([{:spawn_link_kw, _, pos} | rest], state) do
-    walk(rest, add_error(state, pos, "SPAWN_LINK requires a message type and block: SPAWN_LINK msg { ... }"))
+    walk(
+      rest,
+      add_error(
+        state,
+        pos,
+        "SPAWN_LINK requires a message type and block: SPAWN_LINK msg { ... }"
+      )
+    )
   end
 
   # IF/ELSE/END
@@ -596,8 +718,11 @@ defmodule Cairn.Checker do
 
         state =
           case Unify.unify(cond_type, :bool) do
-            {:ok, _} -> state
-            :error -> add_error(state, pos, "IF condition must be bool, got #{format_type(cond_type)}")
+            {:ok, _} ->
+              state
+
+            :error ->
+              add_error(state, pos, "IF condition must be bool, got #{format_type(cond_type)}")
           end
 
         {then_tokens, else_tokens, remaining} = split_if_branches(rest)
@@ -612,8 +737,11 @@ defmodule Cairn.Checker do
 
             state =
               if then_depth != pre_depth do
-                add_error(state, pos,
-                  "IF-without-ELSE changes stack depth (before: #{pre_depth}, after: #{then_depth})")
+                add_error(
+                  state,
+                  pos,
+                  "IF-without-ELSE changes stack depth (before: #{pre_depth}, after: #{then_depth})"
+                )
               else
                 state
               end
@@ -634,8 +762,11 @@ defmodule Cairn.Checker do
               state = %{state | errors: merged_errors}
 
               state =
-                add_error(state, pos,
-                  "IF/ELSE branches have different stack depths (then: #{then_depth}, else: #{else_depth})")
+                add_error(
+                  state,
+                  pos,
+                  "IF/ELSE branches have different stack depths (then: #{then_depth}, else: #{else_depth})"
+                )
 
               walk(remaining, state)
             else
@@ -653,8 +784,13 @@ defmodule Cairn.Checker do
 
                       :error ->
                         # Use :any as fallback
-                        st = add_error(st, pos,
-                          "IF/ELSE branch type mismatch: #{format_type(t1)} vs #{format_type(t2)}")
+                        st =
+                          add_error(
+                            st,
+                            pos,
+                            "IF/ELSE branch type mismatch: #{format_type(t1)} vs #{format_type(t2)}"
+                          )
+
                         {Stack.push(stack, :any), st}
                     end
                 end)
@@ -729,7 +865,10 @@ defmodule Cairn.Checker do
     case Stack.pop_n(state.stack, 4) do
       {[a, b, c, d], base} ->
         # ROT4: [a, b, c, d | rest] -> [d, a, b, c | rest]
-        walk(rest, %{state | stack: base |> Stack.push(c) |> Stack.push(b) |> Stack.push(a) |> Stack.push(d)})
+        walk(rest, %{
+          state
+          | stack: base |> Stack.push(c) |> Stack.push(b) |> Stack.push(a) |> Stack.push(d)
+        })
 
       :underflow ->
         walk(rest, add_error(state, pos, "ROT4 requires 4 values on the stack (stack underflow)"))
@@ -739,6 +878,18 @@ defmodule Cairn.Checker do
   # APPLY - execute a block inline
   defp walk([{:op, :apply, pos} | rest], state) do
     case Stack.pop(state.stack) do
+      {:ok, {:block, :opaque}, new_stack} ->
+        # Opaque block parameters (from `block` signatures) carry no token body.
+        # For higher-order helper composition we conservatively treat APPLY as
+        # consuming one visible argument when present and producing one unknown value.
+        stack_after_input =
+          case Stack.pop(new_stack) do
+            {:ok, _input, base} -> base
+            :underflow -> new_stack
+          end
+
+        walk(rest, %{state | stack: Stack.push(stack_after_input, :any)})
+
       {:ok, {:block, {:returns, :void}}, new_stack} ->
         walk(rest, %{state | stack: new_stack})
 
@@ -780,16 +931,24 @@ defmodule Cairn.Checker do
       {:ok, new_state_type, new_stack} ->
         state =
           case Unify.unify(new_state_type, state_type) do
-            {:ok, _} -> %{state | stack: new_stack}
+            {:ok, _} ->
+              %{state | stack: new_stack}
+
             :error ->
-              add_error(%{state | stack: new_stack}, pos,
-                "SET_STATE expected #{format_type(state_type)}, got #{format_type(new_state_type)}")
+              add_error(
+                %{state | stack: new_stack},
+                pos,
+                "SET_STATE expected #{format_type(state_type)}, got #{format_type(new_state_type)}"
+              )
           end
 
         walk(rest, state)
 
       :underflow ->
-        walk(rest, add_error(state, pos, "SET_STATE requires a value on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "SET_STATE requires a value on the stack (stack underflow)")
+        )
     end
   end
 
@@ -797,13 +956,19 @@ defmodule Cairn.Checker do
     walk(rest, add_error(state, pos, "STEP is only available inside WITH_STATE"))
   end
 
-  defp walk([{:op, :step, pos}, {:ident, name, _} | rest], %{current_state_type: state_type} = state) do
+  defp walk(
+         [{:op, :step, pos}, {:ident, name, _} | rest],
+         %{current_state_type: state_type} = state
+       ) do
     case Map.get(state.env, name) do
       nil ->
         walk(rest, add_error(state, pos, "undefined function '#{name}'"))
 
       %{let_binding: true} ->
-        walk(rest, add_error(state, pos, "STEP requires a function name, got LET binding '#{name}'"))
+        walk(
+          rest,
+          add_error(state, pos, "STEP requires a function name, got LET binding '#{name}'")
+        )
 
       %{param_types: [param_type], return_types: [return_type]} = entry ->
         state =
@@ -814,7 +979,12 @@ defmodule Cairn.Checker do
           end
 
         {param_type, return_type} =
-          case instantiate_signature(Map.get(entry, :type_params, []), [param_type], [return_type], [state_type]) do
+          case instantiate_signature(
+                 Map.get(entry, :type_params, []),
+                 [param_type],
+                 [return_type],
+                 [state_type]
+               ) do
             {:ok, [inst_param], [inst_return]} ->
               {inst_param, inst_return}
 
@@ -824,18 +994,28 @@ defmodule Cairn.Checker do
 
         state =
           case Unify.unify(param_type, state_type) do
-            {:ok, _} -> state
+            {:ok, _} ->
+              state
+
             :error ->
-              add_error(state, pos,
-                "STEP function '#{name}' expected #{format_type(param_type)}, got #{format_type(state_type)}")
+              add_error(
+                state,
+                pos,
+                "STEP function '#{name}' expected #{format_type(param_type)}, got #{format_type(state_type)}"
+              )
           end
 
         state =
           case Unify.unify(return_type, state_type) do
-            {:ok, _} -> state
+            {:ok, _} ->
+              state
+
             :error ->
-              add_error(state, pos,
-                "STEP function '#{name}' must return #{format_type(state_type)}, got #{format_type(return_type)}")
+              add_error(
+                state,
+                pos,
+                "STEP function '#{name}' must return #{format_type(state_type)}, got #{format_type(return_type)}"
+              )
           end
 
         state = advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
@@ -863,12 +1043,24 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(new_stack, first)})
 
       {:ok, {:tuple, elems}, new_stack} ->
-        walk(rest, add_error(%{state | stack: new_stack}, pos,
-          "FST requires tuple with at least 2 elements, got tuple[#{length(elems)}]"))
+        walk(
+          rest,
+          add_error(
+            %{state | stack: new_stack},
+            pos,
+            "FST requires tuple with at least 2 elements, got tuple[#{length(elems)}]"
+          )
+        )
 
       {:ok, actual, new_stack} ->
-        walk(rest, add_error(%{state | stack: new_stack}, pos,
-          "FST requires tuple[_, _], got #{format_type(actual)}"))
+        walk(
+          rest,
+          add_error(
+            %{state | stack: new_stack},
+            pos,
+            "FST requires tuple[_, _], got #{format_type(actual)}"
+          )
+        )
 
       :underflow ->
         walk(rest, add_error(state, pos, "FST requires a tuple on the stack (stack underflow)"))
@@ -881,12 +1073,24 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(new_stack, second)})
 
       {:ok, {:tuple, elems}, new_stack} ->
-        walk(rest, add_error(%{state | stack: new_stack}, pos,
-          "SND requires tuple with at least 2 elements, got tuple[#{length(elems)}]"))
+        walk(
+          rest,
+          add_error(
+            %{state | stack: new_stack},
+            pos,
+            "SND requires tuple with at least 2 elements, got tuple[#{length(elems)}]"
+          )
+        )
 
       {:ok, actual, new_stack} ->
-        walk(rest, add_error(%{state | stack: new_stack}, pos,
-          "SND requires tuple[_, _], got #{format_type(actual)}"))
+        walk(
+          rest,
+          add_error(
+            %{state | stack: new_stack},
+            pos,
+            "SND requires tuple[_, _], got #{format_type(actual)}"
+          )
+        )
 
       :underflow ->
         walk(rest, add_error(state, pos, "SND requires a tuple on the stack (stack underflow)"))
@@ -899,12 +1103,24 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(new_stack, third)})
 
       {:ok, {:tuple, elems}, new_stack} ->
-        walk(rest, add_error(%{state | stack: new_stack}, pos,
-          "TRD requires tuple with at least 3 elements, got tuple[#{length(elems)}]"))
+        walk(
+          rest,
+          add_error(
+            %{state | stack: new_stack},
+            pos,
+            "TRD requires tuple with at least 3 elements, got tuple[#{length(elems)}]"
+          )
+        )
 
       {:ok, actual, new_stack} ->
-        walk(rest, add_error(%{state | stack: new_stack}, pos,
-          "TRD requires tuple[_, _, _], got #{format_type(actual)}"))
+        walk(
+          rest,
+          add_error(
+            %{state | stack: new_stack},
+            pos,
+            "TRD requires tuple[_, _, _], got #{format_type(actual)}"
+          )
+        )
 
       :underflow ->
         walk(rest, add_error(state, pos, "TRD requires a tuple on the stack (stack underflow)"))
@@ -921,18 +1137,37 @@ defmodule Cairn.Checker do
             walk(rest, %{state | stack: Stack.push(new_stack, :any)})
 
           :underflow ->
-            walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
+            walk(
+              rest,
+              add_error(
+                state,
+                pos,
+                "HOST_CALL requires a list of arguments on the stack (stack underflow)"
+              )
+            )
         end
 
       %{args: _expected_args} ->
-        state = add_error(state, pos, "HOST_CALL '#{name}' in v1 requires a literal argument list immediately before it")
+        state =
+          add_error(
+            state,
+            pos,
+            "HOST_CALL '#{name}' in v1 requires a literal argument list immediately before it"
+          )
 
         case Stack.pop(state.stack) do
           {:ok, _arg_type, new_stack} ->
             walk(rest, %{state | stack: Stack.push(new_stack, :any)})
 
           :underflow ->
-            walk(rest, add_error(state, pos, "HOST_CALL requires a list of arguments on the stack (stack underflow)"))
+            walk(
+              rest,
+              add_error(
+                state,
+                pos,
+                "HOST_CALL requires a list of arguments on the stack (stack underflow)"
+              )
+            )
         end
     end
   end
@@ -1039,12 +1274,20 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(stack_after_pop, :str)})
 
       {:ok, other, _} ->
-        walk(rest, add_error(state, pos,
-          "FMT requires a str format string on top, got #{format_type(other)}"))
+        walk(
+          rest,
+          add_error(
+            state,
+            pos,
+            "FMT requires a str format string on top, got #{format_type(other)}"
+          )
+        )
 
       :underflow ->
-        walk(rest, add_error(state, pos,
-          "FMT requires a format string on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "FMT requires a format string on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1061,7 +1304,14 @@ defmodule Cairn.Checker do
   defp walk([{:op, :exit, pos} | rest], %{current_actor_type: nil} = state) do
     case Stack.pop(state.stack) do
       {:ok, _reason_type, base} ->
-        walk(rest, add_error(%{state | stack: base}, pos, "EXIT is only available inside a SPAWN or SPAWN_LINK block"))
+        walk(
+          rest,
+          add_error(
+            %{state | stack: base},
+            pos,
+            "EXIT is only available inside a SPAWN or SPAWN_LINK block"
+          )
+        )
 
       :underflow ->
         walk(rest, add_error(state, pos, "EXIT requires a reason on the stack (stack underflow)"))
@@ -1084,10 +1334,15 @@ defmodule Cairn.Checker do
       {[msg_type, {:pid, expected_msg_type}], base} ->
         state =
           case Unify.unify(msg_type, expected_msg_type) do
-            {:ok, _} -> %{state | stack: base}
+            {:ok, _} ->
+              %{state | stack: base}
+
             :error ->
-              add_error(%{state | stack: base}, pos,
-                "SEND expected #{format_type(expected_msg_type)}, got #{format_type(msg_type)}")
+              add_error(
+                %{state | stack: base},
+                pos,
+                "SEND expected #{format_type(expected_msg_type)}, got #{format_type(msg_type)}"
+              )
           end
 
         state = advance_protocol_send(msg_type, state, pos)
@@ -1095,11 +1350,20 @@ defmodule Cairn.Checker do
         walk(rest, state)
 
       {[msg_type, other], _base} ->
-        walk(rest, add_error(state, pos,
-          "SEND requires pid[msg] beneath the message, got #{format_type(other)} under #{format_type(msg_type)}"))
+        walk(
+          rest,
+          add_error(
+            state,
+            pos,
+            "SEND requires pid[msg] beneath the message, got #{format_type(other)} under #{format_type(msg_type)}"
+          )
+        )
 
       :underflow ->
-        walk(rest, add_error(state, pos, "SEND requires a pid and message on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "SEND requires a pid and message on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1110,7 +1374,8 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(base, {:monitor, msg_type})})
 
       {:ok, other, _} ->
-        walk(rest,
+        walk(
+          rest,
           add_error(state, pos, "MONITOR requires a pid on the stack, got #{format_type(other)}")
         )
 
@@ -1126,19 +1391,30 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(base, :str)})
 
       {:ok, other, _} ->
-        walk(rest,
-          add_error(state, pos, "AWAIT requires a monitor on the stack, got #{format_type(other)}")
+        walk(
+          rest,
+          add_error(
+            state,
+            pos,
+            "AWAIT requires a monitor on the stack, got #{format_type(other)}"
+          )
         )
 
       :underflow ->
-        walk(rest, add_error(state, pos, "AWAIT requires a monitor on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "AWAIT requires a monitor on the stack (stack underflow)")
+        )
     end
   end
 
   defp walk([{:op, :pairs, pos} | rest], state) do
     case Stack.pop(state.stack) do
       {:ok, {:map, key_type, value_type}, new_stack} ->
-        walk(rest, %{state | stack: Stack.push(new_stack, {:list, {:tuple, [key_type, value_type]}})})
+        walk(rest, %{
+          state
+          | stack: Stack.push(new_stack, {:list, {:tuple, [key_type, value_type]}})
+        })
 
       {:ok, actual, new_stack} ->
         state =
@@ -1148,8 +1424,7 @@ defmodule Cairn.Checker do
         walk(rest, state)
 
       :underflow ->
-        state =
-          add_error(state, pos, "PAIRS requires a map on the stack (stack underflow)")
+        state = add_error(state, pos, "PAIRS requires a map on the stack (stack underflow)")
 
         walk(rest, %{state | stack: Stack.push(state.stack, {:list, {:tuple, [:any, :any]}})})
     end
@@ -1161,7 +1436,11 @@ defmodule Cairn.Checker do
       {:ok, effect} ->
         state =
           if pure_context?(state) and effectful_op?(op) do
-            add_error(state, pos, "pure function cannot use effectful operator '#{String.upcase(to_string(op))}'")
+            add_error(
+              state,
+              pos,
+              "pure function cannot use effectful operator '#{String.upcase(to_string(op))}'"
+            )
           else
             state
           end
@@ -1194,7 +1473,11 @@ defmodule Cairn.Checker do
 
         state =
           if pure_context?(state) and Map.get(entry, :effect, :io) != :pure do
-            add_error(state, pos, "pure function cannot call effectful function '#{name}' (#{Map.get(entry, :effect, :io)})")
+            add_error(
+              state,
+              pos,
+              "pure function cannot call effectful function '#{name}' (#{Map.get(entry, :effect, :io)})"
+            )
           else
             state
           end
@@ -1204,7 +1487,12 @@ defmodule Cairn.Checker do
         case Stack.pop_n(state.stack, arity) do
           {arg_types, base} ->
             {param_types, return_types, generic_error} =
-              case instantiate_signature(Map.get(entry, :type_params, []), param_types, return_types, arg_types) do
+              case instantiate_signature(
+                     Map.get(entry, :type_params, []),
+                     param_types,
+                     return_types,
+                     arg_types
+                   ) do
                 {:ok, inst_params, inst_returns} ->
                   {inst_params, inst_returns, nil}
 
@@ -1227,13 +1515,19 @@ defmodule Cairn.Checker do
                 end)
               end
 
-            state = advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
+            state =
+              advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
+
             walk(rest, state)
 
           :underflow ->
             # Push return types as best-effort recovery
-            state = add_error(state, pos,
-              "function '#{name}' requires #{arity} argument(s) (stack underflow)")
+            state =
+              add_error(
+                state,
+                pos,
+                "function '#{name}' requires #{arity} argument(s) (stack underflow)"
+              )
 
             return_types = substitute_type_vars(return_types, %{})
 
@@ -1246,7 +1540,9 @@ defmodule Cairn.Checker do
                 end)
               end
 
-            state = advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
+            state =
+              advance_protocol_call(Map.get(entry, :protocol_effect_steps), name, state, pos)
+
             walk(rest, state)
         end
     end
@@ -1266,12 +1562,18 @@ defmodule Cairn.Checker do
             expected_arg_types = Enum.reverse(param_types)
 
             {param_types, return_types, state} =
-              case instantiate_signature(Map.get(entry, :type_params, []), expected_arg_types, return_types, arg_types) do
+              case instantiate_signature(
+                     Map.get(entry, :type_params, []),
+                     expected_arg_types,
+                     return_types,
+                     arg_types
+                   ) do
                 {:ok, instantiated_params, instantiated_returns} ->
                   {Enum.reverse(instantiated_params), instantiated_returns, state}
 
                 {:error, reason} ->
-                  {param_types, return_types, add_error(state, pos, "constructor '#{name}' #{reason}")}
+                  {param_types, return_types,
+                   add_error(state, pos, "constructor '#{name}' #{reason}")}
               end
 
             state =
@@ -1283,10 +1585,15 @@ defmodule Cairn.Checker do
               |> Enum.zip(Enum.reverse(param_types))
               |> Enum.reduce(%{state | stack: base}, fn {actual, expected}, st ->
                 case Unify.unify(actual, expected) do
-                  {:ok, _} -> st
+                  {:ok, _} ->
+                    st
+
                   :error ->
-                    add_error(st, pos,
-                      "constructor '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}")
+                    add_error(
+                      st,
+                      pos,
+                      "constructor '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}"
+                    )
                 end
               end)
 
@@ -1294,9 +1601,14 @@ defmodule Cairn.Checker do
               Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                 pushed_type =
                   case type do
-                    {:user_type, type_name, type_args} -> {:tagged_variant, type_name, name, type_args}
-                    {:user_type, type_name} -> {:tagged_variant, type_name, name}
-                    other -> other
+                    {:user_type, type_name, type_args} ->
+                      {:tagged_variant, type_name, name, type_args}
+
+                    {:user_type, type_name} ->
+                      {:tagged_variant, type_name, name}
+
+                    other ->
+                      other
                   end
 
                 %{st | stack: Stack.push(st.stack, pushed_type)}
@@ -1306,16 +1618,24 @@ defmodule Cairn.Checker do
 
           :underflow ->
             state =
-              add_error(state, pos,
-                "constructor '#{name}' requires #{arity} argument(s) (stack underflow)")
+              add_error(
+                state,
+                pos,
+                "constructor '#{name}' requires #{arity} argument(s) (stack underflow)"
+              )
 
             state =
               Enum.reduce(Enum.reverse(return_types), state, fn type, st ->
                 pushed_type =
                   case type do
-                    {:user_type, type_name, type_args} -> {:tagged_variant, type_name, name, type_args}
-                    {:user_type, type_name} -> {:tagged_variant, type_name, name}
-                    other -> other
+                    {:user_type, type_name, type_args} ->
+                      {:tagged_variant, type_name, name, type_args}
+
+                    {:user_type, type_name} ->
+                      {:tagged_variant, type_name, name}
+
+                    other ->
+                      other
                   end
 
                 %{st | stack: Stack.push(st.stack, pushed_type)}
@@ -1332,29 +1652,56 @@ defmodule Cairn.Checker do
 
     case Stack.pop(state.stack) do
       {:ok, type_name, base_stack} when is_binary(type_name) ->
-        {result_stack, state} = check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+        {result_stack, state} =
+          check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+
         walk(remaining, %{state | stack: result_stack})
 
       {:ok, {:user_type, type_name}, base_stack} ->
-        {result_stack, state} = check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+        {result_stack, state} =
+          check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+
         walk(remaining, %{state | stack: result_stack})
 
       {:ok, {:user_type, type_name, type_args}, base_stack} ->
-        {result_stack, state} = check_match_arms(type_name, type_args, base_stack, arms, %{state | stack: base_stack}, pos)
+        {result_stack, state} =
+          check_match_arms(
+            type_name,
+            type_args,
+            base_stack,
+            arms,
+            %{state | stack: base_stack},
+            pos
+          )
+
         walk(remaining, %{state | stack: result_stack})
 
       {:ok, {:tagged_variant, type_name, _ctor_name}, base_stack} ->
-        {result_stack, state} = check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+        {result_stack, state} =
+          check_match_arms(type_name, [], base_stack, arms, %{state | stack: base_stack}, pos)
+
         walk(remaining, %{state | stack: result_stack})
 
       {:ok, {:tagged_variant, type_name, _ctor_name, type_args}, base_stack} ->
-        {result_stack, state} = check_match_arms(type_name, type_args, base_stack, arms, %{state | stack: base_stack}, pos)
+        {result_stack, state} =
+          check_match_arms(
+            type_name,
+            type_args,
+            base_stack,
+            arms,
+            %{state | stack: base_stack},
+            pos
+          )
+
         walk(remaining, %{state | stack: result_stack})
 
       {:ok, other, _} ->
         state =
-          add_error(state, pos,
-            "MATCH requires a variant on the stack, got #{format_type(other)}")
+          add_error(
+            state,
+            pos,
+            "MATCH requires a variant on the stack, got #{format_type(other)}"
+          )
 
         walk(remaining, state)
 
@@ -1422,7 +1769,11 @@ defmodule Cairn.Checker do
           if Stack.depth(block_state.stack) == 0 do
             state
           else
-            add_error(state, pos, "SPAWN block must consume its self pid and leave an empty stack")
+            add_error(
+              state,
+              pos,
+              "SPAWN block must consume its self pid and leave an empty stack"
+            )
           end
 
         state =
@@ -1452,7 +1803,12 @@ defmodule Cairn.Checker do
         block_state = %{state | stack: block_stack}
         block_state = walk(block_tokens, block_state)
 
-        state = %{state | stack: base |> Stack.push({:list, elem_type}), errors: block_state.errors}
+        state = %{
+          state
+          | stack: base |> Stack.push({:list, elem_type}),
+            errors: block_state.errors
+        }
+
         walk(rest, state)
 
       {[{:list, elem_type}, {:block, block_tokens}], base} ->
@@ -1460,14 +1816,22 @@ defmodule Cairn.Checker do
         block_state = %{state | stack: block_stack}
         block_state = walk(block_tokens, block_state)
 
-        state = %{state | stack: base |> Stack.push({:list, elem_type}), errors: block_state.errors}
+        state = %{
+          state
+          | stack: base |> Stack.push({:list, elem_type}),
+            errors: block_state.errors
+        }
+
         walk(rest, state)
 
       {_, _} ->
         walk(rest, add_error(state, pos, "FILTER requires a list and a block"))
 
       :underflow ->
-        walk(rest, add_error(state, pos, "FILTER requires 2 values on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "FILTER requires 2 values on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1484,7 +1848,12 @@ defmodule Cairn.Checker do
             :underflow -> :any
           end
 
-        state = %{state | stack: base |> Stack.push({:list, result_type}), errors: block_state.errors}
+        state = %{
+          state
+          | stack: base |> Stack.push({:list, result_type}),
+            errors: block_state.errors
+        }
+
         walk(rest, state)
 
       {[{:list, elem_type}, {:block, block_tokens}], base} ->
@@ -1498,7 +1867,12 @@ defmodule Cairn.Checker do
             :underflow -> :any
           end
 
-        state = %{state | stack: base |> Stack.push({:list, result_type}), errors: block_state.errors}
+        state = %{
+          state
+          | stack: base |> Stack.push({:list, result_type}),
+            errors: block_state.errors
+        }
+
         walk(rest, state)
 
       {_, _} ->
@@ -1560,9 +1934,25 @@ defmodule Cairn.Checker do
 
         {result_type, errors} =
           case Stack.pop(block_state.stack) do
-            {:ok, {:list, inner_type}, _} -> {{:list, inner_type}, block_state.errors}
-            {:ok, other, _} -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list, got #{format_type(other)}", position: pos} | block_state.errors]}
-            :underflow -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list", position: pos} | block_state.errors]}
+            {:ok, {:list, inner_type}, _} ->
+              {{:list, inner_type}, block_state.errors}
+
+            {:ok, other, _} ->
+              {{:list, :any},
+               [
+                 %Error{
+                   message: "FLAT_MAP block must return a list, got #{format_type(other)}",
+                   position: pos
+                 }
+                 | block_state.errors
+               ]}
+
+            :underflow ->
+              {{:list, :any},
+               [
+                 %Error{message: "FLAT_MAP block must return a list", position: pos}
+                 | block_state.errors
+               ]}
           end
 
         state = %{state | stack: Stack.push(base, result_type), errors: errors}
@@ -1575,9 +1965,25 @@ defmodule Cairn.Checker do
 
         {result_type, errors} =
           case Stack.pop(block_state.stack) do
-            {:ok, {:list, inner_type}, _} -> {{:list, inner_type}, block_state.errors}
-            {:ok, other, _} -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list, got #{format_type(other)}", position: pos} | block_state.errors]}
-            :underflow -> {{:list, :any}, [%Error{message: "FLAT_MAP block must return a list", position: pos} | block_state.errors]}
+            {:ok, {:list, inner_type}, _} ->
+              {{:list, inner_type}, block_state.errors}
+
+            {:ok, other, _} ->
+              {{:list, :any},
+               [
+                 %Error{
+                   message: "FLAT_MAP block must return a list, got #{format_type(other)}",
+                   position: pos
+                 }
+                 | block_state.errors
+               ]}
+
+            :underflow ->
+              {{:list, :any},
+               [
+                 %Error{message: "FLAT_MAP block must return a list", position: pos}
+                 | block_state.errors
+               ]}
           end
 
         state = %{state | stack: Stack.push(base, result_type), errors: errors}
@@ -1587,7 +1993,10 @@ defmodule Cairn.Checker do
         walk(rest, add_error(state, pos, "FLAT_MAP requires a list and a block"))
 
       :underflow ->
-        walk(rest, add_error(state, pos, "FLAT_MAP requires 2 values on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "FLAT_MAP requires 2 values on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1600,14 +2009,28 @@ defmodule Cairn.Checker do
 
         errors =
           case Stack.pop(block_state.stack) do
-            {:ok, :bool, _} -> block_state.errors
+            {:ok, :bool, _} ->
+              block_state.errors
+
             {:ok, other, _} ->
-              [%Error{message: "FIND block must return bool, got #{format_type(other)}", position: pos} | block_state.errors]
+              [
+                %Error{
+                  message: "FIND block must return bool, got #{format_type(other)}",
+                  position: pos
+                }
+                | block_state.errors
+              ]
+
             :underflow ->
               [%Error{message: "FIND block must return bool", position: pos} | block_state.errors]
           end
 
-        state = %{state | stack: Stack.push(base, {:user_type, "result", [elem_type, :str]}), errors: errors}
+        state = %{
+          state
+          | stack: Stack.push(base, {:user_type, "result", [elem_type, :str]}),
+            errors: errors
+        }
+
         walk(rest, state)
 
       {[{:list, elem_type}, {:block, block_tokens}], base} ->
@@ -1617,14 +2040,28 @@ defmodule Cairn.Checker do
 
         errors =
           case Stack.pop(block_state.stack) do
-            {:ok, :bool, _} -> block_state.errors
+            {:ok, :bool, _} ->
+              block_state.errors
+
             {:ok, other, _} ->
-              [%Error{message: "FIND block must return bool, got #{format_type(other)}", position: pos} | block_state.errors]
+              [
+                %Error{
+                  message: "FIND block must return bool, got #{format_type(other)}",
+                  position: pos
+                }
+                | block_state.errors
+              ]
+
             :underflow ->
               [%Error{message: "FIND block must return bool", position: pos} | block_state.errors]
           end
 
-        state = %{state | stack: Stack.push(base, {:user_type, "result", [elem_type, :str]}), errors: errors}
+        state = %{
+          state
+          | stack: Stack.push(base, {:user_type, "result", [elem_type, :str]}),
+            errors: errors
+        }
+
         walk(rest, state)
 
       {_, _} ->
@@ -1679,7 +2116,10 @@ defmodule Cairn.Checker do
         walk(rest, add_error(state, pos, "GROUP_BY requires a list and a block"))
 
       :underflow ->
-        walk(rest, add_error(state, pos, "GROUP_BY requires 2 values on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "GROUP_BY requires 2 values on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1703,7 +2143,10 @@ defmodule Cairn.Checker do
         walk(rest, add_error(state, pos, "TIMES requires an int and a block"))
 
       :underflow ->
-        walk(rest, add_error(state, pos, "TIMES requires 2 values on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "TIMES requires 2 values on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1725,7 +2168,10 @@ defmodule Cairn.Checker do
         walk(rest, add_error(state, pos, "REPEAT requires an int and a block"))
 
       :underflow ->
-        walk(rest, add_error(state, pos, "REPEAT requires 2 values on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "REPEAT requires 2 values on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1785,7 +2231,10 @@ defmodule Cairn.Checker do
         walk(rest, add_error(state, pos, "WITH_STATE requires an initial state and a block"))
 
       :underflow ->
-        walk(rest, add_error(state, pos, "WITH_STATE requires 2 values on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "WITH_STATE requires 2 values on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1800,7 +2249,10 @@ defmodule Cairn.Checker do
         walk(rest, add_error(state, pos, "WHILE requires two blocks (condition and body)"))
 
       :underflow ->
-        walk(rest, add_error(state, pos, "WHILE requires 2 values on the stack (stack underflow)"))
+        walk(
+          rest,
+          add_error(state, pos, "WHILE requires 2 values on the stack (stack underflow)")
+        )
     end
   end
 
@@ -1817,10 +2269,15 @@ defmodule Cairn.Checker do
           |> Enum.zip(pops)
           |> Enum.reduce(%{state | stack: base}, fn {actual, expected}, st ->
             case Unify.unify(actual, expected) do
-              {:ok, _} -> st
+              {:ok, _} ->
+                st
+
               :error ->
-                add_error(st, pos,
-                  "#{format_op(op)} expected #{format_type(expected)}, got #{format_type(actual)}")
+                add_error(
+                  st,
+                  pos,
+                  "#{format_op(op)} expected #{format_type(expected)}, got #{format_type(actual)}"
+                )
             end
           end)
 
@@ -1837,8 +2294,12 @@ defmodule Cairn.Checker do
         end)
 
       :underflow ->
-        state = add_error(state, pos,
-          "#{format_op(op)} requires #{arity} value(s) on the stack (stack underflow)")
+        state =
+          add_error(
+            state,
+            pos,
+            "#{format_op(op)} requires #{arity} value(s) on the stack (stack underflow)"
+          )
 
         # Best-effort: push result types
         Enum.reduce(Enum.reverse(pushes), state, fn type, st ->
@@ -1892,10 +2353,12 @@ defmodule Cairn.Checker do
     pairs = Enum.chunk_every(types, 2)
 
     key_types = Enum.map(pairs, fn [k | _] -> k end)
-    val_types = Enum.map(pairs, fn
-      [_, v] -> v
-      [_] -> :any
-    end)
+
+    val_types =
+      Enum.map(pairs, fn
+        [_, v] -> v
+        [_] -> :any
+      end)
 
     key_type =
       Enum.reduce(key_types, hd(key_types), fn t, acc ->
@@ -2120,8 +2583,11 @@ defmodule Cairn.Checker do
         arm_depth = Stack.depth(arm_state.stack)
 
         if arm_depth != first_depth do
-          add_error(st, pos,
-            "MATCH arms produce different stack depths (expected #{first_depth}, got #{arm_depth})")
+          add_error(
+            st,
+            pos,
+            "MATCH arms produce different stack depths (expected #{first_depth}, got #{arm_depth})"
+          )
         else
           st
         end
@@ -2181,13 +2647,17 @@ defmodule Cairn.Checker do
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
+
   defp format_type({:tagged_variant, _type_name, ctor, args}),
     do: "#{ctor}[#{Enum.map_join(args, " ", &format_type/1)}]"
+
   defp format_type({:tagged_variant, _type_name, ctor}), do: ctor
   defp format_type({:block, _}), do: "block"
   defp format_type({:tvar, id}), do: "t#{id}"
+
   defp format_type({:user_type, name, args}),
     do: "#{name}[#{Enum.map_join(args, " ", &format_type/1)}]"
+
   defp format_type({:user_type, name}), do: name
   defp format_type(type_name) when is_binary(type_name), do: type_name
   defp format_type(other), do: inspect(other)
@@ -2202,8 +2672,11 @@ defmodule Cairn.Checker do
 
         state =
           if length(actual_args) != length(expected_args) do
-            add_error(state, pos,
-              "HOST_CALL '#{name}' expected #{length(expected_args)} arg(s), got #{length(actual_args)}")
+            add_error(
+              state,
+              pos,
+              "HOST_CALL '#{name}' expected #{length(expected_args)} arg(s), got #{length(actual_args)}"
+            )
           else
             state
           end
@@ -2216,8 +2689,11 @@ defmodule Cairn.Checker do
                 st
 
               :error ->
-                add_error(st, pos,
-                  "HOST_CALL '#{name}' arg type mismatch: expected #{format_type(expected_type)}, got #{format_type(actual_type)}")
+                add_error(
+                  st,
+                  pos,
+                  "HOST_CALL '#{name}' arg type mismatch: expected #{format_type(expected_type)}, got #{format_type(actual_type)}"
+                )
             end
           end)
 
@@ -2232,8 +2708,12 @@ defmodule Cairn.Checker do
           {acc ++ [type], st}
 
         :error ->
-          {acc, add_error(st, pos,
-            "HOST_CALL in v1 only accepts literal scalar argument lists (int, float, bool, str)")}
+          {acc,
+           add_error(
+             st,
+             pos,
+             "HOST_CALL in v1 only accepts literal scalar argument lists (int, float, bool, str)"
+           )}
       end
     end)
   end
@@ -2288,15 +2768,17 @@ defmodule Cairn.Checker do
 
       {:ok, {:pid, other}, _} ->
         state =
-          add_error(state, pos,
-            "RECEIVE requires pid[user_type], got #{format_type({:pid, other})}")
+          add_error(
+            state,
+            pos,
+            "RECEIVE requires pid[user_type], got #{format_type({:pid, other})}"
+          )
 
         walk(remaining, state)
 
       {:ok, other, _} ->
         state =
-          add_error(state, pos,
-            "RECEIVE requires a pid on the stack, got #{format_type(other)}")
+          add_error(state, pos, "RECEIVE requires a pid on the stack, got #{format_type(other)}")
 
         walk(remaining, state)
 
@@ -2324,8 +2806,11 @@ defmodule Cairn.Checker do
           missing = MapSet.difference(all_ctors, arm_names)
 
           if MapSet.size(missing) > 0 do
-            add_error(state, pos,
-              "RECEIVE on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}")
+            add_error(
+              state,
+              pos,
+              "RECEIVE on '#{type_name}' is not exhaustive: missing #{Enum.join(Enum.sort(MapSet.to_list(missing)), ", ")}"
+            )
           else
             state
           end
@@ -2337,8 +2822,7 @@ defmodule Cairn.Checker do
           walk(arm_tokens, %{state | stack: base_stack})
 
         {ctor_name, arm_tokens} ->
-          field_types =
-            if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
+          field_types = if typedef, do: Map.get(typedef.variants, ctor_name, []), else: []
 
           arm_stack =
             field_types
@@ -2364,7 +2848,8 @@ defmodule Cairn.Checker do
                 {field_types, state}
 
               _ ->
-                {[], add_error(state, pos, "RECEIVE references unknown constructor '#{ctor_name}'")}
+                {[],
+                 add_error(state, pos, "RECEIVE references unknown constructor '#{ctor_name}'")}
             end
 
           arm_stack =
@@ -2382,13 +2867,20 @@ defmodule Cairn.Checker do
     case state.current_protocol_steps do
       [{:recv, expected_ctor} | rest_steps] ->
         wildcard? = Enum.any?(arms, fn {name, _} -> name == :wildcard end)
-        extra_ctors = Enum.filter(arms, fn {name, _} -> name not in [expected_ctor, :wildcard] end)
+
+        extra_ctors =
+          Enum.filter(arms, fn {name, _} -> name not in [expected_ctor, :wildcard] end)
+
         expected_arm = Enum.find(arms, fn {name, _} -> name == expected_ctor end)
 
         state =
           cond do
             is_nil(Map.get(state.types, type_name)) ->
-              add_error(state, pos, "RECEIVE requires a pid of a known sum type, got #{type_name}")
+              add_error(
+                state,
+                pos,
+                "RECEIVE requires a pid of a known sum type, got #{type_name}"
+              )
 
             is_nil(expected_arm) ->
               add_error(state, pos, "RECEIVE under protocol expects #{expected_ctor}")
@@ -2469,7 +2961,9 @@ defmodule Cairn.Checker do
         end
       end)
 
-    if MapSet.equal?(expanded, required), do: expanded, else: expand_actor_required(functions, type_env, expanded)
+    if MapSet.equal?(expanded, required),
+      do: expanded,
+      else: expand_actor_required(functions, type_env, expanded)
   end
 
   defp function_calls_actor_required?(func, required) do
@@ -2480,34 +2974,63 @@ defmodule Cairn.Checker do
   end
 
   defp tokens_require_actor?(nil, _has_pid_param), do: false
-  defp tokens_require_actor?(tokens, has_pid_param), do: tokens_require_actor_tokens?(tokens, has_pid_param)
+
+  defp tokens_require_actor?(tokens, has_pid_param),
+    do: tokens_require_actor_tokens?(tokens, has_pid_param)
 
   defp tokens_require_actor_tokens?([], _has_pid_param), do: false
   defp tokens_require_actor_tokens?([{:op, :self, _} | _rest], _has_pid_param), do: true
   defp tokens_require_actor_tokens?([{:op, :exit, _} | _rest], _has_pid_param), do: true
-  defp tokens_require_actor_tokens?([{:receive_kw, _, _} | _rest], has_pid_param), do: not has_pid_param
 
-  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:block_open, _, _} | rest], has_pid_param) do
+  defp tokens_require_actor_tokens?([{:receive_kw, _, _} | _rest], has_pid_param),
+    do: not has_pid_param
+
+  defp tokens_require_actor_tokens?(
+         [{:spawn_kw, _, _}, _type_token, {:block_open, _, _} | rest],
+         has_pid_param
+       ) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
     tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([{:spawn_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest], has_pid_param) do
+  defp tokens_require_actor_tokens?(
+         [
+           {:spawn_kw, _, _},
+           _type_token,
+           {:using_kw, _, _},
+           {:ident, _, _},
+           {:block_open, _, _} | rest
+         ],
+         has_pid_param
+       ) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
     tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:block_open, _, _} | rest], has_pid_param) do
+  defp tokens_require_actor_tokens?(
+         [{:spawn_link_kw, _, _}, _type_token, {:block_open, _, _} | rest],
+         has_pid_param
+       ) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
     tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([{:spawn_link_kw, _, _}, _type_token, {:using_kw, _, _}, {:ident, _, _}, {:block_open, _, _} | rest], has_pid_param) do
+  defp tokens_require_actor_tokens?(
+         [
+           {:spawn_link_kw, _, _},
+           _type_token,
+           {:using_kw, _, _},
+           {:ident, _, _},
+           {:block_open, _, _} | rest
+         ],
+         has_pid_param
+       ) do
     {_block_tokens, remaining} = collect_block_tokens(rest, 0, [])
     tokens_require_actor_tokens?(remaining, has_pid_param)
   end
 
-  defp tokens_require_actor_tokens?([_ | rest], has_pid_param), do: tokens_require_actor_tokens?(rest, has_pid_param)
+  defp tokens_require_actor_tokens?([_ | rest], has_pid_param),
+    do: tokens_require_actor_tokens?(rest, has_pid_param)
 
   defp compute_protocol_effect_functions(items) do
     functions =
@@ -2532,15 +3055,23 @@ defmodule Cairn.Checker do
         end
       end)
 
-    if map_size(expanded) == map_size(summaries), do: expanded, else: expand_protocol_effects(functions, expanded)
+    if map_size(expanded) == map_size(summaries),
+      do: expanded,
+      else: expand_protocol_effects(functions, expanded)
   end
 
   defp infer_protocol_effects(nil, _summaries), do: {:ok, []}
-  defp infer_protocol_effects(tokens, summaries), do: infer_protocol_effects_tokens(tokens, summaries, [])
+
+  defp infer_protocol_effects(tokens, summaries),
+    do: infer_protocol_effects_tokens(tokens, summaries, [])
 
   defp infer_protocol_effects_tokens([], _summaries, acc), do: {:ok, Enum.reverse(acc)}
 
-  defp infer_protocol_effects_tokens([{:op, :self, _}, {:constructor, ctor_name, _}, {:op, :send, _} | rest], summaries, acc) do
+  defp infer_protocol_effects_tokens(
+         [{:op, :self, _}, {:constructor, ctor_name, _}, {:op, :send, _} | rest],
+         summaries,
+         acc
+       ) do
     infer_protocol_effects_tokens(rest, summaries, [{:send, ctor_name} | acc])
   end
 
@@ -2585,7 +3116,8 @@ defmodule Cairn.Checker do
     steps = Map.get(raw_protocol_effects, func.name)
     has_pid_param = Enum.any?(func.param_types, &match?({:pid, _}, &1))
 
-    if is_list(steps) and steps != [] and (MapSet.member?(actor_required, func.name) or not has_pid_param) do
+    if is_list(steps) and steps != [] and
+         (MapSet.member?(actor_required, func.name) or not has_pid_param) do
       steps
     else
       nil
@@ -2631,22 +3163,37 @@ defmodule Cairn.Checker do
   end
 
   defp resolve_protocol_steps(protocol_name, _msg_type, state, pos) do
-    {nil, add_error(state, pos, "protocol '#{protocol_name}' requires a user-defined sum type message channel")}
+    {nil,
+     add_error(
+       state,
+       pos,
+       "protocol '#{protocol_name}' requires a user-defined sum type message channel"
+     )}
   end
 
   defp validate_type_params(state, %Cairn.Types.Function{name: name, type_params: type_params}) do
     case duplicates(type_params) do
-      [] -> state
-      dupes -> add_error(state, nil, "function '#{name}' declares duplicate type params #{Enum.join(dupes, ", ")}")
+      [] ->
+        state
+
+      dupes ->
+        add_error(
+          state,
+          nil,
+          "function '#{name}' declares duplicate type params #{Enum.join(dupes, ", ")}"
+        )
     end
   end
 
   defp validate_declared_types(state, types, context, type_params) do
-    Enum.reduce(types, state, fn type, st -> validate_declared_type(st, type, context, type_params) end)
+    Enum.reduce(types, state, fn type, st ->
+      validate_declared_type(st, type, context, type_params)
+    end)
   end
 
-  defp validate_declared_type(state, type, _context, _type_params) when type in [:int, :float, :bool, :str, :any, :void],
-    do: state
+  defp validate_declared_type(state, type, _context, _type_params)
+       when type in [:int, :float, :bool, :str, :any, :void],
+       do: state
 
   defp validate_declared_type(state, type_name, context, _type_params) when is_binary(type_name),
     do: validate_named_type_arity(state, type_name, 0, context)
@@ -2687,6 +3234,8 @@ defmodule Cairn.Checker do
       validate_declared_type(st, elem_type, context, type_params)
     end)
   end
+
+  defp validate_declared_type(state, {:block, :opaque}, _context, _type_params), do: state
 
   defp validate_declared_type(state, {:block, inner}, context, type_params),
     do: validate_declared_type(state, inner, context, type_params)
@@ -2745,10 +3294,15 @@ defmodule Cairn.Checker do
     |> Enum.zip(param_types)
     |> Enum.reduce(state, fn {actual, expected}, st ->
       case Unify.unify(actual, expected) do
-        {:ok, _} -> st
+        {:ok, _} ->
+          st
+
         :error ->
-          add_error(st, pos,
-            "function '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}")
+          add_error(
+            st,
+            pos,
+            "function '#{name}' expected #{format_type(expected)}, got #{format_type(actual)}"
+          )
       end
     end)
   end
@@ -2758,7 +3312,8 @@ defmodule Cairn.Checker do
 
   defp instantiate_signature(_type_params, param_types, return_types, actual_types) do
     with {:ok, bindings} <- bind_type_vars(param_types, actual_types, %{}) do
-      {:ok, substitute_type_vars(param_types, bindings), substitute_type_vars(return_types, bindings)}
+      {:ok, substitute_type_vars(param_types, bindings),
+       substitute_type_vars(return_types, bindings)}
     end
   end
 
@@ -2771,7 +3326,8 @@ defmodule Cairn.Checker do
     end
   end
 
-  defp bind_type_vars(_expected, _actual, _bindings), do: {:error, "generic argument arity mismatch"}
+  defp bind_type_vars(_expected, _actual, _bindings),
+    do: {:error, "generic argument arity mismatch"}
 
   defp bind_type_vars_in_type({:type_var, name}, actual, bindings) do
     case Map.get(bindings, name) do
@@ -2791,10 +3347,22 @@ defmodule Cairn.Checker do
        do: {:ok, bindings}
 
   defp bind_type_vars_in_type({:user_type, _name}, _actual, bindings), do: {:ok, bindings}
-  defp bind_type_vars_in_type({:tagged_variant, _type_name, _ctor, _type_args}, _actual, bindings), do: {:ok, bindings}
-  defp bind_type_vars_in_type({:tagged_variant, _type_name, _ctor}, _actual, bindings), do: {:ok, bindings}
 
-  defp bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
+  defp bind_type_vars_in_type(
+         {:tagged_variant, _type_name, _ctor, _type_args},
+         _actual,
+         bindings
+       ),
+       do: {:ok, bindings}
+
+  defp bind_type_vars_in_type({:tagged_variant, _type_name, _ctor}, _actual, bindings),
+    do: {:ok, bindings}
+
+  defp bind_type_vars_in_type(
+         {:user_type, expected_name, expected_args},
+         {:user_type, expected_name, actual_args},
+         bindings
+       )
        when length(expected_args) == length(actual_args) do
     Enum.zip(expected_args, actual_args)
     |> Enum.reduce_while({:ok, bindings}, fn {expected, actual}, {:ok, acc} ->
@@ -2811,7 +3379,12 @@ defmodule Cairn.Checker do
          bindings
        )
        when length(expected_args) == length(actual_args),
-       do: bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
+       do:
+         bind_type_vars_in_type(
+           {:user_type, expected_name, expected_args},
+           {:user_type, expected_name, actual_args},
+           bindings
+         )
 
   defp bind_type_vars_in_type(
          {:tagged_variant, expected_name, _ctor, expected_args},
@@ -2819,7 +3392,12 @@ defmodule Cairn.Checker do
          bindings
        )
        when length(expected_args) == length(actual_args),
-       do: bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
+       do:
+         bind_type_vars_in_type(
+           {:user_type, expected_name, expected_args},
+           {:user_type, expected_name, actual_args},
+           bindings
+         )
 
   defp bind_type_vars_in_type(
          {:tagged_variant, expected_name, _ctor, expected_args},
@@ -2827,7 +3405,12 @@ defmodule Cairn.Checker do
          bindings
        )
        when length(expected_args) == length(actual_args),
-       do: bind_type_vars_in_type({:user_type, expected_name, expected_args}, {:user_type, expected_name, actual_args}, bindings)
+       do:
+         bind_type_vars_in_type(
+           {:user_type, expected_name, expected_args},
+           {:user_type, expected_name, actual_args},
+           bindings
+         )
 
   defp bind_type_vars_in_type({:list, expected_inner}, {:list, actual_inner}, bindings),
     do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
@@ -2843,7 +3426,11 @@ defmodule Cairn.Checker do
     end)
   end
 
-  defp bind_type_vars_in_type({:map, expected_k, expected_v}, {:map, actual_k, actual_v}, bindings) do
+  defp bind_type_vars_in_type(
+         {:map, expected_k, expected_v},
+         {:map, actual_k, actual_v},
+         bindings
+       ) do
     with {:ok, bindings} <- bind_type_vars_in_type(expected_k, actual_k, bindings),
          {:ok, bindings} <- bind_type_vars_in_type(expected_v, actual_v, bindings) do
       {:ok, bindings}
@@ -2856,8 +3443,12 @@ defmodule Cairn.Checker do
   defp bind_type_vars_in_type({:monitor, expected_inner}, {:monitor, actual_inner}, bindings),
     do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
 
-  defp bind_type_vars_in_type({:block, {:returns, expected_inner}}, {:block, {:returns, actual_inner}}, bindings),
-    do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
+  defp bind_type_vars_in_type(
+         {:block, {:returns, expected_inner}},
+         {:block, {:returns, actual_inner}},
+         bindings
+       ),
+       do: bind_type_vars_in_type(expected_inner, actual_inner, bindings)
 
   defp bind_type_vars_in_type({:block, _}, {:block, _}, bindings), do: {:ok, bindings}
   defp bind_type_vars_in_type(_expected, _actual, bindings), do: {:ok, bindings}
@@ -2866,17 +3457,25 @@ defmodule Cairn.Checker do
     do: Enum.map(types, &substitute_type_vars(&1, bindings))
 
   defp substitute_type_vars({:type_var, name}, bindings), do: Map.get(bindings, name, :any)
+
   defp substitute_type_vars({:user_type, name, args}, bindings),
     do: {:user_type, name, Enum.map(args, &substitute_type_vars(&1, bindings))}
-  defp substitute_type_vars({:list, inner}, bindings), do: {:list, substitute_type_vars(inner, bindings)}
+
+  defp substitute_type_vars({:list, inner}, bindings),
+    do: {:list, substitute_type_vars(inner, bindings)}
+
   defp substitute_type_vars({:tuple, elems}, bindings),
     do: {:tuple, Enum.map(elems, &substitute_type_vars(&1, bindings))}
 
   defp substitute_type_vars({:map, key_type, value_type}, bindings),
-    do: {:map, substitute_type_vars(key_type, bindings), substitute_type_vars(value_type, bindings)}
+    do:
+      {:map, substitute_type_vars(key_type, bindings), substitute_type_vars(value_type, bindings)}
 
-  defp substitute_type_vars({:pid, inner}, bindings), do: {:pid, substitute_type_vars(inner, bindings)}
-  defp substitute_type_vars({:monitor, inner}, bindings), do: {:monitor, substitute_type_vars(inner, bindings)}
+  defp substitute_type_vars({:pid, inner}, bindings),
+    do: {:pid, substitute_type_vars(inner, bindings)}
+
+  defp substitute_type_vars({:monitor, inner}, bindings),
+    do: {:monitor, substitute_type_vars(inner, bindings)}
 
   defp substitute_type_vars({:block, {:returns, inner}}, bindings),
     do: {:block, {:returns, substitute_type_vars(inner, bindings)}}
@@ -2893,9 +3492,11 @@ defmodule Cairn.Checker do
        when type in [:int, :float, :bool, :str, :any, :void, :num],
        do: type
 
-  defp do_resolve_type_alias({:type_var, _name} = type, _type_aliases, _type_params, _visiting), do: type
+  defp do_resolve_type_alias({:type_var, _name} = type, _type_aliases, _type_params, _visiting),
+    do: type
 
-  defp do_resolve_type_alias(type_name, type_aliases, type_params, visiting) when is_binary(type_name) do
+  defp do_resolve_type_alias(type_name, type_aliases, type_params, visiting)
+       when is_binary(type_name) do
     cond do
       type_name in type_params ->
         {:type_var, type_name}
@@ -2909,8 +3510,15 @@ defmodule Cairn.Checker do
     do: maybe_expand_alias({:user_type, type_name, []}, type_aliases, type_params, visiting)
 
   defp do_resolve_type_alias({:user_type, type_name, args}, type_aliases, type_params, visiting) do
-    resolved_args = Enum.map(args, &do_resolve_type_alias(&1, type_aliases, type_params, visiting))
-    maybe_expand_alias({:user_type, type_name, resolved_args}, type_aliases, type_params, visiting)
+    resolved_args =
+      Enum.map(args, &do_resolve_type_alias(&1, type_aliases, type_params, visiting))
+
+    maybe_expand_alias(
+      {:user_type, type_name, resolved_args},
+      type_aliases,
+      type_params,
+      visiting
+    )
   end
 
   defp do_resolve_type_alias({:list, inner}, type_aliases, type_params, visiting),
@@ -2920,8 +3528,7 @@ defmodule Cairn.Checker do
     do: {:tuple, Enum.map(elems, &do_resolve_type_alias(&1, type_aliases, type_params, visiting))}
 
   defp do_resolve_type_alias({:map, key_type, value_type}, type_aliases, type_params, visiting) do
-    {:map,
-     do_resolve_type_alias(key_type, type_aliases, type_params, visiting),
+    {:map, do_resolve_type_alias(key_type, type_aliases, type_params, visiting),
      do_resolve_type_alias(value_type, type_aliases, type_params, visiting)}
   end
 
@@ -2996,7 +3603,7 @@ defmodule Cairn.Checker do
       end
 
     type_param_bindings =
-      (typedef && typedef.type_params || [])
+      ((typedef && typedef.type_params) || [])
       |> Enum.zip(type_args)
       |> Map.new()
 
@@ -3032,13 +3639,23 @@ defmodule Cairn.Checker do
 
     cond do
       is_nil(typedef) ->
-        {:error, add_error(state, pos, "unknown message type '#{type_name}' for protocol '#{protocol_name}'")}
+        {:error,
+         add_error(
+           state,
+           pos,
+           "unknown message type '#{type_name}' for protocol '#{protocol_name}'"
+         )}
 
       Map.has_key?(typedef.variants, ctor_name) ->
         {:ok, ctor_name}
 
       true ->
-        {:error, add_error(state, pos, "protocol '#{protocol_name}' references constructor '#{ctor_name}' not in #{type_name}")}
+        {:error,
+         add_error(
+           state,
+           pos,
+           "protocol '#{protocol_name}' references constructor '#{ctor_name}' not in #{type_name}"
+         )}
     end
   end
 
@@ -3048,10 +3665,15 @@ defmodule Cairn.Checker do
     case state.current_protocol_steps do
       [{:send, expected_ctor} | rest_steps] ->
         case protocol_ctor_matches?(msg_type, expected_ctor) do
-          true -> %{state | current_protocol_steps: rest_steps}
+          true ->
+            %{state | current_protocol_steps: rest_steps}
+
           false ->
-            add_error(state, pos,
-              "SEND under protocol expects #{expected_ctor}, got #{format_protocol_actual(msg_type)}")
+            add_error(
+              state,
+              pos,
+              "SEND under protocol expects #{expected_ctor}, got #{format_protocol_actual(msg_type)}"
+            )
         end
 
       [{:recv, expected_ctor} | _] ->
@@ -3062,7 +3684,9 @@ defmodule Cairn.Checker do
     end
   end
 
-  defp protocol_ctor_matches?({:tagged_variant, _type_name, ctor_name}, expected_ctor), do: ctor_name == expected_ctor
+  defp protocol_ctor_matches?({:tagged_variant, _type_name, ctor_name}, expected_ctor),
+    do: ctor_name == expected_ctor
+
   defp protocol_ctor_matches?(_, _expected_ctor), do: false
 
   defp format_protocol_actual({:tagged_variant, _type_name, ctor_name}), do: ctor_name
@@ -3070,7 +3694,9 @@ defmodule Cairn.Checker do
 
   defp advance_protocol_call(nil, _name, state, _pos), do: state
   defp advance_protocol_call([], _name, state, _pos), do: state
-  defp advance_protocol_call(_steps, _name, %{current_protocol_steps: nil} = state, _pos), do: state
+
+  defp advance_protocol_call(_steps, _name, %{current_protocol_steps: nil} = state, _pos),
+    do: state
 
   defp advance_protocol_call(steps, name, state, pos) do
     case consume_protocol_prefix(state.current_protocol_steps, steps) do
@@ -3078,8 +3704,11 @@ defmodule Cairn.Checker do
         %{state | current_protocol_steps: remaining}
 
       {:error, expected, actual} ->
-        add_error(state, pos,
-          "function '#{name}' is not valid here; protocol expects #{format_protocol_step(expected)}, got #{format_protocol_step(actual)}")
+        add_error(
+          state,
+          pos,
+          "function '#{name}' is not valid here; protocol expects #{format_protocol_step(expected)}, got #{format_protocol_step(actual)}"
+        )
     end
   end
 

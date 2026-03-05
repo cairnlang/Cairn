@@ -8,6 +8,18 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xb — Effect Result Ergonomics (Slice B)
+- Added prelude result combinators for compositional boundary flows:
+  - `result_map`
+  - `result_map_err`
+  - `result_and_then`
+  - `result_tap_err`
+- Migrated representative practical/prelude examples to reduce nested `MATCH` plumbing:
+  - `examples/prelude/result_flow.crn`
+  - `examples/practical/mini_env.crn`
+  - `examples/practical/mini_ini.crn`
+- Aligned web route helper signatures with `route_result` alias in `examples/web/lib/hello_static.crn`
+
 ### v0.10.xa — Effect Boundary Audit + Guidelines (Slice A)
 - Added `docs/effects-guidelines.md` to standardize the current effect model (`pure/io/db/http`) with one canonical boundary pattern
 - Documented explicit rules for new code: always declare `EFFECT`, prefer explicit `result[T E]`, keep pure core + thin effectful shells

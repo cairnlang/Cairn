@@ -275,7 +275,11 @@ defmodule CairnTest do
       assert Cairn.eval("[ 1 2 3 ] LEN") == [3]
       assert Cairn.eval("[ 1 2 3 ] HEAD") == [1]
       assert Cairn.eval("[ 1 2 3 ] TAIL") == [[2, 3]]
-      assert Cairn.eval("[ 1 2 3 ] [ 10 20 30 ] ZIP") == [[{:tuple, [1, 10]}, {:tuple, [2, 20]}, {:tuple, [3, 30]}]]
+
+      assert Cairn.eval("[ 1 2 3 ] [ 10 20 30 ] ZIP") == [
+               [{:tuple, [1, 10]}, {:tuple, [2, 20]}, {:tuple, [3, 30]}]
+             ]
+
       assert Cairn.eval("[ \"a\" \"b\" ] ENUMERATE") == [[{:tuple, [1, "a"]}, {:tuple, [2, "b"]}]]
       assert Cairn.eval("[ 1 2 3 4 ] 2 TAKE") == [[1, 2]]
     end
@@ -301,7 +305,10 @@ defmodule CairnTest do
 
     test "find with block returns result" do
       assert Cairn.eval("[ 1 2 3 4 5 ] { 2 MOD 0 EQ } FIND") == [{:variant, "result", "Ok", [2]}]
-      assert Cairn.eval("[ 1 3 5 ] { 2 MOD 0 EQ } FIND") == [{:variant, "result", "Err", ["not found"]}]
+
+      assert Cairn.eval("[ 1 3 5 ] { 2 MOD 0 EQ } FIND") == [
+               {:variant, "result", "Err", ["not found"]}
+             ]
     end
 
     test "group_by with block returns grouped map" do
@@ -440,7 +447,9 @@ defmodule CairnTest do
     end
 
     test "IF/ELSE inside function body" do
-      source = "DEF sign : int -> int DUP 0 GT IF DROP 1 ELSE DUP 0 LT IF DROP -1 ELSE DROP 0 END END END"
+      source =
+        "DEF sign : int -> int DUP 0 GT IF DROP 1 ELSE DUP 0 LT IF DROP -1 ELSE DROP 0 END END END"
+
       assert Cairn.eval(source <> " 42 sign") == [1]
       assert Cairn.eval(source <> " -7 sign") == [-1]
       assert Cairn.eval(source <> " 0 sign") == [0]
@@ -452,6 +461,7 @@ defmodule CairnTest do
       DEF double : int -> int DUP ADD END
       5 sq double
       """
+
       assert Cairn.eval(source) == [50]
     end
 
@@ -461,11 +471,14 @@ defmodule CairnTest do
       DEF sum_sq : [int] -> int { sq } MAP SUM END
       [ 1 2 3 ] sum_sq
       """
+
       assert Cairn.eval(source) == [14]
     end
 
     test "Collatz step with contract" do
-      source = "DEF step : int -> int DUP 2 MOD 0 EQ IF 2 DIV ELSE 3 MUL 1 ADD END POST DUP 0 GT END 27 step step step"
+      source =
+        "DEF step : int -> int DUP 2 MOD 0 EQ IF 2 DIV ELSE 3 MUL 1 ADD END POST DUP 0 GT END 27 step step step"
+
       # 27 -> 82 -> 41 -> 124
       assert Cairn.eval(source) == [124]
     end
@@ -478,6 +491,7 @@ defmodule CairnTest do
       END
       [ 1 2 3 4 5 ] sum_sq_odds
       """
+
       assert Cairn.eval(source) == [35]
     end
 
@@ -518,6 +532,7 @@ defmodule CairnTest do
       # this is a comment
       3 4 ADD # inline comment
       """
+
       assert Cairn.eval(source) == [7]
     end
 
@@ -538,6 +553,7 @@ defmodule CairnTest do
 
       [ 1 2 3 4 5 6 7 8 9 10 ] ssq
       """
+
       assert Cairn.eval(source) == [165]
     end
   end
@@ -556,7 +572,12 @@ defmodule CairnTest do
       File.mkdir_p!(Path.join(dir, "lib"))
 
       File.write!(Path.join(dir, "lib/math.crn"), "DEF inc : int -> int 1 ADD END")
-      File.write!(Path.join(dir, "lib/helpers.crn"), "IMPORT \"math.crn\" DEF inc2 : int -> int inc inc END")
+
+      File.write!(
+        Path.join(dir, "lib/helpers.crn"),
+        "IMPORT \"math.crn\" DEF inc2 : int -> int inc inc END"
+      )
+
       File.write!(Path.join(dir, "main.crn"), "IMPORT \"lib/helpers.crn\" 5 inc2")
 
       assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == [7]
@@ -621,7 +642,37 @@ defmodule CairnTest do
       """
 
       File.write!(Path.join(dir, "main.crn"), source)
-      assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == [200, "7000", "4000", 42, 2]
+
+      assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == [
+               200,
+               "7000",
+               "4000",
+               42,
+               2
+             ]
+    end
+
+    test "file mode prelude exposes compositional result helpers" do
+      dir = make_tmp_dir()
+
+      source = """
+      "21" TO_INT { 2 MUL } result_map
+      0 SWAP result_unwrap_or
+
+      "oops" TO_INT { "bad: {}" FMT } result_map_err
+      result_is_err
+
+      "10" TO_INT
+      { DUP 5 GT IF 1 ADD Ok ELSE DROP "small" Err END } result_and_then
+      999 SWAP result_unwrap_or
+
+      "oops" TO_INT
+      { DROP 0 } result_tap_err
+      result_is_err
+      """
+
+      File.write!(Path.join(dir, "main.crn"), source)
+      assert Cairn.eval_file(Path.join(dir, "main.crn")) |> elem(0) == [true, 11, true, 42]
     end
 
     test "user definitions override prelude helpers in file mode" do
@@ -719,7 +770,12 @@ defmodule CairnTest do
     end
 
     test "supports lookup fallback via argv" do
-      Process.put(:cairn_argv, ["examples/practical/data/app.ini", "server", "missing", "fallback-value"])
+      Process.put(:cairn_argv, [
+        "examples/practical/data/app.ini",
+        "server",
+        "missing",
+        "fallback-value"
+      ])
 
       output =
         ExUnit.CaptureIO.capture_io(fn ->
@@ -752,6 +808,7 @@ defmodule CairnTest do
       END
       27 111 { step } TIMES
       """
+
       assert Cairn.eval(source) == [1]
     end
 
@@ -788,6 +845,7 @@ defmodule CairnTest do
       END
       27 { DUP 1 GT } { step } WHILE
       """
+
       assert Cairn.eval(source) == [1]
     end
 
@@ -892,6 +950,7 @@ defmodule CairnTest do
       END
       [ 1 2 3 ] 0 { add_sq } REDUCE
       """
+
       # 0 + 1² + 2² + 3² = 14
       assert Cairn.eval(source) == [14]
     end
@@ -1089,53 +1148,62 @@ defmodule CairnTest do
     end
 
     test "MATCH dispatches on JNull" do
-      source = @json_type <> """
-      DEF is_null : json -> bool
-        MATCH
-          JNull { TRUE }
-          JBool { DROP FALSE }
-          JNum  { DROP FALSE }
-          JStr  { DROP FALSE }
-          JArr  { DROP FALSE }
-          JObj  { DROP FALSE }
-        END
-      END
-      JNull is_null
-      """
+      source =
+        @json_type <>
+          """
+          DEF is_null : json -> bool
+            MATCH
+              JNull { TRUE }
+              JBool { DROP FALSE }
+              JNum  { DROP FALSE }
+              JStr  { DROP FALSE }
+              JArr  { DROP FALSE }
+              JObj  { DROP FALSE }
+            END
+          END
+          JNull is_null
+          """
+
       assert Cairn.eval(source) == [true]
     end
 
     test "MATCH extracts JBool payload" do
-      source = @json_type <> """
-      DEF unwrap_bool : json -> bool
-        MATCH
-          JNull { FALSE }
-          JBool { }
-          JNum  { DROP FALSE }
-          JStr  { DROP FALSE }
-          JArr  { DROP FALSE }
-          JObj  { DROP FALSE }
-        END
-      END
-      TRUE JBool unwrap_bool
-      """
+      source =
+        @json_type <>
+          """
+          DEF unwrap_bool : json -> bool
+            MATCH
+              JNull { FALSE }
+              JBool { }
+              JNum  { DROP FALSE }
+              JStr  { DROP FALSE }
+              JArr  { DROP FALSE }
+              JObj  { DROP FALSE }
+            END
+          END
+          TRUE JBool unwrap_bool
+          """
+
       assert Cairn.eval(source) == [true]
     end
 
     test "MATCH extracts JArr payload as [json]" do
-      source = @json_type <> """
-      DEF json_len : json -> int
-        MATCH
-          JNull { 0 }
-          JBool { DROP 0 }
-          JNum  { DROP 0 }
-          JStr  { DROP 0 }
-          JArr  { LEN }
-          JObj  { DROP 0 }
-        END
-      END
-      [ JNull TRUE JBool 1.0 JNum ] JArr json_len
-      """
+      source =
+        @json_type <>
+          """
+          DEF json_len : json -> int
+            MATCH
+              JNull { 0 }
+              JBool { DROP 0 }
+              JNum  { DROP 0 }
+              JStr  { DROP 0 }
+              JArr  { LEN }
+              JObj  { DROP 0 }
+            END
+          END
+          [ JNull TRUE JBool 1.0 JNum ] JArr json_len
+          """
+
       assert Cairn.eval(source) == [3]
     end
 
@@ -1150,6 +1218,7 @@ defmodule CairnTest do
       END
       3 Leaf  5 Leaf  7 Leaf Node  Node  depth
       """
+
       assert Cairn.eval(source) == [3]
     end
   end
@@ -1271,7 +1340,11 @@ defmodule CairnTest do
 
     test "parse_array parses multiple elements" do
       result = Cairn.eval(@json_parser <> ~s("[1.0,2.0,3.0]" CHARS parse_array))
-      assert result == [[], jv("JArr", [[jv("JNum", [1.0]), jv("JNum", [2.0]), jv("JNum", [3.0])]])]
+
+      assert result == [
+               [],
+               jv("JArr", [[jv("JNum", [1.0]), jv("JNum", [2.0]), jv("JNum", [3.0])]])
+             ]
     end
 
     test "parse_array parses boolean elements" do
@@ -1306,7 +1379,11 @@ defmodule CairnTest do
 
     test "parse_object parses multiple key-value pairs" do
       result = Cairn.eval(@json_parser <> ~S("{\"a\":true,\"b\":false}" CHARS parse_object))
-      assert result == [[], jv("JObj", [%{"a" => jv("JBool", [true]), "b" => jv("JBool", [false])}])]
+
+      assert result == [
+               [],
+               jv("JObj", [%{"a" => jv("JBool", [true]), "b" => jv("JBool", [false])}])
+             ]
     end
 
     test "parse_object handles whitespace" do
@@ -1393,21 +1470,27 @@ defmodule CairnTest do
 
   describe "VERIFY sum type generation" do
     test "VERIFY works on a json -> json identity function" do
-      source = @json_full <> """
-      DEF json_id : json -> json
-      END
-      VERIFY json_id 50
-      """
+      source =
+        @json_full <>
+          """
+          DEF json_id : json -> json
+          END
+          VERIFY json_id 50
+          """
+
       assert Cairn.eval(source) == []
     end
 
     test "VERIFY round-trip: encode then parse gives back same value" do
-      source = @json_full <> """
-      DEF roundtrip : json -> json
-        encode CHARS parse_value DROP
-      END
-      VERIFY roundtrip 50
-      """
+      source =
+        @json_full <>
+          """
+          DEF roundtrip : json -> json
+            encode CHARS parse_value DROP
+          END
+          VERIFY roundtrip 50
+          """
+
       assert Cairn.eval(source) == []
     end
   end
@@ -1448,6 +1531,7 @@ defmodule CairnTest do
       try do
         assert Cairn.eval("\"test content\" \"#{path}\" WRITE_FILE") ==
                  [{:variant, "result", "Ok", [true]}]
+
         assert File.read!(path) == "test content"
       after
         File.rm(path)
@@ -1455,8 +1539,7 @@ defmodule CairnTest do
     end
 
     test "READ_FILE returns Err on bad path" do
-      assert [{:variant, "result", "Err", [_]}] =
-               Cairn.eval("\"/no/such/file/ever\" READ_FILE")
+      assert [{:variant, "result", "Err", [_]}] = Cairn.eval("\"/no/such/file/ever\" READ_FILE")
     end
 
     test "READ_FILE! with bad path raises RuntimeError" do
@@ -1518,6 +1601,7 @@ defmodule CairnTest do
       END
       5 safe_double
       """
+
       assert Cairn.eval(source) == [10]
     end
 
@@ -1530,6 +1614,7 @@ defmodule CairnTest do
       END
       -1 safe_double
       """
+
       assert_raise Cairn.ContractError, ~r/PRE/, fn -> Cairn.eval(source) end
     end
   end
@@ -1556,6 +1641,7 @@ defmodule CairnTest do
 
     test "string to int function raises type error" do
       source = "DEF double : int -> int DUP ADD END \"hello\" double"
+
       assert_raise Cairn.StaticError, ~r/expected int.*got str/, fn ->
         Cairn.eval(source)
       end
@@ -1563,6 +1649,7 @@ defmodule CairnTest do
 
     test "int to str function raises type error" do
       source = "DEF greet : str -> str END 42 greet"
+
       assert_raise Cairn.StaticError, ~r/expected str.*got int/, fn ->
         Cairn.eval(source)
       end
@@ -1570,6 +1657,7 @@ defmodule CairnTest do
 
     test "void function that leaves values raises type error" do
       source = "DEF bad_void : int -> void END 5 bad_void"
+
       assert_raise Cairn.StaticError, ~r/declared -> void/, fn ->
         Cairn.eval(source)
       end
@@ -1593,12 +1681,14 @@ defmodule CairnTest do
       END
       "hello" pos_double
       """
+
       # Should raise static type error, not contract error
       assert_raise Cairn.StaticError, ~r/expected int.*got str/, fn -> Cairn.eval(source) end
     end
 
     test "bool to int function raises type error" do
       source = "DEF double : int -> int DUP ADD END TRUE double"
+
       assert_raise Cairn.StaticError, ~r/expected int.*got bool/, fn ->
         Cairn.eval(source)
       end
@@ -1611,6 +1701,7 @@ defmodule CairnTest do
 
     test "return type mismatch raises type error" do
       source = "DEF bad : int -> int \"oops\" SWAP DROP END 5 bad"
+
       assert_raise Cairn.StaticError, ~r/return type mismatch.*expected int.*got str/, fn ->
         Cairn.eval(source)
       end
@@ -1618,6 +1709,7 @@ defmodule CairnTest do
 
     test "return arity mismatch — too few" do
       source = "DEF bad : int -> int DROP END 5 bad"
+
       assert_raise Cairn.StaticError, ~r/1 return value.*but body produces 0/, fn ->
         Cairn.eval(source)
       end
@@ -1625,6 +1717,7 @@ defmodule CairnTest do
 
     test "return arity mismatch — too many" do
       source = "DEF bad : int -> int DUP END 5 bad"
+
       assert_raise Cairn.StaticError, ~r/1 return value.*but body produces 2/, fn ->
         Cairn.eval(source)
       end
@@ -1637,7 +1730,11 @@ defmodule CairnTest do
     end
 
     test "multi-return parsing" do
-      {:ok, tokens} = Cairn.Lexer.tokenize("DEF divmod : int int -> int int DUP ROT SWAP MOD SWAP ROT DIV SWAP END")
+      {:ok, tokens} =
+        Cairn.Lexer.tokenize(
+          "DEF divmod : int int -> int int DUP ROT SWAP MOD SWAP ROT DIV SWAP END"
+        )
+
       {:ok, [func]} = Cairn.Parser.parse(tokens)
       assert func.return_types == [:int, :int]
       assert func.param_types == [:int, :int]
@@ -1650,6 +1747,7 @@ defmodule CairnTest do
 
     test "multi-return enforcement — wrong count fails" do
       source = "DEF bad : int int -> int int DROP END 3 4 bad"
+
       assert_raise Cairn.StaticError, ~r/2 return value.*but body produces 1/, fn ->
         Cairn.eval(source)
       end
@@ -1678,6 +1776,7 @@ defmodule CairnTest do
       END
       Red is_red
       """
+
       assert Cairn.eval(source) == [true]
     end
 
@@ -1692,6 +1791,7 @@ defmodule CairnTest do
       END
       Blue is_red
       """
+
       assert Cairn.eval(source) == [false]
     end
 
@@ -1705,19 +1805,23 @@ defmodule CairnTest do
       END
       Green always_42
       """
+
       assert Cairn.eval(source) == [42]
     end
 
     test "wildcard discards fields (clean stack)" do
-      source = @json_type <> """
-      DEF is_null : json -> bool
-        MATCH
-          JNull { TRUE }
-          _ { FALSE }
-        END
-      END
-      3.14 JNum is_null
-      """
+      source =
+        @json_type <>
+          """
+          DEF is_null : json -> bool
+            MATCH
+              JNull { TRUE }
+              _ { FALSE }
+            END
+          END
+          3.14 JNum is_null
+          """
+
       # JNum has 1 field (float) — wildcard must discard it
       assert Cairn.eval(source) == [false]
     end
@@ -1733,46 +1837,59 @@ defmodule CairnTest do
       END
       3.0 4.0 Rect is_point
       """
+
       # Rect has 2 fields — wildcard must discard both
       assert Cairn.eval(source) == [false]
     end
 
     test "type checker accepts wildcard as exhaustive" do
-      source = @json_type <> """
-      DEF is_null : json -> bool
-        MATCH
-          JNull { TRUE }
-          _ { FALSE }
-        END
-      END
-      """
+      source =
+        @json_type <>
+          """
+          DEF is_null : json -> bool
+            MATCH
+              JNull { TRUE }
+              _ { FALSE }
+            END
+          END
+          """
+
       # Should not raise — wildcard makes it exhaustive
-      assert :ok = Cairn.Checker.check(elem(Cairn.Parser.parse(elem(Cairn.Lexer.tokenize(source), 1)), 1))
+      assert :ok =
+               Cairn.Checker.check(
+                 elem(Cairn.Parser.parse(elem(Cairn.Lexer.tokenize(source), 1)), 1)
+               )
     end
 
     test "wildcard works with json.crn helpers" do
-      source = @json_full <> """
-      DEF jstr_val2 : json -> str
-        MATCH
-          JStr { }
-          _ { "" }
-        END
-      END
-      "hello" JStr jstr_val2
-      """
+      source =
+        @json_full <>
+          """
+          DEF jstr_val2 : json -> str
+            MATCH
+              JStr { }
+              _ { "" }
+            END
+          END
+          "hello" JStr jstr_val2
+          """
+
       assert Cairn.eval(source) == ["hello"]
     end
 
     test "wildcard works with json.crn helpers — fallback case" do
-      source = @json_full <> """
-      DEF jstr_val2 : json -> str
-        MATCH
-          JStr { }
-          _ { "" }
-        END
-      END
-      JNull jstr_val2
-      """
+      source =
+        @json_full <>
+          """
+          DEF jstr_val2 : json -> str
+            MATCH
+              JStr { }
+              _ { "" }
+            END
+          END
+          JNull jstr_val2
+          """
+
       assert Cairn.eval(source) == [""]
     end
   end
@@ -1789,9 +1906,11 @@ defmodule CairnTest do
       PROVE my_abs
       """
 
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        Cairn.eval(source)
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Cairn.eval(source)
+        end)
+
       assert output =~ "PROVEN"
     end
 
@@ -1804,9 +1923,11 @@ defmodule CairnTest do
       PROVE safe_abs
       """
 
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        Cairn.eval(source)
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Cairn.eval(source)
+        end)
+
       assert output =~ "PROVEN"
     end
 
@@ -1833,9 +1954,11 @@ defmodule CairnTest do
       PROVE use_abs
       """
 
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        Cairn.eval(source)
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Cairn.eval(source)
+        end)
+
       assert output =~ "PROVEN"
     end
 
@@ -1849,9 +1972,11 @@ defmodule CairnTest do
       PROVE clamp_top
       """
 
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        Cairn.eval(source)
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Cairn.eval(source)
+        end)
+
       assert output =~ "PROVEN"
     end
   end
@@ -1872,9 +1997,11 @@ defmodule CairnTest do
       PROVE distance
       """
 
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        Cairn.eval(source)
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Cairn.eval(source)
+        end)
+
       assert output =~ "PROVEN"
     end
 
@@ -1911,9 +2038,11 @@ defmodule CairnTest do
       PROVE quadruple
       """
 
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        Cairn.eval(source)
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Cairn.eval(source)
+        end)
+
       assert output =~ "PROVEN"
     end
   end
@@ -1949,6 +2078,7 @@ defmodule CairnTest do
       END
       5 add_ten
       """
+
       assert Cairn.eval(source) == [15]
     end
 
@@ -1964,6 +2094,7 @@ defmodule CairnTest do
       base base MUL LET squared
       squared base ADD
       """
+
       assert Cairn.eval(source) == [110]
     end
 
@@ -1995,6 +2126,7 @@ defmodule CairnTest do
         x x ADD
       END
       """
+
       {:ok, tokens} = Cairn.Lexer.tokenize(source)
       {:ok, items} = Cairn.Parser.parse(tokens)
       assert :ok = Cairn.Checker.check(items)
@@ -2005,28 +2137,34 @@ defmodule CairnTest do
 
   describe "SAID" do
     test "prints and drops string" do
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        result = Cairn.eval(~s|"hello" SAID|)
-        send(self(), {:result, result})
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          result = Cairn.eval(~s|"hello" SAID|)
+          send(self(), {:result, result})
+        end)
+
       assert output =~ "hello"
       assert_received {:result, []}
     end
 
     test "prints and drops integer" do
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        result = Cairn.eval("42 SAID")
-        send(self(), {:result, result})
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          result = Cairn.eval("42 SAID")
+          send(self(), {:result, result})
+        end)
+
       assert output =~ "42"
       assert_received {:result, []}
     end
 
     test "replaces SAY DROP pattern" do
-      output = ExUnit.CaptureIO.capture_io(fn ->
-        result = Cairn.eval(~s|"hi" SAID 99|)
-        send(self(), {:result, result})
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          result = Cairn.eval(~s|"hi" SAID 99|)
+          send(self(), {:result, result})
+        end)
+
       assert output =~ "hi"
       assert_received {:result, [99]}
     end
@@ -2075,6 +2213,7 @@ defmodule CairnTest do
       END
       "world" greet
       """
+
       assert Cairn.eval(source) == ["Hello, world!"]
     end
 
@@ -2098,20 +2237,23 @@ defmodule CairnTest do
 
   describe "ASK" do
     test "reads input with prompt" do
-      output = ExUnit.CaptureIO.capture_io([input: "Alice\n"], fn ->
-        result = Cairn.eval(~s|"Name? " ASK!|)
-        # Send result to test process
-        send(self(), {:result, result})
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io([input: "Alice\n"], fn ->
+          result = Cairn.eval(~s|"Name? " ASK!|)
+          # Send result to test process
+          send(self(), {:result, result})
+        end)
+
       assert output =~ "Name? "
       assert_received {:result, ["Alice"]}
     end
 
     test "ASK returns Ok on success" do
-      output = ExUnit.CaptureIO.capture_io([input: "Bob\n"], fn ->
-        result = Cairn.eval(~s|"Name? " ASK|)
-        send(self(), {:result, result})
-      end)
+      output =
+        ExUnit.CaptureIO.capture_io([input: "Bob\n"], fn ->
+          result = Cairn.eval(~s|"Name? " ASK|)
+          send(self(), {:result, result})
+        end)
 
       assert output =~ "Name? "
       assert_received {:result, [{:variant, "result", "Ok", ["Bob"]}]}

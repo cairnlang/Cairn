@@ -5,7 +5,7 @@ DEF handle_static_route : str -> str map[str str] int EFFECT http
   route_finish
 END
 
-DEF route_get_echo : map[str str] str str -> result EFFECT pure
+DEF route_get_echo : map[str str] str str -> route_result EFFECT pure
   LET query
   LET method
   LET path
@@ -24,7 +24,7 @@ DEF route_get_echo : map[str str] str str -> result EFFECT pure
   END
 END
 
-DEF route_get_hello_html : map[str str] str str -> result EFFECT pure
+DEF route_get_hello_html : map[str str] str str -> route_result EFFECT pure
   LET query
   LET method
   LET path
@@ -44,7 +44,7 @@ DEF route_get_hello_html : map[str str] str str -> result EFFECT pure
   END
 END
 
-DEF route_get_cookie : map[str str] str str -> result EFFECT pure
+DEF route_get_cookie : map[str str] str str -> route_result EFFECT pure
   LET cookies
   LET method
   LET path
@@ -63,7 +63,7 @@ DEF route_get_cookie : map[str str] str str -> result EFFECT pure
   END
 END
 
-DEF route_get_set_cookie : str str -> result EFFECT pure
+DEF route_get_set_cookie : str str -> route_result EFFECT pure
   LET method
   LET path
 

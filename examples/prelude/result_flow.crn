@@ -1,7 +1,16 @@
 # prelude/result_flow.crn — ergonomic safe parsing with result helpers
 
-"42" TO_INT DUP result_is_ok "ok? {}" FMT SAID
-0 SWAP result_unwrap_or "value={}" FMT SAID
+"42" TO_INT { 1 ADD } result_map
+0 SWAP result_unwrap_or "mapped_value={}" FMT SAID
 
-"oops" TO_INT DUP result_is_err "err? {}" FMT SAID
-99 SWAP result_unwrap_or "fallback={}" FMT SAID
+"21" TO_INT { 2 MUL Ok } result_and_then
+0 SWAP result_unwrap_or "and_then_value={}" FMT SAID
+
+"oops" TO_INT
+{ "parse_error: {}" FMT } result_map_err
+DUP result_is_err "map_err_failed? {}" FMT SAID
+DROP
+
+"oops" TO_INT
+{ "tap_err saw: {}" FMT SAID 0 } result_tap_err
+99 SWAP result_unwrap_or "tap_err_fallback={}" FMT SAID

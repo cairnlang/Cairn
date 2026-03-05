@@ -479,9 +479,29 @@ Some high-value helper examples:
 
 ```text
 result_unwrap_or
-signature: result any -> any
-before: [result, fallback]
+signature: result[T E] T -> T
+before: [result:T|E, fallback:T]
 after:  [value_or_fallback]
+
+result_map
+signature: block result[T E] -> result[U E]
+before: [mapper:block, input:result[T E]]
+after:  [mapped:result[U E]]
+
+result_map_err
+signature: block result[T E] -> result[T F]
+before: [mapper:block, input:result[T E]]
+after:  [mapped:result[T F]]
+
+result_and_then
+signature: block result[T E] -> result[U E]
+before: [next:block, input:result[T E]]
+after:  [output:result[U E]]
+
+result_tap_err
+signature: block result[T E] -> result[T E]
+before: [on_err:block, input:result[T E]]
+after:  [output:result[T E]]
 
 map_get_or[T]
 signature: T map[str T] str -> T

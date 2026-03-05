@@ -21,3 +21,46 @@ DEF result_unwrap_or[T E] : result[T E] T -> T EFFECT pure
     Err { DROP }       # drop error message, keep default
   END
 END
+
+# Signature: block result[T E] -> result[U E] (block on top, result below)
+DEF result_map[T U E] : block result[T E] -> result[U E] EFFECT pure
+  LET mapper
+  MATCH
+    Ok  { mapper APPLY Ok }
+    Err { Err }
+  END
+END
+
+# Signature: block result[T E] -> result[T F] (block on top, result below)
+DEF result_map_err[T E F] : block result[T E] -> result[T F] EFFECT pure
+  LET mapper
+  MATCH
+    Ok  { Ok }
+    Err { mapper APPLY Err }
+  END
+END
+
+# Signature: block result[T E] -> result[U E] (block on top, result below)
+DEF result_and_then[T U E] : block result[T E] -> result[U E] EFFECT pure
+  LET next
+  MATCH
+    Ok  { next APPLY }
+    Err { Err }
+  END
+END
+
+# Signature: block result[T E] -> result[T E] (block on top, result below)
+DEF result_tap_err[T E] : block result[T E] -> result[T E] EFFECT pure
+  LET on_err
+  MATCH
+    Ok {
+      Ok
+    }
+    Err {
+      DUP
+      on_err APPLY
+      DROP
+      Err
+    }
+  END
+END

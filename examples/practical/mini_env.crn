@@ -14,14 +14,9 @@ IF
   args TAIL HEAD LET path
 
   path READ_FILE
-  MATCH
-    Ok {
-      env_keys emit_lines
-    }
-    Err {
-      "mini_env: cannot read {}" FMT SAID
-    }
-  END
+  { env_keys emit_lines TRUE } result_map
+  { "mini_env: cannot read {}" FMT SAID TRUE } result_tap_err
+  DROP
 ELSE
   args args_is_lookup_mode
   IF
@@ -29,27 +24,19 @@ ELSE
     args TAIL HEAD LET key
 
     path READ_FILE
+    { LET raw raw key env_fetch } result_and_then
     MATCH
       Ok {
-        LET raw
-        raw key env_fetch
-        MATCH
-          Ok {
-            SAID
-          }
-          Err {
-            args LEN 3 EQ
-            IF
-              DROP
-              args TAIL TAIL HEAD SAID
-            ELSE
-              "mini_env: {}" FMT SAID
-            END
-          }
-        END
+        SAID
       }
       Err {
-        "mini_env: cannot read {}" FMT SAID
+        args LEN 3 EQ
+        IF
+          DROP
+          args TAIL TAIL HEAD SAID
+        ELSE
+          "mini_env: {}" FMT SAID
+        END
       }
     END
   ELSE

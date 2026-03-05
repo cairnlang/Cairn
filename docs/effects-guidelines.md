@@ -82,11 +82,14 @@ END
 - Keep `pure` helper functions small and composable.
 - Keep effectful functions thin and boundary-focused.
 
-## Slice B Follow-Up
+## Slice B Result Ergonomics (Completed)
 
-- Add missing prelude combinators for consistent result-flow composition:
+- Added prelude result combinators:
   - `result_map`
   - `result_map_err`
   - `result_and_then`
   - `result_tap_err`
-- Migrate representative examples to the canonical effect style.
+- Migrated representative examples to use compositional result flow:
+  - `examples/prelude/result_flow.crn`
+  - `examples/practical/mini_env.crn`
+  - `examples/practical/mini_ini.crn`

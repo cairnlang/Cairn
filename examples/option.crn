@@ -11,7 +11,7 @@ TYPE option = None | Some int
 
 # unwrap_or: return the value inside Some, or a default if None
 # Signature: option int -> int  (option on top, default below)
-DEF unwrap_or : option int -> int
+DEF unwrap_or : option int -> int EFFECT pure
   MATCH
     None { }           # None: leave the default (int) on stack
     Some { SWAP DROP } # Some(x): stack=[x, default], swap+drop → [x]
@@ -19,7 +19,7 @@ DEF unwrap_or : option int -> int
 END
 
 # is_some: check if option holds a value
-DEF is_some : option -> bool
+DEF is_some : option -> bool EFFECT pure
   MATCH
     None { FALSE }
     Some { DROP TRUE }
@@ -27,8 +27,8 @@ DEF is_some : option -> bool
 END
 
 # safe_div: divide two ints, returning Ok(result) or Err("division by zero")
-# Signature: int int -> result  (divisor on top, dividend below)
-DEF safe_div : int int -> result
+# Signature: int int -> result[int str]  (divisor on top, dividend below)
+DEF safe_div : int int -> result[int str] EFFECT pure
   DUP 0 EQ
   IF
     DROP DROP "division by zero" Err

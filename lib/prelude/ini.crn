@@ -1,25 +1,25 @@
 # Prelude: INI-style config helpers
 
-DEF ini_is_comment_line : str -> bool
+DEF ini_is_comment_line : str -> bool EFFECT pure
   DUP "#" STARTS_WITH
   SWAP ";" STARTS_WITH
   OR
 END
 
-DEF ini_is_data_line : str -> bool
+DEF ini_is_data_line : str -> bool EFFECT pure
   LET line
   line LEN 0 GT
   line ini_is_comment_line NOT
   AND
 END
 
-DEF ini_data_lines : str -> [str]
+DEF ini_data_lines : str -> [str] EFFECT pure
   LINES
   { TRIM } MAP
   { ini_is_data_line } FILTER
 END
 
-DEF ini_is_section_line : str -> bool
+DEF ini_is_section_line : str -> bool EFFECT pure
   LET line
   line LEN 2 GTE
   line "[" STARTS_WITH
@@ -28,23 +28,23 @@ DEF ini_is_section_line : str -> bool
   AND
 END
 
-DEF ini_is_kv_line : str -> bool
+DEF ini_is_kv_line : str -> bool EFFECT pure
   "=" CONTAINS
 END
 
-DEF ini_section_name : str -> str
+DEF ini_section_name : str -> str EFFECT pure
   DUP LEN 2 SUB
   1 SWAP
   SLICE
 END
 
-DEF ini_full_key : str str -> str
+DEF ini_full_key : str str -> str EFFECT pure
   LET key
   LET section
   key section "{}.{}" FMT
 END
 
-DEF str_list_has : str [str] -> bool
+DEF str_list_has : str [str] -> bool EFFECT pure
   LET needle
   LET items
   items LEN 0 EQ
@@ -60,7 +60,7 @@ DEF str_list_has : str [str] -> bool
   END
 END
 
-DEF ini_add_section : str [str] -> [str]
+DEF ini_add_section : str [str] -> [str] EFFECT pure
   LET name
   LET sections
   sections name str_list_has
@@ -71,7 +71,7 @@ DEF ini_add_section : str [str] -> [str]
   END
 END
 
-DEF ini_put_kv_line : map[str str] str str -> map[str str]
+DEF ini_put_kv_line : map[str str] str str -> map[str str] EFFECT pure
   LET source
   LET section
   LET line
@@ -82,7 +82,7 @@ DEF ini_put_kv_line : map[str str] str str -> map[str str]
   source full_key value PUT
 END
 
-DEF ini_parse_lines : [str] map[str str] str [str] -> map[str str] [str]
+DEF ini_parse_lines : [str] map[str str] str [str] -> map[str str] [str] EFFECT pure
   LET sections
   LET source
   LET current
@@ -110,7 +110,7 @@ DEF ini_parse_lines : [str] map[str str] str [str] -> map[str str] [str]
   END
 END
 
-DEF ini_map : str -> map[str str]
+DEF ini_map : str -> map[str str] EFFECT pure
   ini_data_lines
   "global"
   M[]
@@ -119,7 +119,7 @@ DEF ini_map : str -> map[str str]
   SWAP DROP
 END
 
-DEF ini_sections : str -> [str]
+DEF ini_sections : str -> [str] EFFECT pure
   ini_data_lines
   "global"
   M[]
@@ -129,7 +129,7 @@ DEF ini_sections : str -> [str]
   REVERSE
 END
 
-DEF ini_fetch : str str str -> result[str str]
+DEF ini_fetch : str str str -> result[str str] EFFECT pure
   LET key
   LET section
   LET raw

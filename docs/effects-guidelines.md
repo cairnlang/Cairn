@@ -68,9 +68,9 @@ END
 
 ### Inconsistencies / Debt
 
-- Many older examples still omit `EFFECT`, implicitly becoming `io`.
+- Many older non-library examples still omit `EFFECT`, implicitly becoming `io`.
   - This weakens readability and can mask accidental impurity.
-- Some signatures still use bare `result` instead of parameterized `result[T E]`.
+- Some signatures still use bare `result` instead of parameterized `result[T E]` outside the shared library surface.
   - Works due current normalization but is less explicit.
 - DB boundary is currently operation-shaped (`DB_*`) rather than capability-shaped.
   - Fine for now, but not ideal for backend pluggability.
@@ -93,3 +93,15 @@ END
   - `examples/prelude/result_flow.crn`
   - `examples/practical/mini_env.crn`
   - `examples/practical/mini_ini.crn`
+
+## Slice C Shared-Surface Annotation Discipline (Completed)
+
+- Added explicit `EFFECT` annotations across shared helper modules:
+  - `lib/prelude/ini.crn`
+  - `examples/practical/lib/*.crn`
+- Correctly marked effectful helper emitters (`emit_lines`) as `EFFECT io`.
+- Removed the remaining bare `result` signature in `examples/option.crn`:
+  - `safe_div : int int -> result[int str]`
+- Added regression guard tests in `test/cairn/effects_style_test.exs`:
+  - Every `DEF` in `lib/prelude`, `examples/practical/lib`, and `examples/web/lib` must declare `EFFECT`.
+  - Bare `-> result` signatures are rejected in the same shared surface.

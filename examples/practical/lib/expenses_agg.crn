@@ -1,22 +1,22 @@
 # examples/practical/lib/expenses_agg.crn — aggregate expense metrics
 
-DEF expenses_total : [int] -> int
+DEF expenses_total : [int] -> int EFFECT pure
   SUM
 END
 
-DEF expenses_max : [int] -> int
+DEF expenses_max : [int] -> int EFFECT pure
   SORT REVERSE HEAD
 END
 
-DEF expenses_avg : [int] -> int
+DEF expenses_avg : [int] -> int EFFECT pure
   DUP SUM SWAP LEN DIV
 END
 
-DEF expenses_over_100 : [int] -> int
+DEF expenses_over_100 : [int] -> int EFFECT pure
   { 100 GT } FILTER LEN
 END
 
-DEF abs_total_nonneg : [int] -> int
+DEF abs_total_nonneg : [int] -> int EFFECT pure
   { ABS } MAP SUM
   POST DUP 0 GTE
 END

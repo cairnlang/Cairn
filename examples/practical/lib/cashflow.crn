@@ -2,12 +2,12 @@
 
 IMPORT "report_common.crn"
 
-DEF net_cashflow : int int -> int
+DEF net_cashflow : int int -> int EFFECT pure
   # balance expenses_total -> net
   SUB
 END
 
-DEF cashflow_score : int int -> int
+DEF cashflow_score : int int -> int EFFECT pure
   # net capacity -> score in [0..100] when capacity > 0 and covers net magnitude
   PRE {
     LET capacity
@@ -23,7 +23,7 @@ DEF cashflow_score : int int -> int
   POST DUP 0 GTE OVER 100 LTE AND
 END
 
-DEF report_has_cashflow_metrics : str -> bool
+DEF report_has_cashflow_metrics : str -> bool EFFECT pure
   DUP "balance=" report_contains
   SWAP DUP "expenses_total=" report_contains
   SWAP DUP "net_cashflow=" report_contains

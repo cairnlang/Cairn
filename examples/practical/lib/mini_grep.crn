@@ -1,13 +1,13 @@
 # examples/practical/lib/mini_grep.crn — helpers for a bounded grep-like CLI
 
-DEF is_supported_flag : str -> bool
+DEF is_supported_flag : str -> bool EFFECT pure
   DUP "-i" EQ LET is_i
   DUP "-n" EQ LET is_n
   "-v" EQ LET is_v
   is_i is_n OR is_v OR
 END
 
-DEF leading_flag_count : [str] -> int
+DEF leading_flag_count : [str] -> int EFFECT pure
   DUP LEN 0 EQ
   IF
     DROP 0
@@ -22,12 +22,12 @@ DEF leading_flag_count : [str] -> int
   POST DUP 0 GTE
 END
 
-DEF leading_flag_count_bounded : [str] -> bool
+DEF leading_flag_count_bounded : [str] -> bool EFFECT pure
   DUP leading_flag_count SWAP LEN LTE
   POST DUP EQ TRUE
 END
 
-DEF drop_n : int [str] -> [str]
+DEF drop_n : int [str] -> [str] EFFECT pure
   DUP 0 LTE
   IF
     DROP
@@ -36,7 +36,7 @@ DEF drop_n : int [str] -> [str]
   END
 END
 
-DEF flag_enabled : str [str] -> bool
+DEF flag_enabled : str [str] -> bool EFFECT pure
   SWAP
   DUP LEN 0 EQ
   IF
@@ -54,17 +54,17 @@ DEF flag_enabled : str [str] -> bool
   END
 END
 
-DEF to_lower : str -> str
+DEF to_lower : str -> str EFFECT pure
   LOWER
 END
 
-DEF normalize_for_match : bool str -> str
+DEF normalize_for_match : bool str -> str EFFECT pure
   IF
     to_lower
   END
 END
 
-DEF line_matches : bool str str -> bool
+DEF line_matches : bool str str -> bool EFFECT pure
   LET case_i
   LET pattern
   LET line
@@ -73,21 +73,21 @@ DEF line_matches : bool str str -> bool
   CONTAINS
 END
 
-DEF apply_invert : bool bool -> bool
+DEF apply_invert : bool bool -> bool EFFECT pure
   IF
     NOT
   END
 END
 
-DEF pair_line : tuple[int str] -> str
+DEF pair_line : tuple[int str] -> str EFFECT pure
   SND
 END
 
-DEF pair_number : tuple[int str] -> int
+DEF pair_number : tuple[int str] -> int EFFECT pure
   FST
 END
 
-DEF pair_matches : bool bool str tuple[int str] -> bool
+DEF pair_matches : bool bool str tuple[int str] -> bool EFFECT pure
   LET invert
   LET case_i
   LET pattern
@@ -96,7 +96,7 @@ DEF pair_matches : bool bool str tuple[int str] -> bool
   invert apply_invert
 END
 
-DEF format_pair : bool tuple[int str] -> str
+DEF format_pair : bool tuple[int str] -> str EFFECT pure
   LET show_numbers
   LET pair
   show_numbers

@@ -8,6 +8,16 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xc — Shared Effect Annotation + Result Signature Hygiene (Slice C)
+- Added explicit `EFFECT` annotations across shared helper surfaces:
+  - `lib/prelude/ini.crn`
+  - `examples/practical/lib/*.crn`
+- Marked practical line-emitter helpers (`emit_lines`) as `EFFECT io` to reflect `SAID` usage.
+- Removed the last bare `result` return signature in `examples/option.crn` by switching to `result[int str]`.
+- Added style-guard coverage in `test/cairn/effects_style_test.exs` so shared library modules must:
+  - declare `EFFECT` on every `DEF`
+  - avoid bare `-> result` signatures (use `result[T E]`)
+
 ### v0.10.xb — Effect Result Ergonomics (Slice B)
 - Added prelude result combinators for compositional boundary flows:
   - `result_map`

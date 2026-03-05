@@ -1,10 +1,10 @@
 # examples/practical/lib/expenses_parser.crn — parse expense rows
 
-DEF parse_amount_line : str -> int
+DEF parse_amount_line : str -> int EFFECT pure
   "," SPLIT TAIL HEAD TO_INT!
 END
 
-DEF parse_amounts : str -> [int]
+DEF parse_amounts : str -> [int] EFFECT pure
   lines_nonempty
   { parse_amount_line } MAP
 END

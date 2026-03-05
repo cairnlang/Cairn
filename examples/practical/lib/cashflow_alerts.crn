@@ -2,7 +2,7 @@
 
 IMPORT "report_common.crn"
 
-DEF risk_level : int -> int
+DEF risk_level : int -> int EFFECT pure
   PRE { DUP 0 GTE OVER 100 LTE AND }
   DUP 70 GTE
   IF
@@ -18,7 +18,7 @@ DEF risk_level : int -> int
   POST DUP 0 GTE OVER 2 LTE AND
 END
 
-DEF risk_label : int -> str
+DEF risk_label : int -> str EFFECT pure
   PRE { DUP 0 GTE OVER 2 LTE AND }
   DUP 0 EQ
   IF
@@ -33,7 +33,7 @@ DEF risk_label : int -> str
   END
 END
 
-DEF recommended_action : int -> str
+DEF recommended_action : int -> str EFFECT pure
   PRE { DUP 0 GTE OVER 2 LTE AND }
   DUP 0 EQ
   IF
@@ -48,7 +48,7 @@ DEF recommended_action : int -> str
   END
 END
 
-DEF alerts_report_has_metrics : str -> bool
+DEF alerts_report_has_metrics : str -> bool EFFECT pure
   DUP "risk_level=" report_contains
   SWAP DUP "risk_label=" report_contains
   SWAP "action=" report_contains

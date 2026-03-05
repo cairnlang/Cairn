@@ -22,10 +22,6 @@ DEF pebble_key_to_id : str -> int EFFECT pure
   0 SWAP to_int_or
 END
 
-DEF pebble_encode_open : str -> str EFFECT pure
-  "open|{}" FMT
-END
-
 DEF pebble_decode_status : str -> str EFFECT pure
   "|" SPLIT HEAD
 END
@@ -54,10 +50,37 @@ DEF pebble_decode_parts_third_or_empty : [str] -> str EFFECT pure
   END
 END
 
+DEF pebble_decode_parts_fourth_or_empty : [str] -> str EFFECT pure
+  DUP LEN 3 GT
+  IF
+    TAIL TAIL TAIL HEAD
+  ELSE
+    DROP
+    ""
+  END
+END
+
 DEF pebble_sanitize_text : str -> str EFFECT pure
   "|" "/" REPLACE
+  "~" "/" REPLACE
   "\n" " " REPLACE
   "\r" " " REPLACE
+END
+
+DEF pebble_encode_notes_blob : [str] -> str EFFECT pure
+  { pebble_sanitize_text } MAP
+  "~" JOIN
+END
+
+DEF pebble_decode_notes_blob : str -> [str] EFFECT pure
+  DUP LEN 0 EQ
+  IF
+    DROP
+    [ ]
+  ELSE
+    "~" SPLIT
+    { DUP LEN 0 GT } FILTER
+  END
 END
 
 DEF pebble_encode_record : pebble -> str EFFECT pure
@@ -67,9 +90,11 @@ DEF pebble_encode_record : pebble -> str EFFECT pure
       LET status
       LET title
       LET reason
+      LET notes
+      notes pebble_encode_notes_blob LET notes_blob
       reason pebble_sanitize_text LET clean_reason
       title pebble_sanitize_text LET clean_title
-      clean_reason clean_title status "{}|{}|{}" FMT
+      notes_blob clean_reason clean_title status "{}|{}|{}|{}" FMT
     }
   END
 END
@@ -82,8 +107,9 @@ DEF pebble_decode_record : str int -> pebble EFFECT pure
   parts HEAD LET status
   parts pebble_decode_parts_second_or_empty LET title
   parts pebble_decode_parts_third_or_empty LET reason
+  parts pebble_decode_parts_fourth_or_empty pebble_decode_notes_blob LET notes
 
-  id status title reason Pebble
+  id status title reason notes Pebble
 END
 
 DEF pebble_decode_row : pebble_row -> pebble EFFECT pure
@@ -133,8 +159,9 @@ DEF pebbles_store_add_open : str -> int EFFECT db
   pebbles_store_init
   pebbles_store_next_id LET next_id
 
-  title pebble_encode_open
-  next_id pebble_key_from_id
+  next_id "open" title "" [ ] Pebble
+  DUP pebble_encode_record
+  SWAP pebble_id pebble_key_from_id
   data_put
 
   next_id 1 ADD pebbles_store_set_next_id
@@ -144,6 +171,7 @@ END
 DEF pebbles_store_pairs : -> pebble_rows EFFECT db
   data_pairs
   { pebble_pair_is_item } FILTER
+  SORT
 END
 
 DEF pebbles_store_all : -> [pebble] EFFECT db
@@ -240,6 +268,30 @@ DEF pebbles_store_mark_block : str int -> result[pebble str] EFFECT db
   MATCH
     Ok {
       reason pebble_transition_block
+      MATCH
+        Ok {
+          DUP pebbles_store_save
+          Ok
+        }
+        Err {
+          Err
+        }
+      END
+    }
+    Err {
+      Err
+    }
+  END
+END
+
+DEF pebbles_store_add_note : str int -> result[pebble str] EFFECT db
+  LET note
+  LET target_id
+
+  target_id pebbles_store_fetch
+  MATCH
+    Ok {
+      note pebble_sanitize_text pebble_transition_note
       MATCH
         Ok {
           DUP pebbles_store_save

@@ -1,11 +1,12 @@
 # Pebbles pure domain model and transition rules.
 
-TYPE pebble = Pebble int str str str
+TYPE pebble = Pebble int str str str [str]
 
 DEF pebble_id : pebble -> int EFFECT pure
   MATCH
     Pebble {
       LET id
+      DROP
       DROP
       DROP
       DROP
@@ -21,6 +22,7 @@ DEF pebble_status : pebble -> str EFFECT pure
       LET status
       DROP
       DROP
+      DROP
       status
     }
   END
@@ -32,6 +34,7 @@ DEF pebble_title : pebble -> str EFFECT pure
       DROP
       DROP
       LET title
+      DROP
       DROP
       title
     }
@@ -45,7 +48,21 @@ DEF pebble_reason : pebble -> str EFFECT pure
       DROP
       DROP
       LET reason
+      DROP
       reason
+    }
+  END
+END
+
+DEF pebble_notes : pebble -> [str] EFFECT pure
+  MATCH
+    Pebble {
+      DROP
+      DROP
+      DROP
+      DROP
+      LET notes
+      notes
     }
   END
 END
@@ -54,7 +71,19 @@ DEF pebble_is_open : pebble -> bool EFFECT pure
   pebble_status "open" EQ
 END
 
-DEF pebble_line : pebble -> str EFFECT pure
+DEF pebble_is_doing : pebble -> bool EFFECT pure
+  pebble_status "doing" EQ
+END
+
+DEF pebble_is_blocked : pebble -> bool EFFECT pure
+  pebble_status "blocked" EQ
+END
+
+DEF pebble_is_done : pebble -> bool EFFECT pure
+  pebble_status "done" EQ
+END
+
+DEF pebble_line_base : pebble -> str EFFECT pure
   LET peb
 
   peb pebble_id LET id
@@ -71,6 +100,20 @@ DEF pebble_line : pebble -> str EFFECT pure
   END
 END
 
+DEF pebble_line : pebble -> str EFFECT pure
+  LET peb
+
+  peb pebble_notes LEN LET notes_count
+  peb pebble_line_base LET base
+
+  notes_count 0 GT
+  IF
+    notes_count NUM_STR base "{} (notes:{})" FMT
+  ELSE
+    base
+  END
+END
+
 DEF pebble_transition_do : pebble -> result[pebble str] EFFECT pure
   LET peb
   peb pebble_status LET status
@@ -82,6 +125,7 @@ DEF pebble_transition_do : pebble -> result[pebble str] EFFECT pure
     "doing"
     peb pebble_title
     ""
+    peb pebble_notes
     Pebble
     Ok
   ELSE
@@ -106,6 +150,7 @@ DEF pebble_transition_done : pebble -> result[pebble str] EFFECT pure
     "done"
     peb pebble_title
     ""
+    peb pebble_notes
     Pebble
     Ok
   END
@@ -127,8 +172,27 @@ DEF pebble_transition_block : str pebble -> result[pebble str] EFFECT pure
       "blocked"
       peb pebble_title
       reason
+      peb pebble_notes
       Pebble
       Ok
     END
+  END
+END
+
+DEF pebble_transition_note : str pebble -> result[pebble str] EFFECT pure
+  LET note
+  LET peb
+
+  note LEN 0 EQ
+  IF
+    "note text required" Err
+  ELSE
+    peb pebble_id
+    peb pebble_status
+    peb pebble_title
+    peb pebble_reason
+    note peb pebble_notes CONS
+    Pebble
+    Ok
   END
 END

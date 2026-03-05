@@ -24,7 +24,7 @@ TEST "encoded row title round-trips through decode helper"
 END
 
 TEST "do transition moves open pebble to doing"
-  1 "open" "ship docs" "" Pebble
+  1 "open" "ship docs" "" [ ] Pebble
   pebble_transition_do
   MATCH
     Ok {
@@ -38,7 +38,7 @@ TEST "do transition moves open pebble to doing"
 END
 
 TEST "done transition rejects already done pebbles"
-  1 "done" "ship docs" "" Pebble
+  1 "done" "ship docs" "" [ ] Pebble
   pebble_transition_done
   MATCH
     Ok {
@@ -52,7 +52,7 @@ TEST "done transition rejects already done pebbles"
 END
 
 TEST "block transition requires reason"
-  1 "open" "ship docs" "" Pebble
+  1 "open" "ship docs" "" [ ] Pebble
   "" pebble_transition_block
   MATCH
     Ok {
@@ -61,6 +61,36 @@ TEST "block transition requires reason"
     }
     Err {
       "block reason required" ASSERT_EQ
+    }
+  END
+END
+
+TEST "note transition prepends newest note"
+  1 "open" "ship docs" "" [ "first" ] Pebble
+  "second" pebble_transition_note
+  MATCH
+    Ok {
+      DUP pebble_notes LEN 2 ASSERT_EQ
+      pebble_notes HEAD "second" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+END
+
+TEST "store note appends through command boundary"
+  pebbles_store_init
+  "alpha" pebbles_store_add_open LET id
+  id "remember migration plan" pebbles_store_add_note
+  MATCH
+    Ok {
+      pebble_notes HEAD "remember migration plan" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
     }
   END
 END

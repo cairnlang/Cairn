@@ -7,6 +7,7 @@
 #   ./cairn tools/pebbles/main.crn do <id>
 #   ./cairn tools/pebbles/main.crn done <id>
 #   ./cairn tools/pebbles/main.crn block <id> <reason...>
+#   ./cairn tools/pebbles/main.crn note <id> <text...>
 
 IMPORT "lib/store.crn"
 
@@ -15,12 +16,8 @@ DEF emit_lines : [str] -> void EFFECT io
   DROP
 END
 
-DEF pebble_row_line : pebble_row -> str EFFECT pure
-  pebble_decode_row pebble_line
-END
-
 DEF usage : -> void EFFECT io
-  "usage: pebbles <init|add|ls|next|do|done|block> [args]" SAID
+  "usage: pebbles <init|add|ls|next|do|done|block|note> [args]" SAID
 END
 
 DEF command_init : -> void EFFECT db
@@ -42,13 +39,26 @@ DEF command_add : [str] -> void EFFECT db
 END
 
 DEF command_ls : -> void EFFECT db
-  pebbles_store_pairs LET rows
+  pebbles_store_all LET pebbles
 
-  rows LEN 0 EQ
+  pebbles LEN 0 EQ
   IF
     "pebbles: no items" SAID
   ELSE
-    rows { pebble_row_line } MAP emit_lines
+    pebbles LEN LET total
+    pebbles { pebble_is_open } FILTER LEN LET open_count
+    pebbles { pebble_is_doing } FILTER LEN LET doing_count
+    pebbles { pebble_is_blocked } FILTER LEN LET blocked_count
+    pebbles { pebble_is_done } FILTER LEN LET done_count
+
+    done_count NUM_STR
+    blocked_count NUM_STR
+    doing_count NUM_STR
+    open_count NUM_STR
+    total NUM_STR
+    "pebbles: total={} open={} doing={} blocked={} done={}" FMT SAID
+
+    pebbles { pebble_line } MAP emit_lines
   END
 END
 
@@ -148,6 +158,35 @@ DEF command_block : [str] -> void EFFECT db
   END
 END
 
+DEF command_note : [str] -> void EFFECT db
+  LET args
+
+  args LEN 3 GTE
+  IF
+    args TAIL HEAD TO_INT
+    MATCH
+      Ok {
+        LET target_id
+        args TAIL TAIL " " JOIN LET note_text
+        target_id note_text pebbles_store_add_note
+        MATCH
+          Ok {
+            pebble_line SAID
+          }
+          Err {
+            "pebbles: {}" FMT SAID
+          }
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles note <id> <text>" SAID
+  END
+END
+
 ARGV LEN 0 EQ
 IF
   usage
@@ -182,7 +221,12 @@ ELSE
               IF
                 ARGV command_block
               ELSE
-                usage
+                cmd "note" EQ
+                IF
+                  ARGV command_note
+                ELSE
+                  usage
+                END
               END
             END
           END

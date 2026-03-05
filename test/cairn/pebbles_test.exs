@@ -32,8 +32,8 @@ defmodule Cairn.PebblesTest do
   end
 
   test "shows usage for no args and unknown command" do
-    assert run_pebbles([]) =~ "usage: pebbles <init|add|ls|next|do|done|block> [args]"
-    assert run_pebbles(["wat"]) =~ "usage: pebbles <init|add|ls|next|do|done|block> [args]"
+    assert run_pebbles([]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note> [args]"
+    assert run_pebbles(["wat"]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note> [args]"
   end
 
   test "init, add, and ls round-trip through DataStore" do
@@ -48,7 +48,11 @@ defmodule Cairn.PebblesTest do
       |> String.trim()
       |> String.split("\n")
 
-    assert lines == ["#1 [open] first task", "#2 [open] second"]
+    assert lines == [
+             "pebbles: total=2 open=2 doing=0 blocked=0 done=0",
+             "#1 [open] first task",
+             "#2 [open] second"
+           ]
   end
 
   test "next, do, done, and block enforce lifecycle transitions" do
@@ -58,6 +62,9 @@ defmodule Cairn.PebblesTest do
     assert run_pebbles(["next"]) =~ "#1 [open] first"
     assert run_pebbles(["do", "1"]) =~ "#1 [doing] first"
     assert run_pebbles(["block", "2", "waiting", "on", "deps"]) =~ "#2 [blocked] second -- waiting on deps"
+    assert run_pebbles(["note", "2", "waiting", "on", "review"]) =~
+             "#2 [blocked] second -- waiting on deps (notes:1)"
+
     assert run_pebbles(["done", "1"]) =~ "#1 [done] first"
 
     assert run_pebbles(["do", "1"]) =~ "pebbles: cannot move done pebble to doing"
@@ -89,7 +96,9 @@ defmodule Cairn.PebblesTest do
     assert stdout =~ "PASS do transition moves open pebble to doing"
     assert stdout =~ "PASS done transition rejects already done pebbles"
     assert stdout =~ "PASS block transition requires reason"
-    assert stderr =~ "TEST SUMMARY: total=6 passed=6 failed=0"
+    assert stdout =~ "PASS note transition prepends newest note"
+    assert stdout =~ "PASS store note appends through command boundary"
+    assert stderr =~ "TEST SUMMARY: total=8 passed=8 failed=0"
   end
 
   defp run_pebbles(argv) do

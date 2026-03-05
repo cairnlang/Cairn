@@ -14,6 +14,24 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xvii — Pebbles P3: Notes + Output Formatting + Test Hardening
+- Extended the Pebbles domain model to include per-item notes:
+  - `TYPE pebble = Pebble int str str str [str]`
+  - added note/state helpers and note-aware rendering in `tools/pebbles/lib/domain.crn`
+- Extended store encoding/decoding to persist notes with backward-tolerant decoding for older rows:
+  - note blob encode/decode helpers and record format expansion in `tools/pebbles/lib/store.crn`
+  - added `pebbles_store_add_note`
+  - stabilized list ordering via sorted `pebbles_store_pairs`
+- Added CLI command:
+  - `note <id> <text...>` in `tools/pebbles/main.crn`
+- Improved list output readability:
+  - `ls` now prints a status summary header (`total/open/doing/blocked/done`)
+  - rows include note count suffix when present (`(notes:N)`)
+- Hardened tests:
+  - expanded Cairn-native tests in `tools/pebbles/test.crn` (transition + store note coverage)
+  - expanded integration assertions in `test/cairn/pebbles_test.exs`
+  - updated usage/docs in `tools/pebbles/README.md`
+
 ### v0.10.xvi — Pebbles P2: Lifecycle Transitions + Validation
 - Split Pebbles domain logic into a dedicated pure module:
   - `tools/pebbles/lib/domain.crn`

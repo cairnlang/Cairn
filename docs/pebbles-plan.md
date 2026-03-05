@@ -7,6 +7,7 @@ Date: March 5, 2026
 - P1 landed: scaffold + storage boundary + `init/add/ls`.
 - P1 durability fix landed: Mnesia log sync after writes/deletes so separate CLI invocations observe persisted state.
 - P2 landed: domain transitions + lifecycle commands (`next/do/done/block`) with transition validation.
+- P3 landed: notes command + improved `ls` formatting + hardened test coverage.
 - Implemented files:
   - `tools/pebbles/main.crn`
   - `tools/pebbles/lib/store.crn`

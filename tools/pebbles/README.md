@@ -12,10 +12,13 @@ Single-agent local task tracker in Cairn.
 ./cairn tools/pebbles/main.crn do 1
 ./cairn tools/pebbles/main.crn done 1
 ./cairn tools/pebbles/main.crn block 2 "waiting on review"
+./cairn tools/pebbles/main.crn note 2 "unblocked after deploy"
 ```
 
 ## Notes
 
-- v1 now supports the first lifecycle flow: `open -> doing -> done` and `block`.
+- `ls` prints a summary line plus sorted pebble rows.
+- rows show note counts as `(notes:N)` when notes exist.
+- v1 now supports the first lifecycle flow: `open -> doing -> done`, `block`, and `note`.
 - Storage uses Cairn `DB_*` via prelude `data_*` helpers (default backend: Mnesia).
 - Data location follows existing runtime configuration (`CAIRN_DB_DIR`, backend settings).

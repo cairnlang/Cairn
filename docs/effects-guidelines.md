@@ -173,6 +173,44 @@ END
   - runs gated Postgres integration suites (`db_test` + `http_test`)
   - tears down automatically
 
+## Slice J Web Effect-Surface Cleanup (Completed)
+
+- Standardized shared web-lib request signatures around prelude aliases:
+  - `query`
+  - `form`
+  - `headers`
+  - `cookies`
+  - `session`
+- Added/used typed request-envelope adapters consistently:
+  - handlers now expose `*_request_env : request_envelope -> ...`
+  - launchers call `request_pack` before invoking handler wrappers
+- Expanded this uniform boundary pattern to the previously unmigrated web launchers:
+  - `session_demo`
+  - `login_app`
+  - `afford_app`
+- Kept effect boundaries explicit:
+  - pure rendering/routing functions remain `EFFECT pure`
+  - auth/db/boundary shells remain explicitly effectful (`http`/`db`)
+
+## Slice K Web Edge Assurance Harness (Completed)
+
+- Added dedicated `:web_edge` tags for the main effectful edge flows in `test/cairn/http_test.exs`:
+  - todo mutation flow (`POST /add` + `POST /done` + persistence check)
+  - session lifecycle flow (`remember`/`logout` + cookie/session-store checks)
+  - login/auth lifecycle flow (invalid login, login, protected routes, logout)
+  - invalid-input hardening flow (`afford_app` rejects malformed numeric input)
+- Added one-command harness: `scripts/test_web_edges.sh`
+  - runs `mix test --only web_edge test/cairn/http_test.exs`
+  - prints clear progress and success/failure output for CI
+
+## Slice L Remaining Web Context Migration (Completed)
+
+- Migrated the remaining shared web handlers to typed `request_ctx` accessor style:
+  - `examples/web/lib/session_demo.crn`
+  - `examples/web/lib/afford_web.crn`
+- Replaced unpacked request-arg signatures and boundary `DROP` cleanup with direct context reads (`request_ctx_path`, `request_ctx_method`, `request_ctx_form`, `request_ctx_session`).
+- Kept handler behavior unchanged while making the web surface consistently context-driven across all primary examples.
+
 ## Postgres Discipline Rules
 
 - Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.

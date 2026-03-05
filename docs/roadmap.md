@@ -107,6 +107,17 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
   - `examples/web/lib/login_web.crn`
 - Preserved behavior while reducing parameter-threading noise and making route/auth logic read against one typed request context value.
 
+### v0.10.xo — TODO NEXT N8: Remaining Web Context Migration + Edge Harness Landing
+- Migrated remaining web handlers from unpacked argument lists to `request_ctx` accessors:
+  - `examples/web/lib/session_demo.crn`
+  - `examples/web/lib/afford_web.crn`
+- Removed the last request-boundary `request_unpack + DROP` plumbing in web shared handlers.
+- Landed web edge assurance assets together:
+  - `scripts/test_web_edges.sh`
+  - `:web_edge` tags in `test/cairn/http_test.exs`
+  - `docs/effects-guidelines.md` slice notes
+- Preserved runtime behavior while making all primary web example handlers context-driven and CI-checkable via one command.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`

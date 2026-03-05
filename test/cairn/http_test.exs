@@ -324,6 +324,7 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  @tag :web_edge
   test "web todo app can add and complete Mnesia-backed items through POST routes and survive app restart" do
     previous = System.get_env("CAIRN_DB_DIR")
     db_dir = temp_db_dir()
@@ -467,6 +468,7 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  @tag :web_edge
   test "web affordability app rejects invalid input cleanly" do
     port = free_port()
     task = start_afford_app(port)
@@ -487,6 +489,7 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  @tag :web_edge
   test "web session demo can remember and clear a server-side session through cookies" do
     previous = System.get_env("CAIRN_DB_DIR")
     db_dir = temp_db_dir()
@@ -561,6 +564,7 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(restarted_task, :brutal_kill)
   end
 
+  @tag :web_edge
   test "web login demo can log in, persist identity in session, and log out" do
     previous = System.get_env("CAIRN_DB_DIR")
     db_dir = temp_db_dir()

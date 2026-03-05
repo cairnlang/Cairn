@@ -6,5 +6,6 @@ IMPORT "lib/web_config.crn"
 
 port bind_host "web: serving session demo at http://{}:{}/" FMT SAID
 bind_host port {
-  handle_session_request
+  request_pack
+  handle_session_request_env
 } HTTP_SERVE

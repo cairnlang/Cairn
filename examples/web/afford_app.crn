@@ -6,5 +6,6 @@ IMPORT "lib/web_config.crn"
 
 port bind_host "web: serving affordability checker at http://{}:{}/" FMT SAID
 bind_host port {
-  handle_afford_request
+  request_pack
+  handle_afford_request_env
 } HTTP_SERVE

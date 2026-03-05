@@ -28,9 +28,7 @@ mix escript.build
 
 If you change runtime code under `lib/cairn/*.ex`, rebuild `./cairn` with `mix escript.build`.
 
-## Cairn In Book Order
-
-The project and examples follow the same progression as the Runewarden tutorial book.
+## Language Tour
 
 ### 1) Stacks, words, contracts
 

@@ -1,0 +1,62 @@
+IMPORT "../../practical/lib/todo.crn"
+
+DEF todo_pair_key : tuple[str str] -> str EFFECT pure
+  FST
+END
+
+DEF todo_pair_value : tuple[str str] -> str EFFECT pure
+  SND
+END
+
+DEF todo_pair_is_item : tuple[str str] -> bool EFFECT pure
+  todo_pair_key "todo:" STARTS_WITH
+END
+
+DEF todo_pair_to_line : tuple[str str] -> str EFFECT pure
+  todo_pair_value
+END
+
+DEF todo_key_for_id : int -> str EFFECT pure
+  NUM_STR "todo:{}" FMT
+END
+
+DEF todo_line_title : str -> str EFFECT pure
+  "|" SPLIT TAIL "|" JOIN
+END
+
+DEF todo_list_items : -> [str] EFFECT db
+  data_pairs
+  { todo_pair_is_item } FILTER
+  { todo_pair_to_line } MAP
+END
+
+DEF todo_next_id : -> int EFFECT db
+  todo_list_items LEN 1 ADD
+END
+
+DEF todo_add_open_title : str -> void EFFECT db
+  "open|{}" FMT
+  todo_next_id todo_key_for_id
+  data_put
+END
+
+DEF todo_mark_done : int -> void EFFECT db
+  LET target_id
+
+  target_id todo_key_for_id data_get
+  MATCH
+    Ok {
+      DUP todo_is_open
+      IF
+        todo_line_title "done|{}" FMT
+        target_id todo_key_for_id
+        data_put
+      ELSE
+        DROP
+      END
+    }
+    Err {
+      DROP
+    }
+  END
+END

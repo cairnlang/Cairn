@@ -8,6 +8,14 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xe — Cairn-Side Todo Domain Store Extraction
+- Added `examples/web/lib/todo_store.crn` as a domain-specific Cairn storage module layered over generic `data_*` helpers.
+- Moved todo persistence details out of `examples/web/lib/todo_web.crn`:
+  - list/load items
+  - add open item
+  - mark done transition
+- Kept runtime boundaries generic (`Cairn.DataStore` + backend), avoiding todo-specific runtime code.
+
 ### v0.10.xd — DataStore Boundary + Todo Migration (DB Slice)
 - Added `Cairn.DataStore` as a runtime-side boundary for app data access, with `Cairn.DataStore.Backend.Mnesia` as the default backend.
 - Routed built-in DB operations through that boundary:

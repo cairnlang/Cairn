@@ -117,3 +117,55 @@ END
   - `data_pairs`
 - Migrated `examples/web/lib/todo_web.crn` off raw `DB_*` calls and onto `data_*` helpers.
 - Added delegation coverage in `test/cairn/db_test.exs` with a fake backend to prove runtime backend swapping works.
+
+## Slice E Domain Store Boundary (Completed)
+
+- Added `examples/web/lib/todo_store.crn` as a Cairn-side domain storage module on top of generic `data_*` helpers.
+- Moved todo persistence/key-shape logic out of `todo_web.crn` into that domain module:
+  - list items
+  - add open item
+  - mark item done
+- Kept runtime generic (no todo-specific runtime module), preserving clean language/framework boundaries.
+
+## Postgres Migration Track (Planned)
+
+Objective: move the todo web app from the Mnesia default backend to PostgreSQL while preserving the same Cairn-side effect discipline (`EFFECT db`) and avoiding direct host interop in Cairn source.
+
+### Slice F Postgres DataStore Backend (Bounded)
+
+- Implement `Cairn.DataStore.Backend.Postgres` with the same contract as `Cairn.DataStore`.
+- Keep parity with current key/value behavior for first cut:
+  - string key
+  - string value
+  - list pairs
+- Backend selection stays runtime-configurable through `:data_store_backend`.
+- Failures map to runtime errors/result paths consistently with current DB behavior.
+
+Why second: establishes a production-oriented backend without changing Cairn syntax or app contracts.
+
+### Slice G Environment + Boot Wiring
+
+- Add bounded runtime config for Postgres connection inputs (host/port/db/user/password/sslmode).
+- Keep a safe default path:
+  - Mnesia remains default if Postgres config is absent.
+  - explicit opt-in switches backend to Postgres.
+- Add startup diagnostics so backend choice is visible and misconfiguration fails fast.
+
+Why third: makes backend switching operationally usable and debuggable.
+
+### Slice H Verification + Regression Matrix
+
+- Add integration coverage for both backends:
+  - Mnesia path
+  - Postgres path (gated by env/config)
+- Add behavior-parity tests for todo operations across backends.
+- Keep existing fake-backend delegation tests as fast guardrails.
+
+Why fourth: locks in backend-agnostic behavior and prevents regressions during later DB features.
+
+## Postgres Discipline Rules
+
+- Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.
+- Host/database specifics remain in runtime Elixir boundaries (`DataStore` and backends).
+- Result/error mapping remains edge-local and explicit.
+- Postgres rollout must preserve Mnesia default behavior unless explicitly configured.

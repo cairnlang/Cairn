@@ -211,6 +211,18 @@ END
 - Replaced unpacked request-arg signatures and boundary `DROP` cleanup with direct context reads (`request_ctx_path`, `request_ctx_method`, `request_ctx_form`, `request_ctx_session`).
 - Kept handler behavior unchanged while making the web surface consistently context-driven across all primary examples.
 
+## Slice M Response Context Combinators (Completed)
+
+- Added bounded response-side context combinators in `lib/prelude/web.crn`:
+  - non-session pack/unpack (`response_pack_ctx`, `response_unpack_ctx`)
+  - session-aware pack/unpack (`session_response_pack_ctx`, `session_response_unpack_ctx`)
+  - attach/return/clear helpers (`response_with_session_ctx`, `session_response_return`, `session_response_clear_ctx`)
+  - request-boundary adapters (`respond_with_ctx_session`, `respond_with_ctx_cleared_session`)
+- Migrated session/logout flows in:
+  - `examples/web/lib/login_web.crn`
+  - `examples/web/lib/session_demo.crn`
+- Reduced manual response threading and kept behavior/effects unchanged.
+
 ## Postgres Discipline Rules
 
 - Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.

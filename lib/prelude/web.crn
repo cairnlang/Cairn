@@ -9,6 +9,8 @@ TYPEALIAS http_response = tuple[str headers int]
 TYPEALIAS route_result = result[http_response str]
 TYPEALIAS request_envelope = tuple[str str tuple[query form tuple[headers cookies session]]]
 TYPEALIAS request_ctx = request_envelope
+TYPEALIAS response_ctx = http_response
+TYPEALIAS session_response_ctx = tuple[str headers tuple[session int]]
 
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
 DEF http_html_ok : str -> str headers int EFFECT pure
@@ -84,6 +86,15 @@ DEF http_unpack_response : http_response -> str headers int EFFECT pure
   status headers body
 END
 
+# Response context pack/unpack helpers.
+DEF response_pack_ctx : str headers int -> response_ctx EFFECT pure
+  http_pack_response
+END
+
+DEF response_unpack_ctx : response_ctx -> str headers int EFFECT pure
+  http_unpack_response
+END
+
 # Pack request fields into a typed request envelope for cleaner handler signatures.
 DEF request_pack : str str query form headers cookies session -> request_envelope EFFECT pure
   LET path
@@ -147,6 +158,69 @@ DEF request_ctx_session : request_ctx -> session EFFECT pure
   TRD TRD TRD
 END
 
+# Pack a session-aware response tuple context.
+DEF session_response_pack_ctx : str headers session int -> session_response_ctx EFFECT pure
+  LET body
+  LET headers
+  LET session
+  LET status
+
+  #( session status ) LET tail
+  #( body headers tail )
+END
+
+# Unpack a session-aware response context.
+DEF session_response_unpack_ctx : session_response_ctx -> str headers session int EFFECT pure
+  LET packed
+
+  packed FST LET body
+  packed SND LET headers
+  packed TRD LET tail
+  tail FST LET session
+  tail SND LET status
+
+  status session headers body
+END
+
+# Attach a session to a packed non-session response context.
+DEF response_with_session_ctx : session response_ctx -> session_response_ctx EFFECT pure
+  LET session
+  response_unpack_ctx
+  LET body
+  LET headers
+  LET status
+  status session headers body
+  session_response_pack_ctx
+END
+
+# Return a session-aware response context to the HTTP_SERVE stack shape.
+DEF session_response_return : session_response_ctx -> str headers session int EFFECT pure
+  session_response_unpack_ctx
+END
+
+# Clear session state from a packed session-aware response context.
+DEF session_response_clear_ctx : session_response_ctx -> session_response_ctx EFFECT pure
+  session_response_unpack_ctx
+  session_clear
+  session_response_pack_ctx
+END
+
+# Attach request_ctx session to a response stack.
+DEF respond_with_ctx_session : request_ctx str headers int -> str headers session int EFFECT pure
+  LET ctx
+  response_pack_ctx
+  ctx request_ctx_session response_with_session_ctx
+  session_response_return
+END
+
+# Attach request_ctx session and clear it before returning.
+DEF respond_with_ctx_cleared_session : request_ctx str headers int -> str headers session int EFFECT pure
+  LET ctx
+  response_pack_ctx
+  ctx request_ctx_session response_with_session_ctx
+  session_response_clear_ctx
+  session_response_return
+END
 
 # Add or replace one response header while preserving the HTTP_SERVE stack shape.
 # Signature: value key body headers status -> body headers status

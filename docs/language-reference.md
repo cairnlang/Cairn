@@ -1078,6 +1078,42 @@ request_ctx_session
 before: [ctx:tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]]]
 after:  [session:map[str str]]
 
+response_pack_ctx
+before: [body:str, headers:map[str str], status:int]
+after:  [response_ctx:tuple[str map[str str] int]]
+
+response_unpack_ctx
+before: [response_ctx:tuple[str map[str str] int]]
+after:  [body:str, headers:map[str str], status:int]
+
+session_response_pack_ctx
+before: [body:str, headers:map[str str], session:map[str str], status:int]
+after:  [session_response_ctx:tuple[str map[str str] tuple[map[str str] int]]]
+
+session_response_unpack_ctx
+before: [session_response_ctx:tuple[str map[str str] tuple[map[str str] int]]]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+
+response_with_session_ctx
+before: [session:map[str str], response_ctx:tuple[str map[str str] int]]
+after:  [session_response_ctx:tuple[str map[str str] tuple[map[str str] int]]]
+
+session_response_return
+before: [session_response_ctx:tuple[str map[str str] tuple[map[str str] int]]]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+
+session_response_clear_ctx
+before: [session_response_ctx:tuple[str map[str str] tuple[map[str str] int]]]
+after:  [session_response_ctx:tuple[str map[str str] tuple[map[str str] int]]]
+
+respond_with_ctx_session
+before: [ctx:request_ctx, body:str, headers:map[str str], status:int]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+
+respond_with_ctx_cleared_session
+before: [ctx:request_ctx, body:str, headers:map[str str], status:int]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+
 http_add_header
 before: [value:str, key:str, body:str, headers:map[str str], status:int]
 after:  [body:str, headers:map[str str], status:int]

@@ -118,6 +118,20 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
   - `docs/effects-guidelines.md` slice notes
 - Preserved runtime behavior while making all primary web example handlers context-driven and CI-checkable via one command.
 
+### v0.10.xp — TODO NEXT N9: Response Context Combinators
+- Added typed response-side combinators in `lib/prelude/web.crn`:
+  - `response_pack_ctx` / `response_unpack_ctx`
+  - `session_response_pack_ctx` / `session_response_unpack_ctx`
+  - `response_with_session_ctx`
+  - `session_response_return`
+  - `session_response_clear_ctx`
+  - `respond_with_ctx_session`
+  - `respond_with_ctx_cleared_session`
+- Migrated session-aware web handlers to use response combinators:
+  - `examples/web/lib/login_web.crn`
+  - `examples/web/lib/session_demo.crn`
+- Removed manual `LET body/headers/status` response threading in logout/session-clear paths while preserving behavior.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`

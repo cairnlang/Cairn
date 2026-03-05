@@ -11,14 +11,6 @@ DEF render_session_page : str -> str headers int EFFECT pure
   http_html_ok
 END
 
-DEF with_session : session str headers int -> str headers session int EFFECT pure
-  LET session
-  LET body
-  LET headers
-  LET status
-  status session headers body
-END
-
 DEF handle_session_request_env : request_envelope -> str headers session int EFFECT pure
   handle_session_request_ctx
 END
@@ -32,10 +24,10 @@ DEF handle_session_request_ctx : request_ctx -> str headers session int EFFECT p
     IF
       "name" ctx request_ctx_session "" map_get_or
       render_session_page
-      ctx request_ctx_session with_session
+      ctx respond_with_ctx_session
     ELSE
       "not found\n" http_text_not_found
-      ctx request_ctx_session with_session
+      ctx respond_with_ctx_session
     END
   ELSE
     ctx request_ctx_method "POST" EQ
@@ -46,29 +38,25 @@ DEF handle_session_request_ctx : request_ctx -> str headers session int EFFECT p
         TRIM
         LET clean_name
         clean_name render_session_page
-        LET body
-        LET headers
-        LET status
-        status ctx request_ctx_session headers body "name" clean_name
+        response_pack_ctx
+        ctx request_ctx_session response_with_session_ctx
+        session_response_unpack_ctx
+        "name" clean_name
         session_put
       ELSE
         ctx request_ctx_path "/logout" EQ
         IF
           ""
           render_session_page
-          LET body
-          LET headers
-          LET status
-          status ctx request_ctx_session headers body
-          session_clear
+          ctx respond_with_ctx_cleared_session
         ELSE
           "not found\n" http_text_not_found
-          ctx request_ctx_session with_session
+          ctx respond_with_ctx_session
         END
       END
     ELSE
       "method not allowed\n" http_text_method_not_allowed
-      ctx request_ctx_session with_session
+      ctx respond_with_ctx_session
     END
   END
 END

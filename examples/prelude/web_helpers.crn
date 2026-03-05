@@ -138,3 +138,18 @@ LET allowed_finish_status
 allowed_finish_status "allowed_finish_status={}" FMT SAID
 allowed_finish_headers "allowed_finish_headers={}" FMT SAID
 allowed_finish_body "allowed_finish_body={}" FMT SAID
+
+"hello session\n" http_text_ok
+response_pack_ctx
+M[ "user" "alice" "role" "admin" ]
+response_with_session_ctx
+session_response_unpack_ctx
+LET sess_demo_body
+LET sess_demo_headers
+LET sess_demo_session
+LET sess_demo_status
+
+sess_demo_status "sess_demo_status={}" FMT SAID
+sess_demo_headers "sess_demo_headers={}" FMT SAID
+sess_demo_session "sess_demo_session={}" FMT SAID
+sess_demo_body "sess_demo_body={}" FMT SAID

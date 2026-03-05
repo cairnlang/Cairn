@@ -75,90 +75,141 @@ DEF handle_login_request_env : request_envelope -> str headers session int EFFEC
   handle_login_request_ctx
 END
 
+DEF route_get_home : request_ctx -> session_route_result EFFECT pure
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/" route_is_get
+  IF
+    ctx request_ctx_session logged_in_p
+    IF
+      ctx request_ctx_session current_user_role
+      ctx request_ctx_session current_user_name
+      render_home_page
+      ctx route_session_from_ctx
+    ELSE
+      "" render_login_page
+      ctx route_session_from_ctx
+    END
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_get_login_page : request_ctx -> session_route_result EFFECT pure
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/login" route_is_get
+  IF
+    "" render_login_page
+    ctx route_session_from_ctx
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_get_profile : request_ctx -> session_route_result EFFECT pure
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/profile" route_is_get
+  IF
+    ctx request_ctx_session current_user_role
+    ctx request_ctx_session current_user_name
+    render_profile_page
+    ctx route_session_from_ctx
+    route_guard_login_candidate
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_get_admin : request_ctx -> session_route_result EFFECT pure
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/admin" route_is_get
+  IF
+    ctx request_ctx_session current_user_name
+    render_admin_page
+    ctx route_session_from_ctx
+    "admin" route_guard_role_candidate
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_post_login : request_ctx -> session_route_result EFFECT http
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/login" route_is_post
+  IF
+    "username" ctx request_ctx_form "" map_get_or TRIM LET username
+    "password" ctx request_ctx_form "" map_get_or TRIM LET password
+
+    username LEN 0 GT
+    password LEN 0 GT AND
+    IF
+      username password AUTH_CHECK
+      MATCH
+        Ok {
+          DUP "role" GET LET role
+          "user" GET LET user
+          role user render_home_page
+          user role with_user_session
+          session_response_pack_ctx
+          Ok
+        }
+        Err {
+          DROP
+          "Invalid username or password." render_login_page
+          ctx route_session_from_ctx
+        }
+      END
+    ELSE
+      "Invalid username or password." render_login_page
+      ctx route_session_from_ctx
+    END
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_post_logout : request_ctx -> session_route_result EFFECT pure
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/logout" route_is_post
+  IF
+    "" render_login_page
+    ctx route_session_from_ctx_cleared
+  ELSE
+    "no_match" Err
+  END
+END
+
 DEF handle_login_request_ctx : request_ctx -> str headers session int EFFECT http
   LET ctx
 
-  ctx request_ctx_method "GET" EQ
-  IF
-    ctx request_ctx_path "/" EQ
-    IF
-      ctx request_ctx_session logged_in_p
-      IF
-        ctx request_ctx_session current_user_role
-        ctx request_ctx_session current_user_name
-        render_home_page
-        ctx respond_with_ctx_session
-      ELSE
-        "" render_login_page
-        ctx respond_with_ctx_session
-      END
-    ELSE
-      ctx request_ctx_path "/login" EQ
-      IF
-        "" render_login_page
-        ctx respond_with_ctx_session
-      ELSE
-        ctx request_ctx_path "/profile" EQ
-        IF
-          ctx request_ctx_session current_user_role
-          ctx request_ctx_session current_user_name
-          render_profile_page
-          ctx guard_login_response
-        ELSE
-          ctx request_ctx_path "/admin" EQ
-          IF
-            ctx request_ctx_session current_user_name
-            render_admin_page
-            ctx "admin" guard_role_response
-          ELSE
-            "not found\n" http_text_not_found
-            ctx respond_with_ctx_session
-          END
-        END
-      END
-    END
-  ELSE
-    ctx request_ctx_method "POST" EQ
-    IF
-      ctx request_ctx_path "/login" EQ
-      IF
-        "username" ctx request_ctx_form "" map_get_or TRIM LET username
-        "password" ctx request_ctx_form "" map_get_or TRIM LET password
-
-        username LEN 0 GT
-        password LEN 0 GT AND
-        IF
-          username password AUTH_CHECK
-          MATCH
-            Ok {
-              DUP "role" GET LET role
-              "user" GET LET user
-              role user render_home_page
-              user role with_user_session
-            }
-            Err {
-              DROP
-              "Invalid username or password." render_login_page
-              ctx respond_with_ctx_session
-            }
-          END
-        ELSE
-          "Invalid username or password." render_login_page
-          ctx respond_with_ctx_session
-        END
-      ELSE
-        ctx request_ctx_path "/logout" EQ
-        IF
-          "" render_login_page
-          ctx respond_with_ctx_cleared_session
-        ELSE
-          "not found\n" http_text_not_found
-          ctx respond_with_ctx_session
-        END
-      END
-    ELSE
-      "method not allowed\n" http_text_method_not_allowed
-      ctx respond_with_ctx_session
-    END
-  END
+  ctx route_get_home
+  ctx route_get_login_page
+  route_or_session
+  ctx route_get_profile
+  route_or_session
+  ctx route_get_admin
+  route_or_session
+  ctx route_post_login
+  route_or_session
+  ctx route_post_logout
+  route_or_session
+  LET candidate
+  [ "GET" "POST" ] ctx candidate route_finish_session_allowed
 END

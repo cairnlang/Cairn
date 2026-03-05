@@ -179,3 +179,18 @@ guard_role_status "guard_role_status={}" FMT SAID
 guard_role_headers "guard_role_headers={}" FMT SAID
 guard_role_session "guard_role_session={}" FMT SAID
 guard_role_body "guard_role_body={}" FMT SAID
+
+"profile body\n" http_text_ok
+guest_ctx route_session_from_ctx
+route_guard_login_candidate
+LET route_candidate
+[ "GET" "POST" ] guest_ctx route_candidate route_finish_session_allowed
+LET route_guard_body
+LET route_guard_headers
+LET route_guard_session
+LET route_guard_status
+
+route_guard_status "route_guard_status={}" FMT SAID
+route_guard_headers "route_guard_headers={}" FMT SAID
+route_guard_session "route_guard_session={}" FMT SAID
+route_guard_body "route_guard_body={}" FMT SAID

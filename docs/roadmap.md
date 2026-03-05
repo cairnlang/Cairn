@@ -142,6 +142,22 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Expanded `examples/prelude/web_helpers.crn` with concrete guard-combinator demonstrations for guest/admin request contexts.
 - Preserved behavior while making auth guard intent declarative and reusable.
 
+### v0.10.xr — TODO NEXT N11: Route-Level Middleware Composition
+- Added session-route middleware combinators in `lib/prelude/web.crn`:
+  - `route_session_from_ctx`
+  - `route_session_from_ctx_cleared`
+  - `route_or_session`
+  - `route_guard_login_candidate`
+  - `route_guard_role_candidate`
+  - `route_finish_session`
+  - `route_finish_session_allowed`
+- Refactored `examples/web/lib/login_web.crn` to route-candidate composition:
+  - split route handlers (`route_get_*`, `route_post_*`)
+  - composed with `route_or_session`
+  - finalized with `route_finish_session_allowed`
+- Extended `examples/prelude/web_helpers.crn` with a route-level guard candidate demo.
+- Preserved existing login/session behavior while removing most route-level auth/control-flow nesting.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`

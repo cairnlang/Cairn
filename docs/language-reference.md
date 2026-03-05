@@ -1197,6 +1197,36 @@ after:  [body:str, headers:map[str str], status:int]
 route_finish_allowed
 before: [allowed:[str], method:str, candidate:result]
 after:  [body:str, headers:map[str str], status:int]
+
+route_session_from_ctx
+before: [ctx:request_ctx, body:str, headers:map[str str], status:int]
+after:  [candidate:result[session_response_ctx str]]
+
+route_session_from_ctx_cleared
+before: [ctx:request_ctx, body:str, headers:map[str str], status:int]
+after:  [candidate:result[session_response_ctx str]]
+
+route_or_session
+before: [fallback:result[session_response_ctx str], preferred:result[session_response_ctx str]]
+after:  [chosen:result[session_response_ctx str]]
+
+route_guard_login_candidate
+before: [candidate:result[session_response_ctx str]]
+after:  [candidate:result[session_response_ctx str]]
+note: when candidate is Ok, enforces login guard and rewrites to 401 response when missing user session
+
+route_guard_role_candidate
+before: [required_role:str, candidate:result[session_response_ctx str]]
+after:  [candidate:result[session_response_ctx str]]
+note: when candidate is Ok, enforces role guard and rewrites to 401/403 response as needed
+
+route_finish_session
+before: [ctx:request_ctx, candidate:result[session_response_ctx str]]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+
+route_finish_session_allowed
+before: [allowed:[str], ctx:request_ctx, candidate:result[session_response_ctx str]]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
 ```
 
 `HTTP_SERVE` accepts either response shape:

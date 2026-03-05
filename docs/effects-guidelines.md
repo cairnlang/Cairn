@@ -231,6 +231,15 @@ END
 - Applied them in the login web flow (`examples/web/lib/login_web.crn`) so auth checks read as composable boundary helpers instead of nested branch duplication.
 - Kept the effect model unchanged (`EFFECT pure` helpers over existing `request_ctx` + response context combinators).
 
+## Slice O Route-Level Middleware Composition (Completed)
+
+- Added session-route candidate combinators in `lib/prelude/web.crn` so route trees can compose as values:
+  - candidate constructors (`route_session_from_ctx`, `route_session_from_ctx_cleared`)
+  - composition/finalization (`route_or_session`, `route_finish_session_allowed`)
+  - candidate guards (`route_guard_login_candidate`, `route_guard_role_candidate`)
+- Refactored `examples/web/lib/login_web.crn` into route-level composition (`route_get_*`/`route_post_*` + `route_or_session`) instead of one large nested method/path branch tree.
+- Kept runtime behavior and effect boundaries unchanged while making web route control flow explicitly compositional.
+
 ## Postgres Discipline Rules
 
 - Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.

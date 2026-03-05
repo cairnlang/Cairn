@@ -11,6 +11,7 @@ TYPEALIAS request_envelope = tuple[str str tuple[query form tuple[headers cookie
 TYPEALIAS request_ctx = request_envelope
 TYPEALIAS response_ctx = http_response
 TYPEALIAS session_response_ctx = tuple[str headers tuple[session int]]
+TYPEALIAS session_route_result = result[session_response_ctx str]
 
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
 DEF http_html_ok : str -> str headers int EFFECT pure
@@ -456,6 +457,111 @@ DEF route_or : route_result route_result -> route_result EFFECT pure
   END
 END
 
+# Build a session-aware route candidate from a plain response stack and current request context.
+# Signature: ctx body headers status -> session_route_result
+DEF route_session_from_ctx : request_ctx str headers int -> session_route_result EFFECT pure
+  LET ctx
+  ctx respond_with_ctx_session
+  session_response_pack_ctx
+  Ok
+END
+
+# Build a session-aware route candidate that clears session state.
+# Signature: ctx body headers status -> session_route_result
+DEF route_session_from_ctx_cleared : request_ctx str headers int -> session_route_result EFFECT pure
+  LET ctx
+  ctx respond_with_ctx_cleared_session
+  session_response_pack_ctx
+  Ok
+END
+
+# Prefer the earlier candidate if it matched; otherwise keep fallback.
+# Signature: fallback preferred -> session_route_result
+DEF route_or_session : session_route_result session_route_result -> session_route_result EFFECT pure
+  LET fallback
+  LET preferred
+
+  preferred result_is_ok
+  IF
+    fallback DROP
+    preferred
+  ELSE
+    fallback
+  END
+END
+
+# Apply login guard middleware to a matched session route candidate.
+# Signature: candidate -> session_route_result
+DEF route_guard_login_candidate : session_route_result -> session_route_result EFFECT pure
+  LET candidate
+
+  candidate
+  MATCH
+    Ok {
+      session_response_unpack_ctx
+      LET body
+      LET headers
+      LET session
+      LET status
+
+      session guard_require_login
+      IF
+        status session headers body session_response_pack_ctx Ok
+      ELSE
+        "login required\n" http_text_unauthorized
+        LET denied_body
+        LET denied_headers
+        LET denied_status
+        denied_status session denied_headers denied_body session_response_pack_ctx Ok
+      END
+    }
+    Err {
+      Err
+    }
+  END
+END
+
+# Apply role guard middleware to a matched session route candidate.
+# Signature: required_role candidate -> session_route_result
+DEF route_guard_role_candidate : str session_route_result -> session_route_result EFFECT pure
+  LET required_role
+  LET candidate
+
+  candidate
+  MATCH
+    Ok {
+      session_response_unpack_ctx
+      LET body
+      LET headers
+      LET session
+      LET status
+
+      session guard_require_login
+      IF
+        session required_role guard_require_role
+        IF
+          status session headers body session_response_pack_ctx Ok
+        ELSE
+          "forbidden\n" http_text_forbidden
+          LET denied_body
+          LET denied_headers
+          LET denied_status
+          denied_status session denied_headers denied_body session_response_pack_ctx Ok
+        END
+      ELSE
+        "login required\n" http_text_unauthorized
+        LET denied_body
+        LET denied_headers
+        LET denied_status
+        denied_status session denied_headers denied_body session_response_pack_ctx Ok
+      END
+    }
+    Err {
+      Err
+    }
+  END
+END
+
 # Finalize a route chain into the stack shape HTTP_SERVE expects.
 DEF route_finish : route_result -> str headers int EFFECT pure
   "not found\n" http_text_not_found http_pack_response
@@ -508,5 +614,50 @@ DEF route_finish_allowed : route_result str [str] -> str headers int EFFECT pure
     ELSE
       "method not allowed\n" http_text_method_not_allowed
     END
+  END
+END
+
+# Finalize a session-route chain into HTTP_SERVE session-aware shape.
+# Signature: ctx candidate -> str headers session int
+DEF route_finish_session : session_route_result request_ctx -> str headers session int EFFECT pure
+  LET candidate
+  LET ctx
+
+  candidate
+  MATCH
+    Ok {
+      session_response_unpack_ctx
+    }
+    Err {
+      DROP
+      "not found\n" http_text_not_found
+      ctx respond_with_ctx_session
+    }
+  END
+END
+
+# Finalize a session-route chain with explicit allowed methods.
+# Signature: [str] ctx candidate -> str headers session int
+DEF route_finish_session_allowed : session_route_result request_ctx [str] -> str headers session int EFFECT pure
+  LET candidate
+  LET ctx
+  LET allowed
+
+  candidate
+  MATCH
+    Ok {
+      session_response_unpack_ctx
+    }
+    Err {
+      DROP
+      ctx request_ctx_method allowed route_method_allowed
+      IF
+        "not found\n" http_text_not_found
+        ctx respond_with_ctx_session
+      ELSE
+        "method not allowed\n" http_text_method_not_allowed
+        ctx respond_with_ctx_session
+      END
+    }
   END
 END

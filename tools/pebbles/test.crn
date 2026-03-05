@@ -1,0 +1,24 @@
+IMPORT "lib/store.crn"
+
+TEST "init keeps next id at least one"
+  pebbles_store_init
+  pebbles_store_next_id
+  DUP 1 GTE
+  ASSERT_TRUE
+END
+
+TEST "add returns monotonic ids"
+  pebbles_store_init
+  pebbles_store_next_id LET base
+
+  "alpha" pebbles_store_add_open LET first
+  "beta" pebbles_store_add_open LET second
+
+  first base ASSERT_EQ
+  second first 1 ADD ASSERT_EQ
+END
+
+TEST "encoded row title round-trips through decode helper"
+  "open|ship docs" pebble_decode_title
+  "ship docs" ASSERT_EQ
+END

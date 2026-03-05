@@ -6,7 +6,27 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ---
 
+## Active Plan Artifacts
+
+- Pebbles (single-agent CLI tracker): `docs/pebbles-plan.md`
+
+---
+
 ## Completed
+
+### v0.10.xv — Pebbles P1: Scaffold + Store Boundary + init/add/ls
+- Added `tools/pebbles/` as a Cairn-native single-agent CLI tracker workspace.
+- Added bounded storage boundary in `tools/pebbles/lib/store.crn` over `data_*` helpers (`DB_*` runtime boundary), including:
+  - key shape (`meta/next_id`, `pebble/<id>`)
+  - monotonic id allocation
+  - add/list primitives
+- Added runnable CLI entrypoint in `tools/pebbles/main.crn` with commands:
+  - `init`
+  - `add <title...>`
+  - `ls`
+- Added a durability follow-up in `lib/cairn/db.ex`: force Mnesia log sync after `put/delete` so data survives separate CLI invocations reliably.
+- Added usage docs in `tools/pebbles/README.md` and Cairn-native tests in `tools/pebbles/test.crn`.
+- Added integration coverage in `test/cairn/pebbles_test.exs` for command flow and native `--test` execution.
 
 ### v0.10.xh — TODO NEXT N1: Boundary Type Inventory + Alias Adoption
 - Added canonical web-boundary aliases in `lib/prelude/web.crn`:

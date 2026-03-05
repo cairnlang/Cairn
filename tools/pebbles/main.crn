@@ -1,0 +1,79 @@
+# Pebbles v1 CLI (single-agent, local).
+# Usage:
+#   ./cairn tools/pebbles/main.crn init
+#   ./cairn tools/pebbles/main.crn add <title...>
+#   ./cairn tools/pebbles/main.crn ls
+
+IMPORT "lib/store.crn"
+
+DEF emit_lines : [str] -> void EFFECT io
+  { DUP SAID } MAP
+  DROP
+END
+
+DEF pebble_row_line : pebble_row -> str EFFECT pure
+  LET pair
+
+  pair FST pebble_key_to_id LET id
+  pair SND pebble_decode_status LET status
+  pair SND pebble_decode_title LET title
+
+  title status id NUM_STR "#{} [{}] {}" FMT
+END
+
+DEF usage : -> void EFFECT io
+  "usage: pebbles <init|add|ls> [args]" SAID
+END
+
+DEF command_init : -> void EFFECT db
+  pebbles_store_init
+  "pebbles: initialized" SAID
+END
+
+DEF command_add : [str] -> void EFFECT db
+  LET args
+
+  args LEN 2 LT
+  IF
+    "usage: pebbles add <title>" SAID
+  ELSE
+    args TAIL " " JOIN
+    pebbles_store_add_open LET id
+    id NUM_STR "pebbles: added #{}" FMT SAID
+  END
+END
+
+DEF command_ls : -> void EFFECT db
+  pebbles_store_pairs LET rows
+
+  rows LEN 0 EQ
+  IF
+    "pebbles: no items" SAID
+  ELSE
+    rows { pebble_row_line } MAP emit_lines
+  END
+END
+
+ARGV LEN 0 EQ
+IF
+  usage
+ELSE
+  ARGV HEAD LET cmd
+
+  cmd "init" EQ
+  IF
+    command_init
+  ELSE
+    cmd "add" EQ
+    IF
+      ARGV command_add
+    ELSE
+      cmd "ls" EQ
+      IF
+        command_ls
+      ELSE
+        usage
+      END
+    END
+  END
+END

@@ -326,6 +326,7 @@ before: [format:str, value_n, ..., value_1]
 after:  [formatted:str]
 note: the format string is on top; placeholder values sit underneath it
 note: push placeholder values from right to left, then push the format string
+note: for `"#{} [{}] {}"` push `third`, then `second`, then `first`, then the format string
 
 ASSERT_EQ
 before: [expected, actual]

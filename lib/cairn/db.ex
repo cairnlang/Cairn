@@ -16,8 +16,12 @@ defmodule Cairn.DB do
     ensure_started()
 
     case :mnesia.transaction(fn -> :mnesia.write({@table, key, value}) end) do
-      {:atomic, :ok} -> :ok
-      {:aborted, reason} -> raise Cairn.RuntimeError, "DB_PUT failed: #{inspect(reason)}"
+      {:atomic, :ok} ->
+        sync_log!()
+        :ok
+
+      {:aborted, reason} ->
+        raise Cairn.RuntimeError, "DB_PUT failed: #{inspect(reason)}"
     end
   end
 
@@ -35,8 +39,12 @@ defmodule Cairn.DB do
     ensure_started()
 
     case :mnesia.transaction(fn -> :mnesia.delete({@table, key}) end) do
-      {:atomic, :ok} -> :ok
-      {:aborted, reason} -> raise Cairn.RuntimeError, "DB_DEL failed: #{inspect(reason)}"
+      {:atomic, :ok} ->
+        sync_log!()
+        :ok
+
+      {:aborted, reason} ->
+        raise Cairn.RuntimeError, "DB_DEL failed: #{inspect(reason)}"
     end
   end
 
@@ -44,7 +52,11 @@ defmodule Cairn.DB do
     ensure_started()
 
     case :mnesia.transaction(fn ->
-           :mnesia.foldl(fn {@table, key, value}, acc -> [{:tuple, [key, value]} | acc] end, [], @table)
+           :mnesia.foldl(
+             fn {@table, key, value}, acc -> [{:tuple, [key, value]} | acc] end,
+             [],
+             @table
+           )
          end) do
       {:atomic, pairs} ->
         Enum.sort_by(pairs, fn {:tuple, [key, _]} -> key end)
@@ -119,10 +131,17 @@ defmodule Cairn.DB do
 
     unless File.exists?(schema_file) do
       case :mnesia.create_schema([node()]) do
-        :ok -> :ok
-        {:error, {_, {:already_exists, _}}} -> :ok
-        {:error, {:already_exists, _}} -> :ok
-        {:error, reason} -> raise Cairn.RuntimeError, "cannot create Mnesia schema: #{inspect(reason)}"
+        :ok ->
+          :ok
+
+        {:error, {_, {:already_exists, _}}} ->
+          :ok
+
+        {:error, {:already_exists, _}} ->
+          :ok
+
+        {:error, reason} ->
+          raise Cairn.RuntimeError, "cannot create Mnesia schema: #{inspect(reason)}"
       end
     end
   end
@@ -140,9 +159,14 @@ defmodule Cairn.DB do
     end
 
     case :mnesia.wait_for_tables([@table], 5_000) do
-      :ok -> :ok
-      {:timeout, tables} -> raise Cairn.RuntimeError, "Mnesia table wait timed out: #{inspect(tables)}"
-      {:error, reason} -> raise Cairn.RuntimeError, "Mnesia table wait failed: #{inspect(reason)}"
+      :ok ->
+        :ok
+
+      {:timeout, tables} ->
+        raise Cairn.RuntimeError, "Mnesia table wait timed out: #{inspect(tables)}"
+
+      {:error, reason} ->
+        raise Cairn.RuntimeError, "Mnesia table wait failed: #{inspect(reason)}"
     end
   end
 
@@ -171,6 +195,16 @@ defmodule Cairn.DB do
       wait_until_stopped()
     else
       :ok
+    end
+  end
+
+  defp sync_log! do
+    case :mnesia.sync_log() do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        raise Cairn.RuntimeError, "Mnesia log sync failed: #{inspect(reason)}"
     end
   end
 end

@@ -1,0 +1,86 @@
+# Pebbles store boundary over Cairn DataStore (DB_* via prelude data_* helpers).
+
+TYPEALIAS pebble_row = data_row
+TYPEALIAS pebble_rows = [pebble_row]
+
+DEF pebble_pad_id : str -> str EFFECT pure
+  DUP LEN 12 LT
+  IF
+    "0" SWAP CONCAT
+    pebble_pad_id
+  END
+END
+
+DEF pebble_key_from_id : int -> str EFFECT pure
+  NUM_STR pebble_pad_id "pebble/{}" FMT
+END
+
+DEF pebble_key_to_id : str -> int EFFECT pure
+  "/" SPLIT TAIL HEAD
+  0 SWAP to_int_or
+END
+
+DEF pebble_encode_open : str -> str EFFECT pure
+  "open|{}" FMT
+END
+
+DEF pebble_decode_status : str -> str EFFECT pure
+  "|" SPLIT HEAD
+END
+
+DEF pebble_decode_title : str -> str EFFECT pure
+  "|" SPLIT TAIL "|" JOIN
+END
+
+DEF pebble_pair_is_item : pebble_row -> bool EFFECT pure
+  FST "pebble/" STARTS_WITH
+END
+
+DEF pebbles_store_init : -> void EFFECT db
+  "meta/next_id" data_get
+  MATCH
+    Ok {
+      DROP
+    }
+    Err {
+      DROP
+      "1" "meta/next_id" data_put
+    }
+  END
+END
+
+DEF pebbles_store_next_id : -> int EFFECT db
+  "meta/next_id" data_get
+  MATCH
+    Ok {
+      1 SWAP to_int_or
+    }
+    Err {
+      DROP
+      1
+    }
+  END
+END
+
+DEF pebbles_store_set_next_id : int -> void EFFECT db
+  NUM_STR "meta/next_id" data_put
+END
+
+DEF pebbles_store_add_open : str -> int EFFECT db
+  LET title
+
+  pebbles_store_init
+  pebbles_store_next_id LET next_id
+
+  title pebble_encode_open
+  next_id pebble_key_from_id
+  data_put
+
+  next_id 1 ADD pebbles_store_set_next_id
+  next_id
+END
+
+DEF pebbles_store_pairs : -> pebble_rows EFFECT db
+  data_pairs
+  { pebble_pair_is_item } FILTER
+END

@@ -158,6 +158,16 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Extended `examples/prelude/web_helpers.crn` with a route-level guard candidate demo.
 - Preserved existing login/session behavior while removing most route-level auth/control-flow nesting.
 
+### v0.10.xs — TODO NEXT N12: Declarative Method/Path Session Route Helpers
+- Added declarative method/path helpers in `lib/prelude/web.crn`:
+  - `route_get_session`
+  - `route_post_session`
+- Refactored `examples/web/lib/login_web.crn` to use helper-driven route declarations:
+  - `ctx \"/path\" { handler } route_get_session|route_post_session`
+  - composed via `route_or_session`, finalized with `route_finish_session_allowed`
+- Extended `examples/prelude/web_helpers.crn` with a declarative route helper example.
+- Preserved behavior while reducing repetitive method/path boilerplate in session-route handlers.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`

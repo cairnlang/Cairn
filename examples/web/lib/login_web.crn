@@ -78,137 +78,95 @@ END
 DEF route_get_home : request_ctx -> session_route_result EFFECT pure
   LET ctx
 
-  ctx request_ctx_path
-  ctx request_ctx_method
-  "/" route_is_get
+  ctx request_ctx_session logged_in_p
   IF
-    ctx request_ctx_session logged_in_p
-    IF
-      ctx request_ctx_session current_user_role
-      ctx request_ctx_session current_user_name
-      render_home_page
-      ctx route_session_from_ctx
-    ELSE
-      "" render_login_page
-      ctx route_session_from_ctx
-    END
+    ctx request_ctx_session current_user_role
+    ctx request_ctx_session current_user_name
+    render_home_page
+    ctx route_session_from_ctx
   ELSE
-    "no_match" Err
+    "" render_login_page
+    ctx route_session_from_ctx
   END
 END
 
 DEF route_get_login_page : request_ctx -> session_route_result EFFECT pure
   LET ctx
 
-  ctx request_ctx_path
-  ctx request_ctx_method
-  "/login" route_is_get
-  IF
-    "" render_login_page
-    ctx route_session_from_ctx
-  ELSE
-    "no_match" Err
-  END
+  "" render_login_page
+  ctx route_session_from_ctx
 END
 
 DEF route_get_profile : request_ctx -> session_route_result EFFECT pure
   LET ctx
 
-  ctx request_ctx_path
-  ctx request_ctx_method
-  "/profile" route_is_get
-  IF
-    ctx request_ctx_session current_user_role
-    ctx request_ctx_session current_user_name
-    render_profile_page
-    ctx route_session_from_ctx
-    route_guard_login_candidate
-  ELSE
-    "no_match" Err
-  END
+  ctx request_ctx_session current_user_role
+  ctx request_ctx_session current_user_name
+  render_profile_page
+  ctx route_session_from_ctx
+  route_guard_login_candidate
 END
 
 DEF route_get_admin : request_ctx -> session_route_result EFFECT pure
   LET ctx
 
-  ctx request_ctx_path
-  ctx request_ctx_method
-  "/admin" route_is_get
-  IF
-    ctx request_ctx_session current_user_name
-    render_admin_page
-    ctx route_session_from_ctx
-    "admin" route_guard_role_candidate
-  ELSE
-    "no_match" Err
-  END
+  ctx request_ctx_session current_user_name
+  render_admin_page
+  ctx route_session_from_ctx
+  "admin" route_guard_role_candidate
 END
 
 DEF route_post_login : request_ctx -> session_route_result EFFECT http
   LET ctx
 
-  ctx request_ctx_path
-  ctx request_ctx_method
-  "/login" route_is_post
-  IF
-    "username" ctx request_ctx_form "" map_get_or TRIM LET username
-    "password" ctx request_ctx_form "" map_get_or TRIM LET password
+  "username" ctx request_ctx_form "" map_get_or TRIM LET username
+  "password" ctx request_ctx_form "" map_get_or TRIM LET password
 
-    username LEN 0 GT
-    password LEN 0 GT AND
-    IF
-      username password AUTH_CHECK
-      MATCH
-        Ok {
-          DUP "role" GET LET role
-          "user" GET LET user
-          role user render_home_page
-          user role with_user_session
-          session_response_pack_ctx
-          Ok
-        }
-        Err {
-          DROP
-          "Invalid username or password." render_login_page
-          ctx route_session_from_ctx
-        }
-      END
-    ELSE
-      "Invalid username or password." render_login_page
-      ctx route_session_from_ctx
+  username LEN 0 GT
+  password LEN 0 GT AND
+  IF
+    username password AUTH_CHECK
+    MATCH
+      Ok {
+        DUP "role" GET LET role
+        "user" GET LET user
+        role user render_home_page
+        user role with_user_session
+        session_response_pack_ctx
+        Ok
+      }
+      Err {
+        DROP
+        "Invalid username or password." render_login_page
+        ctx route_session_from_ctx
+      }
     END
   ELSE
-    "no_match" Err
+    "Invalid username or password." render_login_page
+    ctx route_session_from_ctx
   END
 END
 
 DEF route_post_logout : request_ctx -> session_route_result EFFECT pure
   LET ctx
 
-  ctx request_ctx_path
-  ctx request_ctx_method
-  "/logout" route_is_post
-  IF
-    "" render_login_page
-    ctx route_session_from_ctx_cleared
-  ELSE
-    "no_match" Err
-  END
+  "" render_login_page
+  ctx route_session_from_ctx_cleared
 END
 
 DEF handle_login_request_ctx : request_ctx -> str headers session int EFFECT http
   LET ctx
 
-  ctx route_get_home
-  ctx route_get_login_page
+  ctx "/" { ctx route_get_home } route_get_session
+  ctx "/login" { ctx route_get_login_page } route_get_session
   route_or_session
-  ctx route_get_profile
+  ctx "/profile" { ctx route_get_profile } route_get_session
   route_or_session
-  ctx route_get_admin
+  ctx "/admin" { ctx route_get_admin } route_get_session
   route_or_session
-  ctx route_post_login
+  ctx "/login" { ctx route_post_login } route_post_session
   route_or_session
-  ctx route_post_logout
+  ctx "/logout" { ctx route_post_logout } route_post_session
   route_or_session
   LET candidate
   [ "GET" "POST" ] ctx candidate route_finish_session_allowed

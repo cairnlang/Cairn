@@ -194,3 +194,22 @@ route_guard_status "route_guard_status={}" FMT SAID
 route_guard_headers "route_guard_headers={}" FMT SAID
 route_guard_session "route_guard_session={}" FMT SAID
 route_guard_body "route_guard_body={}" FMT SAID
+
+M[] M[] M[] M[] M[] "GET" "/health" request_pack LET health_ctx
+
+health_ctx "/health" {
+  "ok\n" http_text_ok
+  health_ctx
+  route_session_from_ctx
+} route_get_session
+LET declarative_candidate
+[ "GET" "POST" ] health_ctx declarative_candidate route_finish_session_allowed
+LET declarative_body
+LET declarative_headers
+LET declarative_session
+LET declarative_status
+
+declarative_status "declarative_status={}" FMT SAID
+declarative_headers "declarative_headers={}" FMT SAID
+declarative_session "declarative_session={}" FMT SAID
+declarative_body "declarative_body={}" FMT SAID

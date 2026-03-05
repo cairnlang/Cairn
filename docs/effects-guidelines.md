@@ -240,6 +240,14 @@ END
 - Refactored `examples/web/lib/login_web.crn` into route-level composition (`route_get_*`/`route_post_*` + `route_or_session`) instead of one large nested method/path branch tree.
 - Kept runtime behavior and effect boundaries unchanged while making web route control flow explicitly compositional.
 
+## Slice P Declarative Method/Path Session Route Helpers (Completed)
+
+- Added explicit method/path declaration helpers on top of session-route candidates:
+  - `route_get_session`
+  - `route_post_session`
+- Updated `examples/web/lib/login_web.crn` to use declarative route declarations (`ctx "/..." { handler } route_get_session|route_post_session`) while preserving existing behavior.
+- Kept effect boundaries explicit and unchanged; this slice is surface ergonomics over the same runtime model.
+
 ## Postgres Discipline Rules
 
 - Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.

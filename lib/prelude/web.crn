@@ -490,6 +490,44 @@ DEF route_or_session : session_route_result session_route_result -> session_rout
   END
 END
 
+# Declarative GET session-route helper.
+# Signature: ctx route handler_block -> session_route_result
+# `handler_block` is executed only on match and should produce `session_route_result`
+# (typically by capturing `ctx` lexically from the caller scope).
+DEF route_get_session : block[session_route_result] str request_ctx -> session_route_result EFFECT pure
+  LET handler
+  LET route
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  route route_is_get
+  IF
+    handler APPLY
+  ELSE
+    "no_match" Err
+  END
+END
+
+# Declarative POST session-route helper.
+# Signature: ctx route handler_block -> session_route_result
+# `handler_block` is executed only on match and should produce `session_route_result`
+# (typically by capturing `ctx` lexically from the caller scope).
+DEF route_post_session : block[session_route_result] str request_ctx -> session_route_result EFFECT pure
+  LET handler
+  LET route
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  route route_is_post
+  IF
+    handler APPLY
+  ELSE
+    "no_match" Err
+  END
+END
+
 # Apply login guard middleware to a matched session route candidate.
 # Signature: candidate -> session_route_result
 DEF route_guard_login_candidate : session_route_result -> session_route_result EFFECT pure

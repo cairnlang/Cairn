@@ -1210,6 +1210,16 @@ route_or_session
 before: [fallback:result[session_response_ctx str], preferred:result[session_response_ctx str]]
 after:  [chosen:result[session_response_ctx str]]
 
+route_get_session
+before: [ctx:request_ctx, route:str, handler:block[result[session_response_ctx str]]]
+after:  [candidate:result[session_response_ctx str]]
+note: executes handler only when ctx.method/path matches GET route; handler usually captures `ctx` lexically
+
+route_post_session
+before: [ctx:request_ctx, route:str, handler:block[result[session_response_ctx str]]]
+after:  [candidate:result[session_response_ctx str]]
+note: executes handler only when ctx.method/path matches POST route; handler usually captures `ctx` lexically
+
 route_guard_login_candidate
 before: [candidate:result[session_response_ctx str]]
 after:  [candidate:result[session_response_ctx str]]

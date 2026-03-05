@@ -8,6 +8,11 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xa — Effect Boundary Audit + Guidelines (Slice A)
+- Added `docs/effects-guidelines.md` to standardize the current effect model (`pure/io/db/http`) with one canonical boundary pattern
+- Documented explicit rules for new code: always declare `EFFECT`, prefer explicit `result[T E]`, keep pure core + thin effectful shells
+- Captured current debt to drive Slice B ergonomics work (result-flow helpers and example alignment)
+
 ### v0.10.x — Type Alias Ergonomics (Bounded)
 - Added `TYPEALIAS name = type_expr` and `TYPEALIAS name[T ...] = type_expr`
 - Aliases now participate in parser pre-scan/imported known-type resolution, so signatures can use them before declaration order

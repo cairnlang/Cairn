@@ -118,6 +118,8 @@ The README is intentionally the front page. The reference material lives in dedi
   - first build, first runs, first examples
 - [Language Reference](docs/language-reference.md)
   - syntax, operators, contracts, examples, architecture notes
+- [Effect Guidelines](docs/effects-guidelines.md)
+  - canonical `pure/io/db/http` usage pattern and boundary discipline
 - [PROVE Reference](docs/prove.md)
   - solver-specific behavior, supported proof surface, trace modes
 - [Practical Pipeline](docs/practical-pipeline.md)

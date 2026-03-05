@@ -8,6 +8,8 @@
 #   ./cairn tools/pebbles/main.crn done <id>
 #   ./cairn tools/pebbles/main.crn block <id> <reason...>
 #   ./cairn tools/pebbles/main.crn note <id> <text...>
+#   ./cairn tools/pebbles/main.crn export <path>
+#   ./cairn tools/pebbles/main.crn import <path>
 
 IMPORT "lib/store.crn"
 
@@ -17,7 +19,7 @@ DEF emit_lines : [str] -> void EFFECT io
 END
 
 DEF usage : -> void EFFECT io
-  "usage: pebbles <init|add|ls|next|do|done|block|note> [args]" SAID
+  "usage: pebbles <init|add|ls|next|do|done|block|note|export|import> [args]" SAID
 END
 
 DEF command_init : -> void EFFECT db
@@ -187,6 +189,55 @@ DEF command_note : [str] -> void EFFECT db
   END
 END
 
+DEF command_export : [str] -> void EFFECT db
+  LET args
+
+  args LEN 2 EQ
+  IF
+    args TAIL HEAD LET path
+    pebbles_store_export_lines LET lines
+    lines "\n" JOIN path WRITE_FILE
+    MATCH
+      Ok {
+        DROP
+        lines LEN 1 SUB NUM_STR "pebbles: exported {} rows" FMT SAID
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles export <path>" SAID
+  END
+END
+
+DEF command_import : [str] -> void EFFECT db
+  LET args
+
+  args LEN 2 EQ
+  IF
+    args TAIL HEAD READ_FILE
+    MATCH
+      Ok {
+        lines_nonempty pebbles_store_import_lines
+        MATCH
+          Ok {
+            NUM_STR "pebbles: imported {} rows" FMT SAID
+          }
+          Err {
+            "pebbles: {}" FMT SAID
+          }
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles import <path>" SAID
+  END
+END
+
 ARGV LEN 0 EQ
 IF
   usage
@@ -225,7 +276,17 @@ ELSE
                 IF
                   ARGV command_note
                 ELSE
-                  usage
+                  cmd "export" EQ
+                  IF
+                    ARGV command_export
+                  ELSE
+                    cmd "import" EQ
+                    IF
+                      ARGV command_import
+                    ELSE
+                      usage
+                    END
+                  END
                 END
               END
             END

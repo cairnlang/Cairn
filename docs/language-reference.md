@@ -892,6 +892,26 @@ DB_PAIRS
 before: []
 after:  [pairs:[tuple[str str]]]
 note: each entry is a tuple #(key value)
+
+READ_FILE
+before: [path:str]
+after:  [result[str str]]
+note: use `MATCH` to handle `Ok` file contents vs `Err` message
+
+READ_FILE!
+before: [path:str]
+after:  [contents:str]
+note: unsafe variant that raises on failure
+
+WRITE_FILE
+before: [contents:str, path:str]
+after:  [result[bool str]]
+note: push contents first, then path; returns `Ok TRUE` or `Err message`
+
+WRITE_FILE!
+before: [contents:str, path:str]
+after:  []
+note: unsafe variant that raises on failure
 ```
 
 ### Comments

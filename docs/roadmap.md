@@ -14,6 +14,23 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xviii — Pebbles P4: Snapshot Export/Import Portability
+- Added snapshot portability commands to Pebbles CLI:
+  - `export <path>`
+  - `import <path>`
+- Added bounded snapshot format support in Pebbles store:
+  - `pebbles_store_export_lines` emits `pebbles-v1` + tab-separated key/value rows
+  - `pebbles_store_import_lines` validates header and parses rows before mutating state
+  - import path preserves safety by rejecting invalid headers without clearing existing data
+- Added store helpers for safe persistence roundtrip:
+  - exportable-key filtering (`pebble/*` + `meta/next_id`)
+  - bulk clear/apply helpers
+  - `pebbles_store_sync_next_id` to recover monotonic ids from imported state
+- Added tests and docs updates:
+  - expanded Cairn-native Pebbles tests for snapshot parsing and roundtrip behavior
+  - expanded Elixir integration tests for file-backed export/import workflows
+  - updated Pebbles README command reference
+
 ### v0.10.xvii — Pebbles P3: Notes + Output Formatting + Test Hardening
 - Extended the Pebbles domain model to include per-item notes:
   - `TYPE pebble = Pebble int str str str [str]`

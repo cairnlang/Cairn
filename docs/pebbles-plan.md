@@ -8,6 +8,7 @@ Date: March 5, 2026
 - P1 durability fix landed: Mnesia log sync after writes/deletes so separate CLI invocations observe persisted state.
 - P2 landed: domain transitions + lifecycle commands (`next/do/done/block`) with transition validation.
 - P3 landed: notes command + improved `ls` formatting + hardened test coverage.
+- P4 landed: snapshot `export/import` portability flow with header validation and id-sync recovery.
 - Implemented files:
   - `tools/pebbles/main.crn`
   - `tools/pebbles/lib/store.crn`

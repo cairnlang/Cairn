@@ -32,8 +32,8 @@ defmodule Cairn.PebblesTest do
   end
 
   test "shows usage for no args and unknown command" do
-    assert run_pebbles([]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note> [args]"
-    assert run_pebbles(["wat"]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note> [args]"
+    assert run_pebbles([]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note|export|import> [args]"
+    assert run_pebbles(["wat"]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note|export|import> [args]"
   end
 
   test "init, add, and ls round-trip through DataStore" do
@@ -72,6 +72,48 @@ defmodule Cairn.PebblesTest do
     assert run_pebbles(["done", "404"]) =~ "pebbles: unknown pebble #404"
   end
 
+  test "export and import snapshot round-trip state and next id" do
+    snapshot_path = Path.join(System.tmp_dir!(), "pebbles_snapshot_#{System.unique_integer([:positive])}.txt")
+
+    assert run_pebbles(["add", "first"]) =~ "pebbles: added #1"
+    assert run_pebbles(["add", "second"]) =~ "pebbles: added #2"
+    assert run_pebbles(["do", "1"]) =~ "#1 [doing] first"
+    assert run_pebbles(["block", "2", "waiting", "on", "deploy"]) =~ "#2 [blocked] second -- waiting on deploy"
+    assert run_pebbles(["note", "2", "follow", "up"]) =~ "#2 [blocked] second -- waiting on deploy (notes:1)"
+
+    assert run_pebbles(["export", snapshot_path]) =~ "pebbles: exported 3 rows"
+    assert File.exists?(snapshot_path)
+
+    assert run_pebbles(["done", "1"]) =~ "#1 [done] first"
+    assert run_pebbles(["add", "third"]) =~ "pebbles: added #3"
+
+    assert run_pebbles(["import", snapshot_path]) =~ "pebbles: imported 3 rows"
+
+    lines =
+      run_pebbles(["ls"])
+      |> String.trim()
+      |> String.split("\n")
+
+    assert lines == [
+             "pebbles: total=2 open=0 doing=1 blocked=1 done=0",
+             "#1 [doing] first",
+             "#2 [blocked] second -- waiting on deploy (notes:1)"
+           ]
+
+    assert run_pebbles(["add", "after-import"]) =~ "pebbles: added #3"
+  end
+
+  test "import rejects invalid header and keeps existing state" do
+    snapshot_path = Path.join(System.tmp_dir!(), "pebbles_bad_snapshot_#{System.unique_integer([:positive])}.txt")
+    File.write!(snapshot_path, "oops\npebble/000000000001\topen|x||\n")
+
+    assert run_pebbles(["add", "keep"]) =~ "pebbles: added #1"
+    assert run_pebbles(["import", snapshot_path]) =~
+             "pebbles: invalid snapshot header (expected pebbles-v1)"
+
+    assert run_pebbles(["ls"]) =~ "#1 [open] keep"
+  end
+
   test "cairn-native pebbles tests run through --test mode" do
     parent = self()
 
@@ -98,7 +140,10 @@ defmodule Cairn.PebblesTest do
     assert stdout =~ "PASS block transition requires reason"
     assert stdout =~ "PASS note transition prepends newest note"
     assert stdout =~ "PASS store note appends through command boundary"
-    assert stderr =~ "TEST SUMMARY: total=8 passed=8 failed=0"
+    assert stdout =~ "PASS snapshot line parser preserves key and value"
+    assert stdout =~ "PASS import lines rejects invalid header without clearing store"
+    assert stdout =~ "PASS snapshot export and import round-trips rows and next id"
+    assert stderr =~ "TEST SUMMARY: total=11 passed=11 failed=0"
   end
 
   defp run_pebbles(argv) do

@@ -63,6 +63,7 @@ END
 DEF pebble_sanitize_text : str -> str EFFECT pure
   "|" "/" REPLACE
   "~" "/" REPLACE
+  "\t" " " REPLACE
   "\n" " " REPLACE
   "\r" " " REPLACE
 END
@@ -123,6 +124,32 @@ DEF pebble_pair_is_item : pebble_row -> bool EFFECT pure
   FST "pebble/" STARTS_WITH
 END
 
+DEF pebble_pair_is_exportable : pebble_row -> bool EFFECT pure
+  FST
+  DUP "pebble/" STARTS_WITH
+  SWAP "meta/next_id" EQ
+  OR
+END
+
+DEF pebble_snapshot_line_to_row : str -> result[pebble_row str] EFFECT pure
+  LET line
+  line "\t" SPLIT LET parts
+
+  parts LEN 2 GTE
+  IF
+    parts HEAD LET key
+    parts TAIL "\t" JOIN LET value
+    #( key value ) Ok
+  ELSE
+    line "invalid snapshot line: {}" FMT Err
+  END
+END
+
+DEF pebble_snapshot_pair_to_line : pebble_row -> str EFFECT pure
+  LET pair
+  pair SND pair FST "{}\t{}" FMT
+END
+
 DEF pebbles_store_init : -> void EFFECT db
   "meta/next_id" data_get
   MATCH
@@ -172,6 +199,18 @@ DEF pebbles_store_pairs : -> pebble_rows EFFECT db
   data_pairs
   { pebble_pair_is_item } FILTER
   SORT
+END
+
+DEF pebbles_store_export_pairs : -> pebble_rows EFFECT db
+  data_pairs
+  { pebble_pair_is_exportable } FILTER
+  SORT
+END
+
+DEF pebbles_store_export_lines : -> [str] EFFECT db
+  pebbles_store_export_pairs
+  { pebble_snapshot_pair_to_line } MAP LET body
+  "pebbles-v1" body CONS
 END
 
 DEF pebbles_store_all : -> [pebble] EFFECT db
@@ -306,4 +345,117 @@ DEF pebbles_store_add_note : str int -> result[pebble str] EFFECT db
       Err
     }
   END
+END
+
+DEF pebbles_store_delete_rows : pebble_rows -> void EFFECT db
+  0 {
+    SWAP DROP
+    FST data_del
+    0
+  } REDUCE
+  DROP
+END
+
+DEF pebbles_store_apply_rows : pebble_rows -> void EFFECT db
+  0 {
+    SWAP DROP
+    pebble_snapshot_apply_row
+    0
+  } REDUCE
+  DROP
+END
+
+DEF pebbles_store_clear : -> void EFFECT db
+  pebbles_store_export_pairs
+  pebbles_store_delete_rows
+  "meta/next_id" data_del
+END
+
+DEF pebbles_store_next_id_from_items : -> int EFFECT db
+  pebbles_store_pairs
+  { FST pebble_key_to_id } MAP
+  DUP LEN 0 EQ
+  IF
+    DROP
+    1
+  ELSE
+    SORT REVERSE HEAD 1 ADD
+  END
+END
+
+DEF pebbles_store_sync_next_id : -> void EFFECT db
+  pebbles_store_next_id_from_items LET from_items
+  pebbles_store_next_id LET from_meta
+  from_items from_meta MAX pebbles_store_set_next_id
+END
+
+DEF pebbles_store_parse_snapshot_rows : [str] -> result[pebble_rows str] EFFECT pure
+  [ ] Ok
+  {
+    LET line
+    LET acc
+
+    acc
+    MATCH
+      Ok {
+        LET rows
+        line pebble_snapshot_line_to_row
+        MATCH
+          Ok {
+            rows CONS
+            Ok
+          }
+          Err {
+            Err
+          }
+        END
+      }
+      Err {
+        Err
+      }
+    END
+  } REDUCE
+  MATCH
+    Ok {
+      REVERSE Ok
+    }
+    Err {
+      Err
+    }
+  END
+END
+
+DEF pebbles_store_import_lines : [str] -> result[int str] EFFECT db
+  LET lines
+
+  lines LEN 0 EQ
+  IF
+    "empty snapshot" Err
+  ELSE
+    lines HEAD "pebbles-v1" EQ
+    IF
+      lines TAIL pebbles_store_parse_snapshot_rows
+      MATCH
+        Ok {
+          LET rows
+          pebbles_store_clear
+          rows pebbles_store_apply_rows
+          pebbles_store_sync_next_id
+          rows LEN Ok
+        }
+        Err {
+          Err
+        }
+      END
+    ELSE
+      "invalid snapshot header (expected pebbles-v1)" Err
+    END
+  END
+END
+
+DEF pebble_snapshot_apply_row : pebble_row -> void EFFECT db
+  DUP FST
+  SWAP SND
+  SWAP
+  data_put
 END

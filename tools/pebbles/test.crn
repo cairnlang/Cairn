@@ -94,3 +94,105 @@ TEST "store note appends through command boundary"
     }
   END
 END
+
+TEST "snapshot line parser preserves key and value"
+  "pebble/000000000001\topen|ship docs||" pebble_snapshot_line_to_row
+  MATCH
+    Ok {
+      DUP FST "pebble/000000000001" ASSERT_EQ
+      SND "open|ship docs||" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+END
+
+TEST "import lines rejects invalid header without clearing store"
+  pebbles_store_clear
+  pebbles_store_init
+  "keep me" pebbles_store_add_open DROP
+  [ "oops" ] pebbles_store_import_lines
+  MATCH
+    Ok {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+    Err {
+      "invalid snapshot header (expected pebbles-v1)" ASSERT_EQ
+    }
+  END
+  pebbles_store_pairs LEN 1 ASSERT_EQ
+END
+
+TEST "snapshot export and import round-trips rows and next id"
+  pebbles_store_clear
+  pebbles_store_init
+  "first" pebbles_store_add_open LET first_id
+  "second" pebbles_store_add_open LET second_id
+
+  first_id pebbles_store_mark_do
+  MATCH
+    Ok {
+      DROP
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+
+  second_id "waiting on deploy" pebbles_store_mark_block
+  MATCH
+    Ok {
+      DROP
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+
+  second_id "follow up tomorrow" pebbles_store_add_note
+  MATCH
+    Ok {
+      DROP
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+
+  pebbles_store_export_lines LET snapshot_lines
+
+  pebbles_store_clear
+  pebbles_store_pairs LEN 0 ASSERT_EQ
+
+  snapshot_lines pebbles_store_import_lines
+  MATCH
+    Ok {
+      3 ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+
+  pebbles_store_pairs LEN 2 ASSERT_EQ
+  pebbles_store_next_id 3 ASSERT_EQ
+
+  second_id pebbles_store_fetch
+  MATCH
+    Ok {
+      DUP pebble_status "blocked" ASSERT_EQ
+      pebble_notes HEAD "follow up tomorrow" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+END

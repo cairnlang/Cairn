@@ -690,6 +690,48 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 The current PROVE MATCH refinement line has delivered substantial gains, but PRE normalization and helper-pattern extraction are now deep enough that incremental tactics should be bounded. The transition plan below keeps PROVE practical while shifting primary momentum back to language usability.
 
+### Post-Runewarden Gap Report (from Chapters 24-30)
+The tutorial capstone made the language's weak spots visible in practical code. These are now explicit roadmap concerns, not informal notes.
+
+**1) Web route ergonomics and structure**
+- Current web handlers still collapse into deep `IF/ELSE` trees with repeated response/session threading.
+- We need first-class route composition helpers (and eventually middleware-style composition) so normal web code does not become branch plumbing.
+
+**2) Typed web boundary models**
+- Request/response/session flow still relies heavily on `map[str str]` shapes at call boundaries.
+- We should introduce stronger typed boundary records/product shapes for request context, response payload/headers/status, and session claims to reduce key-level mistakes.
+
+**3) Protocol ergonomics beyond bounded receive-order demos**
+- Protocol checking works for bounded flows, but real actor workflows still require rigid/manual choreography.
+- Extend protocol ergonomics so send/receive progress and endpoint usage are practical in larger actor code, not only in minimal finite examples.
+
+**4) Concurrency primitives for realistic services**
+- Actor examples still hard-code finite message sequences and supervisor wiring.
+- Add pragmatic primitives for long-running services (timeouts/selective receive patterns/backpressure-friendly loop helpers) while preserving explicitness.
+
+**5) Effect granularity at integration boundaries**
+- Some application flows still mix `io` + `db` concerns in single functions.
+- Tighten effect modeling and helper surfaces so core logic remains effect-clean and boundary code stays explicit but less noisy.
+
+**6) End-to-end assurance at effectful edges**
+- Pure-core assurances are strong (`TEST`/`VERIFY`/`PROVE`), but web/concurrency edges still lean on manual integration checks.
+- Expand operational/system-level assurance patterns so edge behavior is reproducible in CI with less ad hoc scripting.
+
+### Original-Vision Follow-Through (non-AI-math)
+These items come directly from `docs/brainstorming/idea.md` and remain worthwhile for Cairn's practical direction.
+
+**1) Human-in-the-loop audit mode**
+- Add a bounded "explain/decompile" view so users can inspect a function's behavior in a readable, structured form without reading checker/runtime internals.
+- Goal: make review and trust-building easier as signatures and effect boundaries grow.
+
+**2) Declarative subset (bounded)**
+- Introduce a small, explicit declarative surface (e.g., limited `WHERE`-style obligations) that complements imperative postfix definitions.
+- Keep this first slice checker-oriented and bounded; avoid full synthesis claims in early versions.
+
+**3) DAG visibility before DAG-native authoring**
+- Keep current source syntax, but expose DAG/graph introspection tooling (structural view, stable IDs, debug dumps, and diff-friendly representation).
+- Use this to recover practical value from the existing DAG architecture before committing to DAG-as-source syntax changes.
+
 ### v0.7.0 — Typed BEAM Concurrency Runtime Completion
 **Goal:** Type-safe message passing on the BEAM — the feature no other language has.
 

@@ -399,6 +399,9 @@ END
 42 "Alice" "Name: {}, Age: {}" FMT            # => "Name: Alice, Age: 42"
 "use {{}} for placeholders" FMT               # => "use {} for placeholders"
 "postgres" "127.0.0.1" 8090 "backend={} host={} port={}" FMT  # => "backend=postgres host=127.0.0.1 port=8090"
+"postgres" "/tmp/seed.txt" 8133 "127.0.0.1" "http://{}:{}/ source={} backend={}" FMT
+# => "http://127.0.0.1:8133/ source=/tmp/seed.txt backend=postgres"
+# stack reminder: push values right-to-left, then push format string last
 ```
 
 Values are auto-converted: integers and floats become their string representation, booleans become `"TRUE"` / `"FALSE"`, and everything else uses `inspect`.

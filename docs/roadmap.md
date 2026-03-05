@@ -8,6 +8,25 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xh — TODO NEXT N1: Boundary Type Inventory + Alias Adoption
+- Added canonical web-boundary aliases in `lib/prelude/web.crn`:
+  - `query`
+  - `form`
+  - `cookies`
+  - `request_envelope`
+- Added canonical datastore aliases in `lib/prelude/data.crn`:
+  - `data_key`
+  - `data_value`
+  - `data_row`
+  - `data_rows`
+- Migrated key web/store examples to those shared aliases so signatures stop repeating raw `map[str str]` bundles:
+  - `examples/web/lib/hello_static.crn`
+  - `examples/web/lib/todo_web.crn`
+  - `examples/web/lib/session_demo.crn`
+  - `examples/web/lib/login_web.crn`
+  - `examples/web/lib/afford_web.crn`
+  - `examples/web/lib/todo_store.crn`
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`
@@ -716,6 +735,59 @@ The tutorial capstone made the language's weak spots visible in practical code. 
 **6) End-to-end assurance at effectful edges**
 - Pure-core assurances are strong (`TEST`/`VERIFY`/`PROVE`), but web/concurrency edges still lean on manual integration checks.
 - Expand operational/system-level assurance patterns so edge behavior is reproducible in CI with less ad hoc scripting.
+
+#### Suggested near-term sequence (highest bang-for-buck)
+1. **Typed web boundary aliases/records + handler signature cleanup**
+- Introduce stronger typed request/response/session shapes so web handlers stop passing raw `map[str str]` bundles everywhere.
+- Migrate existing web examples to the new boundary shape and remove obvious pass-through `DROP` plumbing.
+
+2. **Route combinators to flatten nested branch ladders**
+- Add first-class route composition helpers so app handlers do not devolve into deep `IF/ELSE` trees.
+- Keep the model explicit and data-first; avoid framework-style magic.
+
+3. **Web edge assurance harness (repeatable CI path)**
+- Add reproducible Cairn-side + shell-level checks for main web flows (auth/session/mutations/errors), reducing reliance on manual curl sessions.
+- Keep this focused on operational confidence at effectful boundaries where `PROVE` is not the right tool.
+
+#### TODO NEXT — Lower-level-first bang-for-buck sequence
+The current best return comes from improving substrate features first so multiple higher-level tracks simplify at once.
+
+#### Planned slices (execution order)
+
+1. **Slice N1 — Boundary shape inventory + target types** (landed)
+- Define canonical boundary products for: request envelope, response envelope, session claims, and common datastore row/config shapes.
+- Decide one preferred representation path and document it (records/products first, maps as compatibility edge only).
+- Done: type aliases are committed in prelude modules and referenced by web/store examples.
+
+2. **Slice N2 — Typed web envelope helpers**
+- Add/upgrade prelude helpers so handlers can consume/produce typed envelopes instead of long raw `map[str str]` argument bundles.
+- Keep runtime behavior unchanged; this is a Cairn-surface ergonomics/type-safety slice.
+- Done when: `examples/web/hello_static.crn` and at least one stateful app (`todo_app` or `login_app`) compile and run with typed envelopes.
+
+3. **Slice N3 — Field-aware checker tightening**
+- Strengthen checker diagnostics for structured-field access: missing field and mismatched field type should fail early with readable messages.
+- Keep scope bounded to the new boundary shapes first; no full row-polymorphism project in this pass.
+- Done when: dedicated checker tests cover missing/wrong-field failures and friendly diagnostics.
+
+4. **Slice N4 — Effect-surface cleanup**
+- Refine helper signatures/effect declarations across shared and web libs to reduce mixed `io/db/http` plumbing where avoidable.
+- Keep pure core helpers pure; keep adapters thin and explicitly effectful.
+- Done when: shared/web libs pass style/effect checks and example signatures are visibly shorter/clearer.
+
+5. **Slice N5 — Typed route combinators**
+- Build route composition helpers on top of typed request/response envelopes to reduce deep `IF/ELSE` ladders.
+- Preserve explicit control flow and readability; avoid hidden framework magic.
+- Done when: `hello_static` and `todo_app` route trees are flattened via combinators with no behavior regressions.
+
+6. **Slice N6 — Web edge assurance harness**
+- Add repeatable operational checks for auth/session/mutation/error paths (scriptable and CI-friendly).
+- Focus on effectful boundary confidence, complementing `TEST`/`VERIFY`/`PROVE` rather than replacing them.
+- Done when: one-command web edge checks run locally and in CI with clear pass/fail output.
+
+#### Acceptance gate for the whole TODO NEXT track
+- Web handlers no longer require long raw `map[str str]` boundary signatures.
+- At least two real web examples are migrated to typed envelopes + route combinators.
+- Edge assurance scripts cover login/session mutation + one invalid-input hardening path.
 
 ### Original-Vision Follow-Through (non-AI-math)
 These items come directly from `docs/brainstorming/idea.md` and remain worthwhile for Cairn's practical direction.

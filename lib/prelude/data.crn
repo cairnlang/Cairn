@@ -1,17 +1,22 @@
 # Prelude: backend-agnostic data store helpers over DB_* built-ins.
 
-DEF data_put : str str -> void EFFECT db
+TYPEALIAS data_key = str
+TYPEALIAS data_value = str
+TYPEALIAS data_row = tuple[data_key data_value]
+TYPEALIAS data_rows = [data_row]
+
+DEF data_put : data_value data_key -> void EFFECT db
   DB_PUT
 END
 
-DEF data_get : str -> result[str str] EFFECT db
+DEF data_get : data_key -> result[data_value str] EFFECT db
   DB_GET
 END
 
-DEF data_del : str -> void EFFECT db
+DEF data_del : data_key -> void EFFECT db
   DB_DEL
 END
 
-DEF data_pairs : -> [tuple[str str]] EFFECT db
+DEF data_pairs : -> data_rows EFFECT db
   DB_PAIRS
 END

@@ -2,8 +2,12 @@
 
 TYPEALIAS headers = map[str str]
 TYPEALIAS session = map[str str]
+TYPEALIAS query = map[str str]
+TYPEALIAS form = map[str str]
+TYPEALIAS cookies = map[str str]
 TYPEALIAS http_response = tuple[str headers int]
 TYPEALIAS route_result = result[http_response str]
+TYPEALIAS request_envelope = tuple[str str query form headers cookies session]
 
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
 DEF http_html_ok : str -> str headers int EFFECT pure
@@ -78,6 +82,7 @@ DEF http_unpack_response : http_response -> str headers int EFFECT pure
   TRD LET status
   status headers body
 END
+
 
 # Add or replace one response header while preserving the HTTP_SERVE stack shape.
 # Signature: value key body headers status -> body headers status

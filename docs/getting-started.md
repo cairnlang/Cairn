@@ -26,6 +26,9 @@ This produces `./cairn`.
 
 # See CLI help
 ./cairn --help
+
+# Inspect parsed graph IR
+./cairn --emit-ir json --fn id examples/generics.crn
 ```
 
 ## Good First Examples
@@ -63,6 +66,7 @@ For the exact proof limits and solver behavior, see [PROVE Reference](prove.md).
 ## Next Docs
 
 - [CLI Quick Reference](cli.md)
+- [IR/DAG Visibility](ir.md)
 - [Language Reference](language-reference.md)
 - [Practical Pipeline](practical-pipeline.md)
 - [Roadmap](roadmap.md)

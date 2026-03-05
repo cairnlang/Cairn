@@ -180,6 +180,18 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Updated `examples/prelude/web_helpers.crn` with a route-chain demonstration that exercises the new helpers.
 - Preserved behavior while flattening route composition and making middleware intent more obvious in handler code.
 
+### v0.10.xu — TODO NEXT N14: DAG/IR Visibility (Read-Only Introspection)
+- Added a bounded IR export mode to the CLI:
+  - `--emit-ir json <file.crn>`
+  - optional `--fn <name>` filter
+- Added `Cairn.load_file_items/1` so tooling can load parsed file-mode items (including prelude auto-load + recursive imports) without executing programs.
+- Added `Cairn.IR.Export`:
+  - deterministic per-function graph nodes/edges
+  - explicit function metadata (name/effect/signature)
+  - JSON encoding with stable key ordering
+- Added tests for IR determinism, function filtering, CLI behavior, and unknown-function errors.
+- Added focused docs in `docs/ir.md` and linked CLI docs for practical usage.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`
@@ -956,6 +968,7 @@ These items come directly from `docs/brainstorming/idea.md` and remain worthwhil
 **3) DAG visibility before DAG-native authoring**
 - Keep current source syntax, but expose DAG/graph introspection tooling (structural view, stable IDs, debug dumps, and diff-friendly representation).
 - Use this to recover practical value from the existing DAG architecture before committing to DAG-as-source syntax changes.
+- Done (bounded v1): `--emit-ir json` + `--fn` filter now export deterministic read-only graph JSON without changing execution semantics.
 
 ### v0.7.0 — Typed BEAM Concurrency Runtime Completion
 **Goal:** Type-safe message passing on the BEAM — the feature no other language has.

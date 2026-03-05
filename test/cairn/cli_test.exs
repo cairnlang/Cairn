@@ -6,6 +6,7 @@ defmodule Cairn.CLITest do
       System.delete_env("CAIRN_NO_PRELUDE")
       System.delete_env("CAIRN_SKIP_ASSURANCE")
     end)
+
     :ok
   end
 
@@ -20,6 +21,8 @@ defmodule Cairn.CLITest do
     assert output =~ "No file given     Start the REPL"
     assert output =~ "CAIRN_NO_PRELUDE=1"
     assert output =~ "CAIRN_SKIP_ASSURANCE=1"
+    assert output =~ "--emit-ir json"
+    assert output =~ "--fn <name>"
   end
 
   test "prints examples index from standalone CLI" do
@@ -112,7 +115,10 @@ defmodule Cairn.CLITest do
       ExUnit.CaptureIO.capture_io(fn ->
         stderr =
           ExUnit.CaptureIO.capture_io(:stderr, fn ->
-            assert :ok = Cairn.CLI.run(["--test", "examples/web/afford_test.crn"], halt_on_error: false)
+            assert :ok =
+                     Cairn.CLI.run(["--test", "examples/web/afford_test.crn"],
+                       halt_on_error: false
+                     )
           end)
 
         send(self(), {:test_stderr, stderr})
@@ -126,5 +132,72 @@ defmodule Cairn.CLITest do
     assert output =~ "PASS safe one-time purchase remains safe"
     assert output =~ "PASS score 2 maps to the strongest warning"
     assert stderr =~ "TEST SUMMARY: total=6 passed=6 failed=0"
+  end
+
+  test "IR export mode emits JSON graph for a file" do
+    dir = System.tmp_dir!()
+    path = Path.join(dir, "cairn_cli_ir_test.crn")
+
+    File.write!(path, """
+    DEF add1 : int -> int EFFECT pure
+      1 ADD
+    END
+    """)
+
+    parent = self()
+
+    stdout =
+      ExUnit.CaptureIO.capture_io(fn ->
+        stderr =
+          ExUnit.CaptureIO.capture_io(:stderr, fn ->
+            assert :ok = Cairn.CLI.run(["--emit-ir", "json", path], halt_on_error: false)
+          end)
+
+        send(parent, {:ir_stderr, stderr})
+      end)
+
+    stderr =
+      receive do
+        {:ir_stderr, captured} -> captured
+      end
+
+    assert stdout =~ "\"version\":\"cairn-ir-json-v1\""
+    assert stdout =~ "\"name\":\"add1\""
+    assert stderr =~ "IR SUMMARY: status=ok"
+  end
+
+  test "IR export supports function filter and errors on unknown names" do
+    dir = System.tmp_dir!()
+    path = Path.join(dir, "cairn_cli_ir_filter_test.crn")
+
+    File.write!(path, """
+    DEF left : int -> int EFFECT pure
+      1 ADD
+    END
+
+    DEF right : int -> int EFFECT pure
+      2 ADD
+    END
+    """)
+
+    filtered =
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert :ok =
+                 Cairn.CLI.run(["--emit-ir", "json", "--fn", "right", path], halt_on_error: false)
+      end)
+
+    assert filtered =~ "\"name\":\"right\""
+    refute filtered =~ "\"name\":\"left\""
+
+    stderr =
+      ExUnit.CaptureIO.capture_io(:stderr, fn ->
+        assert :error =
+                 Cairn.CLI.run(["--emit-ir", "json", "--fn", "missing", path],
+                   halt_on_error: false
+                 )
+      end)
+
+    assert stderr =~ "unknown function 'missing'"
+    assert stderr =~ "RUN SUMMARY: status=error kind=runtime"
   end
 end

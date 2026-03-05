@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Cairn.RunTest do
       System.delete_env("CAIRN_NO_PRELUDE")
       System.delete_env("CAIRN_SKIP_ASSURANCE")
     end)
+
     :ok
   end
 
@@ -21,6 +22,8 @@ defmodule Mix.Tasks.Cairn.RunTest do
     assert output =~ "--test <file.crn>"
     assert output =~ "--examples"
     assert output =~ "--json-errors"
+    assert output =~ "--emit-ir json"
+    assert output =~ "--fn <name>"
     assert output =~ "CAIRN_NO_PRELUDE=1"
     assert output =~ "CAIRN_SKIP_ASSURANCE=1"
     assert output =~ "CAIRN_PROVE_TRACE=summary|verbose|json"

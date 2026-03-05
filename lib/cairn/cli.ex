@@ -6,9 +6,34 @@ defmodule Cairn.CLI do
   @prelude_modules [
     {"lib/prelude/result.crn", ["result_is_ok", "result_is_err", "result_unwrap_or"]},
     {"lib/prelude/str.crn", ["lines_nonempty", "csv_ints"]},
-    {"lib/prelude/config.crn", ["env_data_lines", "env_map", "env_keys", "env_fetch", "map_get_or"]},
+    {"lib/prelude/config.crn",
+     ["env_data_lines", "env_map", "env_keys", "env_fetch", "map_get_or"]},
     {"lib/prelude/ini.crn", ["ini_data_lines", "ini_map", "ini_sections", "ini_fetch"]},
-    {"lib/prelude/web.crn", ["http_html_ok", "http_text_ok", "http_text_not_found", "http_text_method_not_allowed", "http_text_unauthorized", "http_text_forbidden", "http_html_file_ok", "html_escape", "http_add_header", "session_put", "session_clear", "session_has_user", "session_has_role", "guard_require_login", "guard_require_role", "route_html_file", "route_get_html_file", "route_text_ok", "route_get_text", "route_or", "route_finish", "route_finish_get"]},
+    {"lib/prelude/web.crn",
+     [
+       "http_html_ok",
+       "http_text_ok",
+       "http_text_not_found",
+       "http_text_method_not_allowed",
+       "http_text_unauthorized",
+       "http_text_forbidden",
+       "http_html_file_ok",
+       "html_escape",
+       "http_add_header",
+       "session_put",
+       "session_clear",
+       "session_has_user",
+       "session_has_role",
+       "guard_require_login",
+       "guard_require_role",
+       "route_html_file",
+       "route_get_html_file",
+       "route_text_ok",
+       "route_get_text",
+       "route_or",
+       "route_finish",
+       "route_finish_get"
+     ]},
     {"lib/prelude.crn", ["to_int_or", "to_float_or", "read_file_or", "ask_or"]}
   ]
 
@@ -122,7 +147,9 @@ defmodule Cairn.CLI do
           show_prelude: :boolean,
           verbose: :boolean,
           json_errors: :boolean,
-          examples: :boolean
+          examples: :boolean,
+          emit_ir: :string,
+          fn: :string
         ]
       )
 
@@ -140,6 +167,26 @@ defmodule Cairn.CLI do
         print_examples()
         :ok
 
+      parsed_opts[:fn] && is_nil(parsed_opts[:emit_ir]) ->
+        IO.puts(:stderr, "--fn requires --emit-ir json")
+        :error
+
+      parsed_opts[:emit_ir] && parsed_opts[:emit_ir] != "json" ->
+        IO.puts(:stderr, "--emit-ir only supports: json")
+        :error
+
+      parsed_opts[:emit_ir] && parsed_opts[:test] ->
+        IO.puts(:stderr, "Do not combine --emit-ir with --test <file.crn>.")
+        :error
+
+      parsed_opts[:emit_ir] && rest == [] ->
+        IO.puts(
+          :stderr,
+          "IR export mode requires a script path: cairn --emit-ir json <file.crn> [--fn name]"
+        )
+
+        :error
+
       parsed_opts[:test] && rest != [] ->
         IO.puts(:stderr, "Do not combine --test <file.crn> with a positional script path.")
         :error
@@ -154,8 +201,28 @@ defmodule Cairn.CLI do
 
       rest == [] and no_args == :usage ->
         IO.puts(:stderr, "Usage: mix cairn.run <file.crn> [args...]")
-        IO.puts(:stderr, "Run `mix cairn.run --help` for options, or `mix cairn.run --examples` for runnable samples.")
+
+        IO.puts(
+          :stderr,
+          "Run `mix cairn.run --help` for options, or `mix cairn.run --examples` for runnable samples."
+        )
+
         :error
+
+      parsed_opts[:emit_ir] ->
+        [path | extra] = rest
+
+        if extra != [] do
+          IO.puts(
+            :stderr,
+            "IR export mode does not accept ARGV. Use: cairn --emit-ir json <file.crn> [--fn name]"
+          )
+
+          :error
+        else
+          maybe_print_prelude_banner(parsed_opts)
+          run_emit_ir(path, parsed_opts, halt_on_error)
+        end
 
       true ->
         [path | argv] = rest
@@ -193,6 +260,44 @@ defmodule Cairn.CLI do
     end
   end
 
+  defp run_emit_ir(path, opts, halt_on_error) do
+    started_at_ms = System.monotonic_time(:millisecond)
+
+    try do
+      with {:ok, items} <- Cairn.load_file_items(path),
+           {:ok, ir} <-
+             Cairn.IR.Export.from_items(items,
+               source: Path.expand(path),
+               fn: opts[:fn]
+             ) do
+        IO.puts(Cairn.IR.Export.encode_json(ir))
+        elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
+
+        IO.puts(
+          :stderr,
+          "IR SUMMARY: status=ok functions=#{length(ir.functions)} elapsed_ms=#{elapsed_ms}"
+        )
+
+        :ok
+      else
+        {:error, msg} ->
+          raise Cairn.RuntimeError, msg
+      end
+    rescue
+      e in Cairn.StaticError ->
+        emit_diagnostic(e, path, opts)
+        halt_or_error(:static, started_at_ms, halt_on_error)
+
+      e in Cairn.RuntimeError ->
+        emit_diagnostic(e, path, opts)
+        halt_or_error(:runtime, started_at_ms, halt_on_error)
+
+      e in Cairn.ContractError ->
+        emit_diagnostic(e, path, opts)
+        halt_or_error(:contract, started_at_ms, halt_on_error)
+    end
+  end
+
   defp run_test_file(path, halt_on_error) do
     started_at_ms = System.monotonic_time(:millisecond)
 
@@ -211,7 +316,11 @@ defmodule Cairn.CLI do
       end)
 
       elapsed_ms = System.monotonic_time(:millisecond) - started_at_ms
-      IO.puts(:stderr, "TEST SUMMARY: total=#{length(results)} passed=#{length(passed)} failed=#{length(failed)} elapsed_ms=#{elapsed_ms}")
+
+      IO.puts(
+        :stderr,
+        "TEST SUMMARY: total=#{length(results)} passed=#{length(passed)} failed=#{length(failed)} elapsed_ms=#{elapsed_ms}"
+      )
 
       if failed == [] do
         :ok
@@ -224,15 +333,27 @@ defmodule Cairn.CLI do
       end
     rescue
       e in Cairn.StaticError ->
-        Enum.each(Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)), &IO.puts(:stderr, &1))
+        Enum.each(
+          Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)),
+          &IO.puts(:stderr, &1)
+        )
+
         maybe_halt_test_error(started_at_ms, halt_on_error)
 
       e in Cairn.RuntimeError ->
-        Enum.each(Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)), &IO.puts(:stderr, &1))
+        Enum.each(
+          Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)),
+          &IO.puts(:stderr, &1)
+        )
+
         maybe_halt_test_error(started_at_ms, halt_on_error)
 
       e in Cairn.ContractError ->
-        Enum.each(Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)), &IO.puts(:stderr, &1))
+        Enum.each(
+          Cairn.Diagnostic.format_text(Cairn.Diagnostic.from_exception(e, path)),
+          &IO.puts(:stderr, &1)
+        )
+
         maybe_halt_test_error(started_at_ms, halt_on_error)
     end
   end
@@ -262,8 +383,10 @@ defmodule Cairn.CLI do
   defp format_value(list) when is_list(list), do: inspect(list)
   defp format_value(true), do: "TRUE"
   defp format_value(false), do: "FALSE"
+
   defp format_value({:tuple, vals}),
     do: "#(" <> (vals |> Enum.map(&format_value/1) |> Enum.join(" ")) <> ")"
+
   defp format_value(val) when is_binary(val), do: val
   defp format_value(val) when is_number(val), do: to_string(val)
   defp format_value(val) when is_atom(val), do: to_string(val)
@@ -306,6 +429,8 @@ defmodule Cairn.CLI do
       --show-prelude    Print loaded prelude modules/functions to stderr before running
       --verbose         Alias for --show-prelude
       --json-errors     Emit structured JSON diagnostics for failures
+      --emit-ir json    Emit parsed program graph JSON instead of evaluating
+      --fn <name>       With --emit-ir, export only one function/expr by name
 
     Environment:
       CAIRN_NO_PRELUDE=1               Disable auto-loading lib/prelude.crn in file mode

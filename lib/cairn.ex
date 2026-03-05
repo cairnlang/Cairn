@@ -38,7 +38,8 @@ defmodule Cairn do
     with {:ok, tokens} <- Lexer.tokenize(source),
          {:ok, items} <- Parser.parse(tokens, known_types) do
       if Enum.any?(items, &match?({:import, _}, &1)) do
-        raise Cairn.RuntimeError, "IMPORT requires file mode; use Cairn.eval_file/3 or mix cairn.run"
+        raise Cairn.RuntimeError,
+              "IMPORT requires file mode; use Cairn.eval_file/3 or mix cairn.run"
       end
 
       eval_items(items, env, stack)
@@ -60,12 +61,26 @@ defmodule Cairn do
     env = with_prelude(env)
     path = Path.expand(path)
 
-    with {:ok, prelude_items} <- load_prelude_items(path),
-         {:ok, items} <- Loader.load_items(path, known_type_names_from_items(prelude_items)) do
-      eval_items(prelude_items ++ items, env, stack)
+    with {:ok, items} <- load_file_items(path) do
+      eval_items(items, env, stack)
     else
       {:error, msg} ->
         raise Cairn.RuntimeError, msg
+    end
+  end
+
+  @doc """
+  Loads parsed items for a file in file-mode semantics:
+  - resolves IMPORT recursively
+  - auto-loads prelude items unless CAIRN_NO_PRELUDE=1
+  """
+  @spec load_file_items(String.t()) :: {:ok, list()} | {:error, String.t()}
+  def load_file_items(path) do
+    path = Path.expand(path)
+
+    with {:ok, prelude_items} <- load_prelude_items(path),
+         {:ok, items} <- Loader.load_items(path, known_type_names_from_items(prelude_items)) do
+      {:ok, prelude_items ++ items}
     end
   end
 
@@ -104,7 +119,8 @@ defmodule Cairn do
 
           {:error, %{counterexample: ce, error: msg, passed: passed}} ->
             raise Cairn.ContractError,
-              message: "VERIFY #{name}: FAILED after #{passed} tests\n  counterexample: #{ce}\n  error: #{msg}",
+              message:
+                "VERIFY #{name}: FAILED after #{passed} tests\n  counterexample: #{ce}\n  error: #{msg}",
               function_name: name,
               stack: []
         end
@@ -239,7 +255,9 @@ defmodule Cairn do
 
         %TypeAlias{} = type_alias, {stack, env} ->
           type_aliases = Map.get(env, "__type_aliases__", %{})
-          {stack, Map.put(env, "__type_aliases__", Map.put(type_aliases, type_alias.name, type_alias))}
+
+          {stack,
+           Map.put(env, "__type_aliases__", Map.put(type_aliases, type_alias.name, type_alias))}
 
         %ProtocolDef{} = protocol, {stack, env} ->
           protocols = Map.get(env, "__protocols__", %{})
@@ -292,8 +310,16 @@ defmodule Cairn do
 
     ctors =
       ctors
-      |> Map.put_new("Ok", %{type_name: "result", type_params: ["T", "E"], field_types: [{:type_var, "T"}]})
-      |> Map.put_new("Err", %{type_name: "result", type_params: ["T", "E"], field_types: [{:type_var, "E"}]})
+      |> Map.put_new("Ok", %{
+        type_name: "result",
+        type_params: ["T", "E"],
+        field_types: [{:type_var, "T"}]
+      })
+      |> Map.put_new("Err", %{
+        type_name: "result",
+        type_params: ["T", "E"],
+        field_types: [{:type_var, "E"}]
+      })
 
     env
     |> Map.put("__types__", types)
@@ -323,6 +349,7 @@ defmodule Cairn do
   def eval_lines(lines, stack \\ [], env \\ %{}) do
     Enum.reduce(lines, {stack, env}, fn line, {stack, env} ->
       line = String.trim(line)
+
       if line == "" do
         {stack, env}
       else

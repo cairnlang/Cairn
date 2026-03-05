@@ -8,6 +8,15 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xd — DataStore Boundary + Todo Migration (DB Slice)
+- Added `Cairn.DataStore` as a runtime-side boundary for app data access, with `Cairn.DataStore.Backend.Mnesia` as the default backend.
+- Routed built-in DB operations through that boundary:
+  - `DB_PUT`, `DB_GET`, `DB_DEL`, `DB_PAIRS` now call `Cairn.DataStore.*` instead of `Cairn.DB` directly.
+- Added prelude data helpers in `lib/prelude/data.crn` and included them in the prelude facade:
+  - `data_put`, `data_get`, `data_del`, `data_pairs`
+- Migrated `examples/web/lib/todo_web.crn` to use `data_*` helpers instead of raw `DB_*`.
+- Added DB runtime delegation coverage in `test/cairn/db_test.exs` with a fake backend to prove backend swapability.
+
 ### v0.10.xc — Shared Effect Annotation + Result Signature Hygiene (Slice C)
 - Added explicit `EFFECT` annotations across shared helper surfaces:
   - `lib/prelude/ini.crn`

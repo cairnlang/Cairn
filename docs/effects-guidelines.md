@@ -72,8 +72,8 @@ END
   - This weakens readability and can mask accidental impurity.
 - Some signatures still use bare `result` instead of parameterized `result[T E]` outside the shared library surface.
   - Works due current normalization but is less explicit.
-- DB boundary is currently operation-shaped (`DB_*`) rather than capability-shaped.
-  - Fine for now, but not ideal for backend pluggability.
+- DB usage in Cairn source is still operation-shaped (`DB_*`), but runtime routing now goes through `Cairn.DataStore`.
+  - This improves backend pluggability without changing core language syntax yet.
 
 ## Rules For New Code (Starting Now)
 
@@ -105,3 +105,15 @@ END
 - Added regression guard tests in `test/cairn/effects_style_test.exs`:
   - Every `DEF` in `lib/prelude`, `examples/practical/lib`, and `examples/web/lib` must declare `EFFECT`.
   - Bare `-> result` signatures are rejected in the same shared surface.
+
+## Slice D Data Boundary (Completed)
+
+- Added `Cairn.DataStore` as a runtime-side app-data boundary with a Mnesia default backend.
+- Routed `DB_PUT`, `DB_GET`, `DB_DEL`, and `DB_PAIRS` through `Cairn.DataStore` instead of directly calling `Cairn.DB`.
+- Added prelude data wrappers in `lib/prelude/data.crn`:
+  - `data_put`
+  - `data_get`
+  - `data_del`
+  - `data_pairs`
+- Migrated `examples/web/lib/todo_web.crn` off raw `DB_*` calls and onto `data_*` helpers.
+- Added delegation coverage in `test/cairn/db_test.exs` with a fake backend to prove runtime backend swapping works.

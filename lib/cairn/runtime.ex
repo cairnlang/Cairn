@@ -404,24 +404,24 @@ defmodule Cairn.Runtime do
 
   # Bounded Mnesia-backed key/value storage
   def execute(:db_put, [key, value | rest]) when is_binary(key) and is_binary(value) do
-    Cairn.DB.put(key, value)
+    Cairn.DataStore.put(key, value)
     rest
   end
 
   def execute(:db_get, [key | rest]) when is_binary(key) do
-    case Cairn.DB.get(key) do
+    case Cairn.DataStore.get(key) do
       {:ok, value} -> [ok(value) | rest]
       :error -> [err("missing key '#{key}'") | rest]
     end
   end
 
   def execute(:db_del, [key | rest]) when is_binary(key) do
-    Cairn.DB.delete(key)
+    Cairn.DataStore.delete(key)
     rest
   end
 
   def execute(:db_pairs, stack) do
-    [Cairn.DB.pairs() | stack]
+    [Cairn.DataStore.pairs() | stack]
   end
 
   def execute(:auth_check, [password, username | rest])

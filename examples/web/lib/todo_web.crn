@@ -17,7 +17,7 @@ DEF todo_pair_to_line : tuple[str str] -> str EFFECT pure
 END
 
 DEF load_todo_items : -> [str] EFFECT db
-  DB_PAIRS
+  data_pairs
   { todo_pair_is_item } FILTER
   { todo_pair_to_line } MAP
 END
@@ -84,7 +84,7 @@ DEF add_todo_item : map[str str] -> str map[str str] int EFFECT db
   IF
     clean_title "open|{}" FMT
     next_todo_id db_key_for_todo_id
-    DB_PUT
+    data_put
   ELSE
     "" DROP
   END
@@ -100,14 +100,14 @@ DEF handle_todo_done : map[str str] -> str map[str str] int EFFECT db
   0 SWAP to_int_or
   LET target_id
 
-  target_id db_key_for_todo_id DB_GET
+  target_id db_key_for_todo_id data_get
   MATCH
     Ok {
       DUP todo_is_open
       IF
         todo_line_title "done|{}" FMT
         target_id db_key_for_todo_id
-        DB_PUT
+        data_put
       ELSE
         DROP
       END

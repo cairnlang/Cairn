@@ -1,0 +1,17 @@
+# Prelude: backend-agnostic data store helpers over DB_* built-ins.
+
+DEF data_put : str str -> void EFFECT db
+  DB_PUT
+END
+
+DEF data_get : str -> result[str str] EFFECT db
+  DB_GET
+END
+
+DEF data_del : str -> void EFFECT db
+  DB_DEL
+END
+
+DEF data_pairs : -> [tuple[str str]] EFFECT db
+  DB_PAIRS
+END

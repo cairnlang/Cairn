@@ -1,18 +1,18 @@
 IMPORT "../../practical/lib/todo.crn"
 
-DEF todo_pair_key : data_row -> data_key EFFECT pure
+DEF todo_pair_key : tuple[str str] -> str EFFECT pure
   FST
 END
 
-DEF todo_pair_value : data_row -> data_value EFFECT pure
+DEF todo_pair_value : tuple[str str] -> str EFFECT pure
   SND
 END
 
-DEF todo_pair_is_item : data_row -> bool EFFECT pure
+DEF todo_pair_is_item : tuple[str str] -> bool EFFECT pure
   todo_pair_key "todo:" STARTS_WITH
 END
 
-DEF todo_pair_to_line : data_row -> str EFFECT pure
+DEF todo_pair_to_line : tuple[str str] -> str EFFECT pure
   todo_pair_value
 END
 

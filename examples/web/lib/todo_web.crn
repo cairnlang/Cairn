@@ -36,12 +36,12 @@ DEF render_todo_page : [str] -> str EFFECT pure
   items_html total_count done_count open_count "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Todo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n    <style>\n      .todo-item {\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        gap: 0.75rem;\n      }\n      .todo-item-done {\n        color: #6b7280;\n      }\n      .todo-item-done .todo-title {\n        text-decoration: line-through;\n        text-decoration-thickness: 0.12em;\n      }\n      .todo-status {\n        font-size: 0.8rem;\n        text-transform: uppercase;\n        letter-spacing: 0.06em;\n        opacity: 0.7;\n      }\n      .todo-inline-form {\n        margin: 0;\n      }\n      .todo-inline-form input,\n      .todo-inline-form button {\n        margin: 0;\n      }\n      .todo-done-button {\n        padding: 0.18rem 0.55rem;\n        font-size: 0.72rem;\n        line-height: 1.2;\n        min-height: auto;\n      }\n    </style>\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Cairn Todo</h1>\n      <p>Open: {} | Done: {} | Total: {}</p>\n      <form action=\"/add\" method=\"post\">\n        <input name=\"title\" placeholder=\"New task\" />\n        <button type=\"submit\">Add</button>\n      </form>\n      <ul>\n{}\n      </ul>\n    </main>\n  </body>\n</html>\n" FMT
 END
 
-DEF render_todo_response : [str] -> str headers int EFFECT pure
+DEF render_todo_response : [str] -> str map[str str] int EFFECT pure
   render_todo_page
   http_html_ok
 END
 
-DEF add_todo_item : form -> str headers int EFFECT db
+DEF add_todo_item : map[str str] -> str map[str str] int EFFECT db
   LET form
 
   "title" form "" map_get_or
@@ -58,7 +58,7 @@ DEF add_todo_item : form -> str headers int EFFECT db
   render_todo_response
 END
 
-DEF handle_todo_done : form -> str headers int EFFECT db
+DEF handle_todo_done : map[str str] -> str map[str str] int EFFECT db
   LET form
 
   "id" form "0" map_get_or
@@ -71,12 +71,12 @@ DEF handle_todo_done : form -> str headers int EFFECT db
   render_todo_response
 END
 
-DEF handle_todo_index : -> str headers int EFFECT db
+DEF handle_todo_index : -> str map[str str] int EFFECT db
   todo_list_items
   render_todo_response
 END
 
-DEF handle_todo_request : str str query form headers cookies session -> str headers int EFFECT db
+DEF handle_todo_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT db
   LET path
   LET method
   LET query

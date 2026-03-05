@@ -1,4 +1,4 @@
-DEF render_session_page : str -> str headers int EFFECT pure
+DEF render_session_page : str -> str map[str str] int EFFECT pure
   LET who
 
   who LEN 0 GT
@@ -11,7 +11,7 @@ DEF render_session_page : str -> str headers int EFFECT pure
   http_html_ok
 END
 
-DEF with_session : session str headers int -> str headers session int EFFECT pure
+DEF with_session : map[str str] str map[str str] int -> str map[str str] map[str str] int EFFECT pure
   LET session
   LET body
   LET headers
@@ -19,7 +19,7 @@ DEF with_session : session str headers int -> str headers session int EFFECT pur
   status session headers body
 END
 
-DEF handle_session_request : str str query form headers cookies session -> str headers session int EFFECT pure
+DEF handle_session_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] map[str str] int EFFECT pure
   LET path
   LET method
   LET query

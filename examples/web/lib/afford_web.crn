@@ -1,13 +1,13 @@
 IMPORT "afford_rules.crn"
 
-DEF field_value : form str -> str EFFECT pure
+DEF field_value : map[str str] str -> str EFFECT pure
   LET form
   LET key
   key form "" map_get_or
   html_escape
 END
 
-DEF kind_markup : form -> str EFFECT pure
+DEF kind_markup : map[str str] -> str EFFECT pure
   LET form
   "kind" form "one_time" map_get_or LET kind
 
@@ -66,7 +66,7 @@ DEF render_result_panel_success : int int int str str int -> str EFFECT pure
   reserve_value remaining_cash projected_margin score recommendation risk_label risk_class "<article class=\"result-panel {}\"><h2>Risk: {}</h2><p>{}</p><p><strong>Score:</strong> {}</p><ul><li><strong>Projected monthly margin:</strong> {}</li><li><strong>Remaining cash after purchase:</strong> {}</li><li><strong>Reserve threshold:</strong> {}</li></ul></article>" FMT
 END
 
-DEF render_afford_page : form str -> str EFFECT pure
+DEF render_afford_page : map[str str] str -> str EFFECT pure
   LET form
   LET panel_html
 
@@ -79,12 +79,12 @@ DEF render_afford_page : form str -> str EFFECT pure
   panel_html kind_options proposed_value baseline_value income_value cash_value "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Can I Afford This?</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n    <style>\n      .result-safe { border-left: 0.35rem solid #15803d; }\n      .result-caution { border-left: 0.35rem solid #d97706; }\n      .result-danger { border-left: 0.35rem solid #b91c1c; }\n      .stacked-grid { display: grid; gap: 1rem; }\n    </style>\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Can I Afford This?</h1>\n      <p>Estimate whether a proposed purchase or subscription is financially safe.</p>\n      <section class=\"stacked-grid\">\n        <form action=\"/evaluate\" method=\"post\">\n          <label>Current cash\n            <input name=\"cash\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Monthly income\n            <input name=\"income\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Monthly baseline expenses\n            <input name=\"baseline\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Proposed cost\n            <input name=\"proposed\" type=\"number\" min=\"0\" value=\"{}\" required>\n          </label>\n          <label>Cost type\n            <select name=\"kind\">\n{}\n            </select>\n          </label>\n          <button type=\"submit\">Evaluate</button>\n        </form>\n{}\n      </section>\n    </main>\n  </body>\n</html>\n" FMT
 END
 
-DEF render_afford_response : form str -> str headers int EFFECT pure
+DEF render_afford_response : map[str str] str -> str map[str str] int EFFECT pure
   render_afford_page
   http_html_ok
 END
 
-DEF form_numbers_valid : form -> bool EFFECT pure
+DEF form_numbers_valid : map[str str] -> bool EFFECT pure
   LET form
   "cash" form "-1" map_get_or -1 SWAP to_int_or LET cash
   "income" form "-1" map_get_or -1 SWAP to_int_or LET income
@@ -97,20 +97,20 @@ DEF form_numbers_valid : form -> bool EFFECT pure
   proposed 0 GTE AND
 END
 
-DEF form_kind_valid : form -> bool EFFECT pure
+DEF form_kind_valid : map[str str] -> bool EFFECT pure
   LET form
   "kind" form "" map_get_or LET kind
   kind "one_time" EQ
   kind "recurring" EQ OR
 END
 
-DEF handle_afford_index : -> str headers int EFFECT pure
+DEF handle_afford_index : -> str map[str str] int EFFECT pure
   render_result_panel_empty
   M[]
   render_afford_response
 END
 
-DEF handle_afford_evaluate : form -> str headers int EFFECT pure
+DEF handle_afford_evaluate : map[str str] -> str map[str str] int EFFECT pure
   LET form
 
   form form_numbers_valid
@@ -155,7 +155,7 @@ DEF handle_afford_evaluate : form -> str headers int EFFECT pure
   END
 END
 
-DEF handle_afford_request : str str query form headers cookies session -> str headers int EFFECT pure
+DEF handle_afford_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT pure
   LET path
   LET method
   LET query

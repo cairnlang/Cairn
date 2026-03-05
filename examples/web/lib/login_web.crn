@@ -1,16 +1,16 @@
-DEF current_user_name : session -> str EFFECT pure
+DEF current_user_name : map[str str] -> str EFFECT pure
   "user" SWAP "" map_get_or
 END
 
-DEF current_user_role : session -> str EFFECT pure
+DEF current_user_role : map[str str] -> str EFFECT pure
   "role" SWAP "" map_get_or
 END
 
-DEF logged_in_p : session -> bool EFFECT pure
+DEF logged_in_p : map[str str] -> bool EFFECT pure
   session_has_user
 END
 
-DEF render_login_page : str -> str headers int EFFECT pure
+DEF render_login_page : str -> str map[str str] int EFFECT pure
   LET error_message
 
   error_message LEN 0 GT
@@ -26,7 +26,7 @@ DEF render_login_page : str -> str headers int EFFECT pure
   http_html_ok
 END
 
-DEF render_home_page : str str -> str headers int EFFECT pure
+DEF render_home_page : str str -> str map[str str] int EFFECT pure
   LET username
   LET role
 
@@ -39,7 +39,7 @@ DEF render_home_page : str str -> str headers int EFFECT pure
   http_html_ok
 END
 
-DEF render_profile_page : str str -> str headers int EFFECT pure
+DEF render_profile_page : str str -> str map[str str] int EFFECT pure
   LET username
   LET role
 
@@ -52,7 +52,7 @@ DEF render_profile_page : str str -> str headers int EFFECT pure
   http_html_ok
 END
 
-DEF render_admin_page : str -> str headers int EFFECT pure
+DEF render_admin_page : str -> str map[str str] int EFFECT pure
   LET username
 
   username html_escape LET safe_user
@@ -62,7 +62,7 @@ DEF render_admin_page : str -> str headers int EFFECT pure
   http_html_ok
 END
 
-DEF with_session : session str headers int -> str headers session int EFFECT pure
+DEF with_session : map[str str] str map[str str] int -> str map[str str] map[str str] int EFFECT pure
   LET session
   LET body
   LET headers
@@ -70,7 +70,7 @@ DEF with_session : session str headers int -> str headers session int EFFECT pur
   status session headers body
 END
 
-DEF with_user_session : str str str headers int -> str headers session int EFFECT pure
+DEF with_user_session : str str str map[str str] int -> str map[str str] map[str str] int EFFECT pure
   LET role
   LET user
   LET body
@@ -79,7 +79,7 @@ DEF with_user_session : str str str headers int -> str headers session int EFFEC
   status M[] headers body "role" role session_put "user" user session_put
 END
 
-DEF handle_login_request : str str query form headers cookies session -> str headers session int EFFECT http
+DEF handle_login_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] map[str str] int EFFECT http
   LET path
   LET method
   LET query

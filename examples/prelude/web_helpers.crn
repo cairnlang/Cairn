@@ -117,3 +117,24 @@ M[ "user" "alice" "role" "admin" ] "admin" guard_require_role
 
 M[ "user" "bob" "role" "operator" ] "admin" guard_require_role
 "guard_forbidden={}" FMT SAID
+
+"/about" "GET" "/about" route_is_get
+"route_is_get={}" FMT SAID
+
+"/about" "POST" "/about" route_is_post
+"route_is_post={}" FMT SAID
+
+"PATCH" [ "GET" "POST" ] route_method_allowed
+"route_method_allowed_patch={}" FMT SAID
+
+[ "GET" "POST" ]
+"DELETE"
+"/missing" "/" "<p>Home</p>" route_text_ok
+route_finish_allowed
+LET allowed_finish_body
+LET allowed_finish_headers
+LET allowed_finish_status
+
+allowed_finish_status "allowed_finish_status={}" FMT SAID
+allowed_finish_headers "allowed_finish_headers={}" FMT SAID
+allowed_finish_body "allowed_finish_body={}" FMT SAID

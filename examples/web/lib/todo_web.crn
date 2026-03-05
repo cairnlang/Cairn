@@ -36,12 +36,12 @@ DEF render_todo_page : [str] -> str EFFECT pure
   items_html total_count done_count open_count "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Cairn Todo</title>\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">\n    <style>\n      .todo-item {\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        gap: 0.75rem;\n      }\n      .todo-item-done {\n        color: #6b7280;\n      }\n      .todo-item-done .todo-title {\n        text-decoration: line-through;\n        text-decoration-thickness: 0.12em;\n      }\n      .todo-status {\n        font-size: 0.8rem;\n        text-transform: uppercase;\n        letter-spacing: 0.06em;\n        opacity: 0.7;\n      }\n      .todo-inline-form {\n        margin: 0;\n      }\n      .todo-inline-form input,\n      .todo-inline-form button {\n        margin: 0;\n      }\n      .todo-done-button {\n        padding: 0.18rem 0.55rem;\n        font-size: 0.72rem;\n        line-height: 1.2;\n        min-height: auto;\n      }\n    </style>\n  </head>\n  <body>\n    <main class=\"container\">\n      <h1>Cairn Todo</h1>\n      <p>Open: {} | Done: {} | Total: {}</p>\n      <form action=\"/add\" method=\"post\">\n        <input name=\"title\" placeholder=\"New task\" />\n        <button type=\"submit\">Add</button>\n      </form>\n      <ul>\n{}\n      </ul>\n    </main>\n  </body>\n</html>\n" FMT
 END
 
-DEF render_todo_response : [str] -> str map[str str] int EFFECT pure
+DEF render_todo_response : [str] -> str headers int EFFECT pure
   render_todo_page
   http_html_ok
 END
 
-DEF add_todo_item : map[str str] -> str map[str str] int EFFECT db
+DEF add_todo_item : form -> str headers int EFFECT db
   LET form
 
   "title" form "" map_get_or
@@ -58,7 +58,7 @@ DEF add_todo_item : map[str str] -> str map[str str] int EFFECT db
   render_todo_response
 END
 
-DEF handle_todo_done : map[str str] -> str map[str str] int EFFECT db
+DEF handle_todo_done : form -> str headers int EFFECT db
   LET form
 
   "id" form "0" map_get_or
@@ -71,17 +71,55 @@ DEF handle_todo_done : map[str str] -> str map[str str] int EFFECT db
   render_todo_response
 END
 
-DEF handle_todo_index : -> str map[str str] int EFFECT db
+DEF handle_todo_index : -> str headers int EFFECT db
   todo_list_items
   render_todo_response
 END
 
-DEF handle_todo_request_env : tuple[str str tuple[map[str str] map[str str] tuple[map[str str] map[str str] map[str str]]]] -> str map[str str] int EFFECT db
+DEF route_get_todo_index : str str -> route_result EFFECT db
+  LET method
+  LET path
+
+  path method "/" route_is_get
+  IF
+    handle_todo_index http_pack_response Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_post_todo_add : form str str -> route_result EFFECT db
+  LET form
+  LET method
+  LET path
+
+  path method "/add" route_is_post
+  IF
+    form add_todo_item http_pack_response Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF route_post_todo_done : form str str -> route_result EFFECT db
+  LET form
+  LET method
+  LET path
+
+  path method "/done" route_is_post
+  IF
+    form handle_todo_done http_pack_response Ok
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF handle_todo_request_env : request_envelope -> str headers int EFFECT db
   request_unpack
   handle_todo_request
 END
 
-DEF handle_todo_request : str str map[str str] map[str str] map[str str] map[str str] map[str str] -> str map[str str] int EFFECT db
+DEF handle_todo_request : str str query form headers cookies session -> str headers int EFFECT db
   LET path
   LET method
   LET query
@@ -94,30 +132,11 @@ DEF handle_todo_request : str str map[str str] map[str str] map[str str] map[str
   cookies DROP
   session DROP
 
-  method "GET" EQ
-  IF
-    path "/" EQ
-    IF
-      handle_todo_index
-    ELSE
-      "not found\n" http_text_not_found
-    END
-  ELSE
-    method "POST" EQ
-    IF
-      path "/add" EQ
-      IF
-        form add_todo_item
-      ELSE
-        path "/done" EQ
-        IF
-          form handle_todo_done
-        ELSE
-          "not found\n" http_text_not_found
-        END
-      END
-    ELSE
-      "method not allowed\n" http_text_method_not_allowed
-    END
-  END
+  path method route_get_todo_index
+  path method form route_post_todo_add
+  route_or
+  path method form route_post_todo_done
+  route_or
+  LET candidate
+  [ "GET" "POST" ] method candidate route_finish_allowed
 END

@@ -260,6 +260,45 @@ DEF route_get_text : str str str str -> route_result EFFECT pure
   END
 END
 
+# Method+path predicate for route combinators.
+# Signature: route expected_method method path -> bool
+DEF route_is_method_path : str str str str -> bool EFFECT pure
+  LET route
+  LET expected_method
+  LET method
+  LET path
+
+  method expected_method EQ
+  path route EQ
+  AND
+END
+
+# Method/path predicate for GET routes.
+# Signature: route method path -> bool
+DEF route_is_get : str str str -> bool EFFECT pure
+  LET route
+  LET method
+  LET path
+  path method "GET" route route_is_method_path
+END
+
+# Method/path predicate for POST routes.
+# Signature: route method path -> bool
+DEF route_is_post : str str str -> bool EFFECT pure
+  LET route
+  LET method
+  LET path
+  path method "POST" route route_is_method_path
+END
+
+# Membership check for allowed HTTP methods.
+# Signature: method [str] -> bool
+DEF route_method_allowed : [str] str -> bool EFFECT pure
+  LET allowed
+  LET method
+  allowed FALSE { method EQ SWAP OR } REDUCE
+END
+
 # Prefer the earlier candidate if it matched; otherwise keep the fallback.
 # Signature: fallback preferred -> route_result
 DEF route_or : route_result route_result -> route_result EFFECT pure
@@ -297,6 +336,31 @@ DEF route_finish_get : str route_result -> str headers int EFFECT pure
   ELSE
     candidate DROP
     method "GET" EQ
+    IF
+      "not found\n" http_text_not_found
+    ELSE
+      "method not allowed\n" http_text_method_not_allowed
+    END
+  END
+END
+
+# Finalize a route chain with an explicit allow-list of methods.
+# - matching route => use it
+# - no route + allowed method => 404
+# - no route + disallowed method => 405
+# Signature: [str] method route_result -> str headers int
+DEF route_finish_allowed : route_result str [str] -> str headers int EFFECT pure
+  LET candidate
+  LET method
+  LET allowed
+
+  candidate result_is_ok
+  IF
+    "not found\n" http_text_not_found http_pack_response
+    candidate result_unwrap_or
+    http_unpack_response
+  ELSE
+    method allowed route_method_allowed
     IF
       "not found\n" http_text_not_found
     ELSE

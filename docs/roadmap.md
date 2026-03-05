@@ -55,6 +55,30 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
   - wrong-field-type diagnostics
   - map-shape/literal-string unification behavior
 
+### v0.10.xk — TODO NEXT N4: Effect-Surface Cleanup
+- Standardized web handler boundary signatures on shared web aliases (`query`, `form`, `headers`, `cookies`, `session`) instead of repeated raw `map[str str]` bundles in shared web libs.
+- Migrated remaining web entrypoints to explicit typed request-envelope adapters:
+  - `request_pack`
+  - `*_request_env` wrappers
+  - updated launchers for `session_demo`, `login_app`, and `afford_app`
+- Kept pure core helpers pure and effectful boundary adapters thin:
+  - route/policy/render functions remain `EFFECT pure`
+  - storage/auth-integrating shells remain explicitly effectful
+- Preserved runtime behavior while making signatures shorter and more uniform across web examples.
+
+### v0.10.xl — TODO NEXT N5: Typed Route Combinators
+- Expanded the web prelude with method/path route combinators:
+  - `route_is_method_path`
+  - `route_is_get`
+  - `route_is_post`
+  - `route_method_allowed`
+  - `route_finish_allowed`
+- Flattened route trees in key web examples so routing reads as compositional pipelines instead of nested branch ladders:
+  - `examples/web/lib/hello_static.crn`
+  - `examples/web/lib/todo_web.crn`
+- Extended prelude web helper examples to exercise the new combinators, including explicit allowed-method fallback behavior.
+- Preserved behavior while improving route readability and reusability across handlers.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`
@@ -797,15 +821,15 @@ The current best return comes from improving substrate features first so multipl
 - Keep scope bounded to the new boundary shapes first; no full row-polymorphism project in this pass.
 - Done: checker now reports friendly missing/wrong-field diagnostics for shaped map access (`GET`/`PUT`), with dedicated coverage in `test/cairn/map_test.exs`.
 
-4. **Slice N4 — Effect-surface cleanup**
+4. **Slice N4 — Effect-surface cleanup** (landed)
 - Refine helper signatures/effect declarations across shared and web libs to reduce mixed `io/db/http` plumbing where avoidable.
 - Keep pure core helpers pure; keep adapters thin and explicitly effectful.
-- Done when: shared/web libs pass style/effect checks and example signatures are visibly shorter/clearer.
+- Done: shared/web libs keep explicit effect declarations, web boundaries are alias-based and envelope-adapter based across all web entrypoints, and signatures are shorter/clearer without behavior regressions.
 
-5. **Slice N5 — Typed route combinators**
+5. **Slice N5 — Typed route combinators** (landed)
 - Build route composition helpers on top of typed request/response envelopes to reduce deep `IF/ELSE` ladders.
 - Preserve explicit control flow and readability; avoid hidden framework magic.
-- Done when: `hello_static` and `todo_app` route trees are flattened via combinators with no behavior regressions.
+- Done: prelude route combinators now cover method/path predicates + allow-list finishing, and `hello_static` + `todo_app` route trees are flattened with no behavior regressions.
 
 6. **Slice N6 — Web edge assurance harness**
 - Add repeatable operational checks for auth/session/mutation/error paths (scriptable and CI-friendly).

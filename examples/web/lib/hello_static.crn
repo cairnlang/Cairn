@@ -10,9 +10,7 @@ DEF route_get_echo : query str str -> route_result EFFECT pure
   LET method
   LET path
 
-  method "GET" EQ
-  path "/echo" EQ
-  AND
+  path method "/echo" route_is_get
   IF
     "name" query "friend" map_get_or
     "hello, {}\n" FMT
@@ -29,9 +27,7 @@ DEF route_get_hello_html : query str str -> route_result EFFECT pure
   LET method
   LET path
 
-  method "GET" EQ
-  path "/hello" EQ
-  AND
+  path method "/hello" route_is_get
   IF
     "name" query "friend" map_get_or
     html_escape
@@ -49,9 +45,7 @@ DEF route_get_cookie : cookies str str -> route_result EFFECT pure
   LET method
   LET path
 
-  method "GET" EQ
-  path "/cookie" EQ
-  AND
+  path method "/cookie" route_is_get
   IF
     "theme" cookies "none" map_get_or
     "cookie:{}\n" FMT
@@ -67,9 +61,7 @@ DEF route_get_set_cookie : str str -> route_result EFFECT pure
   LET method
   LET path
 
-  method "GET" EQ
-  path "/set-cookie" EQ
-  AND
+  path method "/set-cookie" route_is_get
   IF
     "cookie set\n"
     http_text_ok
@@ -83,7 +75,7 @@ DEF route_get_set_cookie : str str -> route_result EFFECT pure
   END
 END
 
-DEF handle_static_request_env : tuple[str str tuple[query form tuple[headers cookies session]]] -> str headers int EFFECT http
+DEF handle_static_request_env : request_envelope -> str headers int EFFECT http
   request_unpack
   handle_static_request
 END

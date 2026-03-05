@@ -222,6 +222,44 @@ DEF respond_with_ctx_cleared_session : request_ctx str headers int -> str header
   session_response_return
 END
 
+# Guard a response with "logged-in required" semantics.
+# Signature: ctx body headers status -> body headers session status
+DEF guard_login_response : request_ctx str headers int -> str headers session int EFFECT pure
+  LET ctx
+  LET body
+  LET headers
+  LET status
+
+  ctx request_ctx_session guard_require_login
+  IF
+    status headers body ctx respond_with_ctx_session
+  ELSE
+    "login required\n" http_text_unauthorized ctx respond_with_ctx_session
+  END
+END
+
+# Guard a response with a required role; returns 401 if not logged in, 403 if wrong role.
+# Signature: required_role ctx body headers status -> body headers session status
+DEF guard_role_response : str request_ctx str headers int -> str headers session int EFFECT pure
+  LET required_role
+  LET ctx
+  LET body
+  LET headers
+  LET status
+
+  ctx request_ctx_session guard_require_login
+  IF
+    ctx request_ctx_session required_role guard_require_role
+    IF
+      status headers body ctx respond_with_ctx_session
+    ELSE
+      "forbidden\n" http_text_forbidden ctx respond_with_ctx_session
+    END
+  ELSE
+    "login required\n" http_text_unauthorized ctx respond_with_ctx_session
+  END
+END
+
 # Add or replace one response header while preserving the HTTP_SERVE stack shape.
 # Signature: value key body headers status -> body headers status
 DEF http_add_header : str str str headers int -> str headers int EFFECT pure

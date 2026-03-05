@@ -153,3 +153,29 @@ sess_demo_status "sess_demo_status={}" FMT SAID
 sess_demo_headers "sess_demo_headers={}" FMT SAID
 sess_demo_session "sess_demo_session={}" FMT SAID
 sess_demo_body "sess_demo_body={}" FMT SAID
+
+M[] M[] M[] M[] M[] "GET" "/profile" request_pack LET guest_ctx
+"profile body\n" http_text_ok
+guest_ctx guard_login_response
+LET guard_login_body
+LET guard_login_headers
+LET guard_login_session
+LET guard_login_status
+
+guard_login_status "guard_login_status={}" FMT SAID
+guard_login_headers "guard_login_headers={}" FMT SAID
+guard_login_session "guard_login_session={}" FMT SAID
+guard_login_body "guard_login_body={}" FMT SAID
+
+M[ "user" "alice" "role" "admin" ] M[] M[] M[] M[] "GET" "/admin" request_pack LET admin_ctx
+"admin body\n" http_text_ok
+admin_ctx "admin" guard_role_response
+LET guard_role_body
+LET guard_role_headers
+LET guard_role_session
+LET guard_role_status
+
+guard_role_status "guard_role_status={}" FMT SAID
+guard_role_headers "guard_role_headers={}" FMT SAID
+guard_role_session "guard_role_session={}" FMT SAID
+guard_role_body "guard_role_body={}" FMT SAID

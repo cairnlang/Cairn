@@ -132,6 +132,16 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
   - `examples/web/lib/session_demo.crn`
 - Removed manual `LET body/headers/status` response threading in logout/session-clear paths while preserving behavior.
 
+### v0.10.xq — TODO NEXT N10: Explicit Middleware-Style Guard Combinators
+- Added explicit session-response guard combinators in `lib/prelude/web.crn`:
+  - `guard_login_response`
+  - `guard_role_response`
+- Reworked protected routes in `examples/web/lib/login_web.crn` to use guard combinators instead of repeated auth branch ladders:
+  - `/profile` now routes through `guard_login_response`
+  - `/admin` now routes through `guard_role_response`
+- Expanded `examples/prelude/web_helpers.crn` with concrete guard-combinator demonstrations for guest/admin request contexts.
+- Preserved behavior while making auth guard intent declarative and reusable.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`

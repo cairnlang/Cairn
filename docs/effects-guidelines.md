@@ -223,6 +223,14 @@ END
   - `examples/web/lib/session_demo.crn`
 - Reduced manual response threading and kept behavior/effects unchanged.
 
+## Slice N Middleware-Style Guard Combinators (Completed)
+
+- Added explicit guard combinators for session-aware responses in `lib/prelude/web.crn`:
+  - `guard_login_response`
+  - `guard_role_response`
+- Applied them in the login web flow (`examples/web/lib/login_web.crn`) so auth checks read as composable boundary helpers instead of nested branch duplication.
+- Kept the effect model unchanged (`EFFECT pure` helpers over existing `request_ctx` + response context combinators).
+
 ## Postgres Discipline Rules
 
 - Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.

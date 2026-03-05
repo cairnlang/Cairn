@@ -1114,6 +1114,16 @@ respond_with_ctx_cleared_session
 before: [ctx:request_ctx, body:str, headers:map[str str], status:int]
 after:  [body:str, headers:map[str str], session:map[str str], status:int]
 
+guard_login_response
+before: [ctx:request_ctx, body:str, headers:map[str str], status:int]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+note: passes through response when logged in, otherwise returns 401 with current session context
+
+guard_role_response
+before: [required_role:str, ctx:request_ctx, body:str, headers:map[str str], status:int]
+after:  [body:str, headers:map[str str], session:map[str str], status:int]
+note: passes when role matches; returns 401 if not logged in, 403 when logged in but role mismatches
+
 http_add_header
 before: [value:str, key:str, body:str, headers:map[str str], status:int]
 after:  [body:str, headers:map[str str], status:int]

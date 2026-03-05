@@ -100,34 +100,16 @@ DEF handle_login_request_ctx : request_ctx -> str headers session int EFFECT htt
       ELSE
         ctx request_ctx_path "/profile" EQ
         IF
-          ctx request_ctx_session guard_require_login
-          IF
-            ctx request_ctx_session current_user_role
-            ctx request_ctx_session current_user_name
-            render_profile_page
-            ctx respond_with_ctx_session
-          ELSE
-            "login required\n" http_text_unauthorized
-            ctx respond_with_ctx_session
-          END
+          ctx request_ctx_session current_user_role
+          ctx request_ctx_session current_user_name
+          render_profile_page
+          ctx guard_login_response
         ELSE
           ctx request_ctx_path "/admin" EQ
           IF
-            ctx request_ctx_session guard_require_login
-            IF
-              ctx request_ctx_session "admin" guard_require_role
-              IF
-                ctx request_ctx_session current_user_name
-                render_admin_page
-                ctx respond_with_ctx_session
-              ELSE
-                "forbidden\n" http_text_forbidden
-                ctx respond_with_ctx_session
-              END
-            ELSE
-              "login required\n" http_text_unauthorized
-              ctx respond_with_ctx_session
-            END
+            ctx request_ctx_session current_user_name
+            render_admin_page
+            ctx "admin" guard_role_response
           ELSE
             "not found\n" http_text_not_found
             ctx respond_with_ctx_session

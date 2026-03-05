@@ -104,7 +104,7 @@ DEF route_get_profile : request_ctx -> session_route_result EFFECT pure
   ctx request_ctx_session current_user_name
   render_profile_page
   ctx route_session_from_ctx
-  route_guard_login_candidate
+  route_with_login
 END
 
 DEF route_get_admin : request_ctx -> session_route_result EFFECT pure
@@ -113,7 +113,7 @@ DEF route_get_admin : request_ctx -> session_route_result EFFECT pure
   ctx request_ctx_session current_user_name
   render_admin_page
   ctx route_session_from_ctx
-  "admin" route_guard_role_candidate
+  "admin" route_with_role
 END
 
 DEF route_post_login : request_ctx -> session_route_result EFFECT http
@@ -159,15 +159,11 @@ DEF handle_login_request_ctx : request_ctx -> str headers session int EFFECT htt
 
   ctx "/" { ctx route_get_home } route_get_session
   ctx "/login" { ctx route_get_login_page } route_get_session
-  route_or_session
   ctx "/profile" { ctx route_get_profile } route_get_session
-  route_or_session
   ctx "/admin" { ctx route_get_admin } route_get_session
-  route_or_session
   ctx "/login" { ctx route_post_login } route_post_session
-  route_or_session
   ctx "/logout" { ctx route_post_logout } route_post_session
-  route_or_session
+  route_chain_session6
   LET candidate
   [ "GET" "POST" ] ctx candidate route_finish_session_allowed
 END

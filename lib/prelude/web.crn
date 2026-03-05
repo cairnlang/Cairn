@@ -600,6 +600,43 @@ DEF route_guard_role_candidate : str session_route_result -> session_route_resul
   END
 END
 
+# Middleware-friendly alias for login candidate guard.
+# Signature: candidate -> session_route_result
+DEF route_with_login : session_route_result -> session_route_result EFFECT pure
+  route_guard_login_candidate
+END
+
+# Middleware-friendly alias for role candidate guard.
+# Signature: required_role candidate -> session_route_result
+DEF route_with_role : str session_route_result -> session_route_result EFFECT pure
+  route_guard_role_candidate
+END
+
+# Chain two session route candidates, preserving
+# "first successful route wins" semantics.
+# Signature: second first -> session_route_result
+DEF route_chain_session2 : session_route_result session_route_result -> session_route_result EFFECT pure
+  route_or_session
+END
+
+# Chain six session route candidates, preserving
+# "first successful route wins" semantics.
+# Signature: sixth fifth fourth third second first -> session_route_result
+DEF route_chain_session6 : session_route_result session_route_result session_route_result session_route_result session_route_result session_route_result -> session_route_result EFFECT pure
+  LET sixth
+  LET fifth
+  LET fourth
+  LET third
+  LET second
+  LET first
+
+  first second route_or_session
+  third route_or_session
+  fourth route_or_session
+  fifth route_or_session
+  sixth route_or_session
+END
+
 # Finalize a route chain into the stack shape HTTP_SERVE expects.
 DEF route_finish : route_result -> str headers int EFFECT pure
   "not found\n" http_text_not_found http_pack_response

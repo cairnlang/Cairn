@@ -168,6 +168,18 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 - Extended `examples/prelude/web_helpers.crn` with a declarative route helper example.
 - Preserved behavior while reducing repetitive method/path boilerplate in session-route handlers.
 
+### v0.10.xt — TODO NEXT N13: Route Chain + Middleware Ergonomics
+- Added bounded session-route ergonomics helpers in `lib/prelude/web.crn`:
+  - `route_chain_session2`
+  - `route_chain_session6`
+  - `route_with_login`
+  - `route_with_role`
+- Refactored `examples/web/lib/login_web.crn`:
+  - middleware-style route protection now uses `route_with_login` / `route_with_role`
+  - candidate composition now uses one bounded chain helper (`route_chain_session6`) instead of repeated `route_or_session` ladders
+- Updated `examples/prelude/web_helpers.crn` with a route-chain demonstration that exercises the new helpers.
+- Preserved behavior while flattening route composition and making middleware intent more obvious in handler code.
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`

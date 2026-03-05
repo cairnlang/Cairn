@@ -248,6 +248,17 @@ END
 - Updated `examples/web/lib/login_web.crn` to use declarative route declarations (`ctx "/..." { handler } route_get_session|route_post_session`) while preserving existing behavior.
 - Kept effect boundaries explicit and unchanged; this slice is surface ergonomics over the same runtime model.
 
+## Slice Q Route Chain + Middleware Ergonomics (Completed)
+
+- Added bounded route/middleware helpers in `lib/prelude/web.crn`:
+  - `route_chain_session2` and `route_chain_session6` for first-match candidate chaining without manual `route_or_session` ladders
+  - `route_with_login` and `route_with_role` as middleware-friendly aliases over candidate guards
+- Refactored `examples/web/lib/login_web.crn` to:
+  - chain six route candidates with one `route_chain_session6` call
+  - use `route_with_login` / `route_with_role` at guarded endpoints
+- Extended `examples/prelude/web_helpers.crn` with a concrete chain demo using the new helpers.
+- Kept effects unchanged (`pure` helpers; existing `http` boundary behavior preserved).
+
 ## Postgres Discipline Rules
 
 - Cairn source stays in `EFFECT db`; no direct `HOST_CALL` in app code.

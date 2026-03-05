@@ -1230,6 +1230,26 @@ before: [required_role:str, candidate:result[session_response_ctx str]]
 after:  [candidate:result[session_response_ctx str]]
 note: when candidate is Ok, enforces role guard and rewrites to 401/403 response as needed
 
+route_with_login
+before: [candidate:result[session_response_ctx str]]
+after:  [candidate:result[session_response_ctx str]]
+note: middleware-friendly alias for `route_guard_login_candidate`
+
+route_with_role
+before: [required_role:str, candidate:result[session_response_ctx str]]
+after:  [candidate:result[session_response_ctx str]]
+note: middleware-friendly alias for `route_guard_role_candidate`
+
+route_chain_session2
+before: [second:result[session_response_ctx str], first:result[session_response_ctx str]]
+after:  [candidate:result[session_response_ctx str]]
+note: returns the first successful candidate (first-match semantics)
+
+route_chain_session6
+before: [sixth:result[session_response_ctx str], fifth:result[session_response_ctx str], fourth:result[session_response_ctx str], third:result[session_response_ctx str], second:result[session_response_ctx str], first:result[session_response_ctx str]]
+after:  [candidate:result[session_response_ctx str]]
+note: bounded chain helper for six candidates with first-match semantics
+
 route_finish_session
 before: [ctx:request_ctx, candidate:result[session_response_ctx str]]
 after:  [body:str, headers:map[str str], session:map[str str], status:int]

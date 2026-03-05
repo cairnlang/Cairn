@@ -182,7 +182,7 @@ guard_role_body "guard_role_body={}" FMT SAID
 
 "profile body\n" http_text_ok
 guest_ctx route_session_from_ctx
-route_guard_login_candidate
+route_with_login
 LET route_candidate
 [ "GET" "POST" ] guest_ctx route_candidate route_finish_session_allowed
 LET route_guard_body
@@ -196,6 +196,31 @@ route_guard_session "route_guard_session={}" FMT SAID
 route_guard_body "route_guard_body={}" FMT SAID
 
 M[] M[] M[] M[] M[] "GET" "/health" request_pack LET health_ctx
+M[] M[] M[] M[] M[] "GET" "/admin" request_pack LET admin_ctx_guest
+
+health_ctx "/health" {
+  "ok\n" http_text_ok
+  health_ctx
+  route_session_from_ctx
+} route_get_session
+admin_ctx_guest "/admin" {
+  "admin body\n" http_text_ok
+  admin_ctx_guest
+  route_session_from_ctx
+  "admin" route_with_role
+} route_get_session
+route_chain_session2
+LET chain_candidate
+[ "GET" "POST" ] health_ctx chain_candidate route_finish_session_allowed
+LET chain_body
+LET chain_headers
+LET chain_session
+LET chain_status
+
+chain_status "chain_status={}" FMT SAID
+chain_headers "chain_headers={}" FMT SAID
+chain_session "chain_session={}" FMT SAID
+chain_body "chain_body={}" FMT SAID
 
 health_ctx "/health" {
   "ok\n" http_text_ok

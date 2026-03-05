@@ -43,6 +43,18 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
   - depth-aware nested type arg splitting in `lib/cairn/lexer.ex`
   - loader parse now receives prelude-known type names in `lib/cairn/loader.ex` + `lib/cairn.ex`
 
+### v0.10.xj — TODO NEXT N3: Field-Aware Checker Tightening
+- Added bounded field-aware map-shape checking in the static checker for string-key map literals.
+- `GET` now reports missing literal fields early on shaped maps with friendly diagnostics.
+- `PUT` now reports per-field type mismatches on shaped maps with explicit field names and expected vs actual types.
+- Added supporting checker type refinements:
+  - literal string refinement type (`{:lit_str, value}`) for key-aware checks
+  - map-shape refinement type (`{:map_shape, ...}`) that still unifies with `map[_, _]`
+- Added dedicated tests in `test/cairn/map_test.exs` for:
+  - missing-field diagnostics
+  - wrong-field-type diagnostics
+  - map-shape/literal-string unification behavior
+
 ### v0.10.xg — Web Config Loader + Postgres Test Harness
 - Added `examples/web/lib/web_config.crn` as a shared entrypoint config layer:
   - `web_bind_host`
@@ -780,10 +792,10 @@ The current best return comes from improving substrate features first so multipl
 - Keep runtime behavior unchanged; this is a Cairn-surface ergonomics/type-safety slice.
 - Done: `request_pack`/`request_unpack` are in prelude, and both `examples/web/hello_static.crn` + `examples/web/todo_app.crn` run through typed envelope handlers.
 
-3. **Slice N3 — Field-aware checker tightening**
+3. **Slice N3 — Field-aware checker tightening** (landed)
 - Strengthen checker diagnostics for structured-field access: missing field and mismatched field type should fail early with readable messages.
 - Keep scope bounded to the new boundary shapes first; no full row-polymorphism project in this pass.
-- Done when: dedicated checker tests cover missing/wrong-field failures and friendly diagnostics.
+- Done: checker now reports friendly missing/wrong-field diagnostics for shaped map access (`GET`/`PUT`), with dedicated coverage in `test/cairn/map_test.exs`.
 
 4. **Slice N4 — Effect-surface cleanup**
 - Refine helper signatures/effect declarations across shared and web libs to reduce mixed `io/db/http` plumbing where avoidable.

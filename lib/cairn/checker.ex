@@ -580,8 +580,8 @@ defmodule Cairn.Checker do
     end
   end
 
-  defp walk([{:str_lit, _, _} | rest], state) do
-    walk(rest, %{state | stack: Stack.push(state.stack, :str)})
+  defp walk([{:str_lit, text, _} | rest], state) do
+    walk(rest, %{state | stack: Stack.push(state.stack, {:lit_str, text})})
   end
 
   defp walk([{:list_lit, _, _}, {:op, :host_call, pos}, {:ident, name, _} | rest], state) do
@@ -598,14 +598,16 @@ defmodule Cairn.Checker do
   defp walk([{:map_lit, _, _} | rest], state) do
     {k_tvar, state} = fresh_tvar(state)
     {v_tvar, state} = fresh_tvar(state)
-    walk(rest, %{state | stack: Stack.push(state.stack, {:map, k_tvar, v_tvar})})
+    walk(rest, %{state | stack: Stack.push(state.stack, {:map_shape, %{}, k_tvar, v_tvar})})
   end
 
   # Map construction: M[ ... ]
   defp walk([{:map_open, _, _} | rest], state) do
     {elem_tokens, remaining} = collect_map_elements(rest, [], 0)
     {key_type, val_type, state} = infer_map_types(elem_tokens, state)
-    walk(remaining, %{state | stack: Stack.push(state.stack, {:map, key_type, val_type})})
+    fields = infer_map_shape(elem_tokens)
+    map_type = if map_size(fields) == 0, do: {:map, key_type, val_type}, else: {:map_shape, fields, key_type, val_type}
+    walk(remaining, %{state | stack: Stack.push(state.stack, map_type)})
   end
 
   # List construction: [ ... ]
@@ -1182,7 +1184,13 @@ defmodule Cairn.Checker do
       {[{:block, _block_tokens}, :int, :str, {:map, :str, :any}], new_stack} ->
         walk(rest, %{state | stack: new_stack})
 
+      {[{:block, _block_tokens}, :int, {:lit_str, _}, {:map, :str, :any}], new_stack} ->
+        walk(rest, %{state | stack: new_stack})
+
       {[{:map, :str, :any}, :str, :int, {:block, _block_tokens}], new_stack} ->
+        walk(rest, %{state | stack: new_stack})
+
+      {[{:map, :str, :any}, {:lit_str, _}, :int, {:block, _block_tokens}], new_stack} ->
         walk(rest, %{state | stack: new_stack})
 
       _ ->
@@ -1196,7 +1204,13 @@ defmodule Cairn.Checker do
           {[{:block, _block_tokens}, :int, :str], new_stack} ->
             walk(rest, %{state | stack: new_stack})
 
+          {[{:block, _block_tokens}, :int, {:lit_str, _}], new_stack} ->
+            walk(rest, %{state | stack: new_stack})
+
           {[:str, :int, {:block, _block_tokens}], new_stack} ->
+            walk(rest, %{state | stack: new_stack})
+
+          {[{:lit_str, _}, :int, {:block, _block_tokens}], new_stack} ->
             walk(rest, %{state | stack: new_stack})
 
           _ ->
@@ -1272,6 +1286,9 @@ defmodule Cairn.Checker do
   defp walk([{:op, :fmt, pos} | rest], state) do
     case Stack.pop(state.stack) do
       {:ok, :str, stack_after_pop} ->
+        walk(rest, %{state | stack: Stack.push(stack_after_pop, :str)})
+
+      {:ok, {:lit_str, _}, stack_after_pop} ->
         walk(rest, %{state | stack: Stack.push(stack_after_pop, :str)})
 
       {:ok, other, _} ->
@@ -1406,6 +1423,58 @@ defmodule Cairn.Checker do
           rest,
           add_error(state, pos, "AWAIT requires a monitor on the stack (stack underflow)")
         )
+    end
+  end
+
+  # GET — key map GET => value
+  defp walk([{:op, :get, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[key_type, map_type], base} ->
+        {result_type, state} = check_map_field_access(state, pos, :get, key_type, map_type, false)
+        walk(rest, %{state | stack: Stack.push(base, result_type)})
+
+      :underflow ->
+        state = add_error(state, pos, "GET requires key and map on the stack (stack underflow)")
+        walk(rest, %{state | stack: Stack.push(state.stack, :any)})
+    end
+  end
+
+  # HAS — key map HAS => bool
+  defp walk([{:op, :has, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[key_type, map_type], base} ->
+        {_result_type, state} = check_map_field_access(state, pos, :has, key_type, map_type, true)
+        walk(rest, %{state | stack: Stack.push(base, :bool)})
+
+      :underflow ->
+        state = add_error(state, pos, "HAS requires key and map on the stack (stack underflow)")
+        walk(rest, %{state | stack: Stack.push(state.stack, :bool)})
+    end
+  end
+
+  # DEL — key map DEL => map
+  defp walk([{:op, :del, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 2) do
+      {[key_type, map_type], base} ->
+        {result_map, state} = check_map_delete(state, pos, key_type, map_type)
+        walk(rest, %{state | stack: Stack.push(base, result_map)})
+
+      :underflow ->
+        state = add_error(state, pos, "DEL requires key and map on the stack (stack underflow)")
+        walk(rest, %{state | stack: Stack.push(state.stack, {:map, :any, :any})})
+    end
+  end
+
+  # PUT — key value map PUT => map
+  defp walk([{:op, :put, pos} | rest], state) do
+    case Stack.pop_n(state.stack, 3) do
+      {[value_type, key_type, map_type], base} ->
+        {result_map, state} = check_map_put(state, pos, value_type, key_type, map_type)
+        walk(rest, %{state | stack: Stack.push(base, result_map)})
+
+      :underflow ->
+        state = add_error(state, pos, "PUT requires value, key, and map on the stack (stack underflow)")
+        walk(rest, %{state | stack: Stack.push(state.stack, {:map, :any, :any})})
     end
   end
 
@@ -2319,6 +2388,166 @@ defmodule Cairn.Checker do
     end
   end
 
+  defp check_map_field_access(state, pos, op, key_type, map_type, allow_missing?) do
+    with {:ok, key_expected, value_type, fields, strict_fields?} <- map_type_components(map_type) do
+      state =
+        case Unify.unify(key_type, key_expected) do
+          {:ok, _} ->
+            state
+
+          :error ->
+            add_error(
+              state,
+              pos,
+              "#{format_op(op)} expected key #{format_type(key_expected)}, got #{format_type(key_type)}"
+            )
+        end
+
+      case key_type do
+        {:lit_str, key} ->
+          case Map.fetch(fields, key) do
+            {:ok, field_type} ->
+              {field_type, state}
+
+            :error when allow_missing? or not strict_fields? ->
+              {value_type, state}
+
+            :error ->
+              msg = "GET missing field '#{key}' in #{format_map_shape_fields(fields)}"
+              {value_type, add_error(state, pos, msg)}
+          end
+
+        _ ->
+          {value_type, state}
+      end
+    else
+      :error ->
+        {:any, add_error(state, pos, "#{format_op(op)} requires map[_, _], got #{format_type(map_type)}")}
+    end
+  end
+
+  defp check_map_delete(state, pos, key_type, map_type) do
+    with {:ok, key_expected, value_type, fields, strict_fields?} <- map_type_components(map_type) do
+      state =
+        case Unify.unify(key_type, key_expected) do
+          {:ok, _} ->
+            state
+
+          :error ->
+            add_error(
+              state,
+              pos,
+              "DEL expected key #{format_type(key_expected)}, got #{format_type(key_type)}"
+            )
+        end
+
+      result_type =
+        case key_type do
+          {:lit_str, key} when strict_fields? ->
+            {:map_shape, Map.delete(fields, key), key_expected, value_type}
+
+          _ -> {:map, key_expected, value_type}
+        end
+
+      {result_type, state}
+    else
+      :error ->
+        {{:map, :any, :any}, add_error(state, pos, "DEL requires map[_, _], got #{format_type(map_type)}")}
+    end
+  end
+
+  defp check_map_put(state, pos, value_type, key_type, map_type) do
+    with {:ok, key_expected, current_value_type, fields, strict_fields?} <- map_type_components(map_type) do
+      {next_key_type, state} =
+        case Unify.unify(key_type, key_expected) do
+          {:ok, unified} ->
+            {unified, state}
+
+          :error ->
+            {
+              key_expected,
+              add_error(
+                state,
+                pos,
+                "PUT expected key #{format_type(key_expected)}, got #{format_type(key_type)}"
+              )
+            }
+        end
+
+      {next_value_type, state} =
+        case Unify.unify(value_type, current_value_type) do
+          {:ok, unified} ->
+            {unified, state}
+
+          :error ->
+            {
+              :any,
+              add_error(
+                state,
+                pos,
+                "PUT expected value #{format_type(current_value_type)}, got #{format_type(value_type)}"
+              )
+            }
+        end
+
+      {updated_fields, state} =
+        case key_type do
+          {:lit_str, key} when strict_fields? ->
+            case Map.fetch(fields, key) do
+              {:ok, expected_field_type} ->
+                case Unify.unify(value_type, expected_field_type) do
+                  {:ok, unified_field_type} ->
+                    {Map.put(fields, key, unified_field_type), state}
+
+                  :error ->
+                    msg =
+                      "PUT field '#{key}' expects #{format_type(expected_field_type)}, got #{format_type(value_type)}"
+
+                    {fields, add_error(state, pos, msg)}
+                end
+
+              :error ->
+                {Map.put(fields, key, value_type), state}
+            end
+
+          _ ->
+            {%{}, state}
+        end
+
+      result_type =
+        if map_size(updated_fields) == 0 do
+          {:map, next_key_type, next_value_type}
+        else
+          {:map_shape, updated_fields, next_key_type, next_value_type}
+        end
+
+      {result_type, state}
+    else
+      :error ->
+        {{:map, :any, :any}, add_error(state, pos, "PUT requires map[_, _], got #{format_type(map_type)}")}
+    end
+  end
+
+  defp map_type_components({:map_shape, fields, key_type, value_type}) when is_map(fields),
+    do: {:ok, key_type, value_type, fields, true}
+
+  defp map_type_components({:map, key_type, value_type}),
+    do: {:ok, key_type, value_type, %{}, false}
+
+  defp map_type_components(_), do: :error
+
+  defp format_map_shape_fields(fields) when map_size(fields) == 0, do: "map{}"
+
+  defp format_map_shape_fields(fields) do
+    entries =
+      fields
+      |> Map.to_list()
+      |> Enum.sort_by(fn {key, _} -> key end)
+      |> Enum.map_join(", ", fn {key, type} -> "#{key}: #{format_type(type)}" end)
+
+    "map{#{entries}}"
+  end
+
   # --- Helpers ---
 
   # Collect map elements until ]
@@ -2380,16 +2609,45 @@ defmodule Cairn.Checker do
     {key_type, val_type, state}
   end
 
+  defp infer_map_shape(tokens) do
+    tokens
+    |> Enum.chunk_every(2)
+    |> Enum.reduce(%{}, fn
+      [{:str_lit, key, _}, value_token], acc ->
+        value_type = literal_token_type(value_token)
+        merged = merge_shape_field_type(Map.get(acc, key), value_type)
+        Map.put(acc, key, merged)
+
+      _, acc ->
+        acc
+    end)
+  end
+
+  defp merge_shape_field_type(nil, new_type), do: new_type
+
+  defp merge_shape_field_type(existing, new_type) do
+    case Unify.unify(existing, new_type) do
+      {:ok, unified} -> unified
+      :error -> :any
+    end
+  end
+
+  defp literal_token_type({:int_lit, _, _}), do: :int
+  defp literal_token_type({:float_lit, _, _}), do: :float
+  defp literal_token_type({:bool_lit, _, _}), do: :bool
+  defp literal_token_type({:str_lit, _, _}), do: :str
+  defp literal_token_type(_), do: :any
+
+  defp collect_list_elements([{:list_close, _, _} | _rest] = tokens, acc, depth) when depth > 0 do
+    collect_list_elements(tl(tokens), [hd(tokens) | acc], depth - 1)
+  end
+
   defp collect_list_elements([{:list_close, _, _} | rest], acc, _depth) do
     {Enum.reverse(acc), rest}
   end
 
   defp collect_list_elements([{:list_open, _, _} | _rest] = tokens, acc, depth) do
     collect_list_elements(tl(tokens), [hd(tokens) | acc], depth + 1)
-  end
-
-  defp collect_list_elements([{:list_close, _, _} | _rest] = tokens, acc, depth) when depth > 0 do
-    collect_list_elements(tl(tokens), [hd(tokens) | acc], depth - 1)
   end
 
   defp collect_list_elements([tok | rest], acc, depth) do
@@ -2400,16 +2658,16 @@ defmodule Cairn.Checker do
     {Enum.reverse(acc), []}
   end
 
+  defp collect_tuple_tokens([{:tuple_close, _, _} | _rest] = tokens, acc, depth) when depth > 0 do
+    collect_tuple_tokens(tl(tokens), [hd(tokens) | acc], depth - 1)
+  end
+
   defp collect_tuple_tokens([{:tuple_close, _, _} | rest], acc, _depth) do
     {Enum.reverse(acc), rest}
   end
 
   defp collect_tuple_tokens([{:tuple_open, _, _} | _rest] = tokens, acc, depth) do
     collect_tuple_tokens(tl(tokens), [hd(tokens) | acc], depth + 1)
-  end
-
-  defp collect_tuple_tokens([{:tuple_close, _, _} | _rest] = tokens, acc, depth) when depth > 0 do
-    collect_tuple_tokens(tl(tokens), [hd(tokens) | acc], depth - 1)
   end
 
   defp collect_tuple_tokens([tok | rest], acc, depth) do
@@ -2643,9 +2901,11 @@ defmodule Cairn.Checker do
   defp format_type(:any), do: "any"
   defp format_type(:void), do: "void"
   defp format_type(:num), do: "num"
+  defp format_type({:lit_str, value}), do: ~s|str("#{value}")|
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
   defp format_type({:tuple, elems}), do: "tuple[#{Enum.map_join(elems, " ", &format_type/1)}]"
   defp format_type({:map, k, v}), do: "map[#{format_type(k)} #{format_type(v)}]"
+  defp format_type({:map_shape, fields, _k, _v}), do: format_map_shape_fields(fields)
   defp format_type({:pid, inner}), do: "pid[#{format_type(inner)}]"
   defp format_type({:monitor, inner}), do: "monitor[#{format_type(inner)}]"
 
@@ -3348,13 +3608,6 @@ defmodule Cairn.Checker do
        do: {:ok, bindings}
 
   defp bind_type_vars_in_type({:user_type, _name}, _actual, bindings), do: {:ok, bindings}
-
-  defp bind_type_vars_in_type(
-         {:tagged_variant, _type_name, _ctor, _type_args},
-         _actual,
-         bindings
-       ),
-       do: {:ok, bindings}
 
   defp bind_type_vars_in_type({:tagged_variant, _type_name, _ctor}, _actual, bindings),
     do: {:ok, bindings}

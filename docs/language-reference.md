@@ -242,6 +242,10 @@ MERGE                          # pop map2, pop map1, push merged (map2 wins)
 PAIRS                          # pop map, push list of #(key value) pairs
 NUM_STR                        # pop number (int or float), push string
 
+Checker note:
+When a map comes from a string-key literal (`M[ "k" v ... ]`), Cairn tracks that shape.
+`GET` reports missing literal fields early, and `PUT` reports literal field type mismatches early.
+
 # String operations
 CONCAT                         # concatenate two strings (or two lists)
 WORDS                          # split string into words (on whitespace)

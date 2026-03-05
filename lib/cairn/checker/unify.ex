@@ -20,6 +20,11 @@ defmodule Cairn.Checker.Unify do
   @spec unify(term(), term()) :: {:ok, term()} | :error
   def unify(a, a), do: {:ok, a}
 
+  # String literal refinement unifies with general strings.
+  def unify({:lit_str, _}, :str), do: {:ok, :str}
+  def unify(:str, {:lit_str, _}), do: {:ok, :str}
+  def unify({:lit_str, _a}, {:lit_str, _b}), do: {:ok, :str}
+
   # :any unifies with everything
   def unify(:any, b), do: {:ok, b}
   def unify(a, :any), do: {:ok, a}
@@ -67,6 +72,13 @@ defmodule Cairn.Checker.Unify do
       _ -> :error
     end
   end
+
+  # Map shape refinement unifies with plain maps by key/value shape.
+  def unify({:map_shape, _fields, k1, v1}, {:map, k2, v2}), do: unify({:map, k1, v1}, {:map, k2, v2})
+  def unify({:map, k1, v1}, {:map_shape, _fields, k2, v2}), do: unify({:map, k1, v1}, {:map, k2, v2})
+
+  def unify({:map_shape, _fields1, k1, v1}, {:map_shape, _fields2, k2, v2}),
+    do: unify({:map, k1, v1}, {:map, k2, v2})
 
   # Pid unification
   def unify({:pid, a}, {:pid, b}) do

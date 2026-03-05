@@ -9,6 +9,11 @@ defmodule Cairn.MapTest do
     Cairn.Checker.check(items)
   end
 
+  defp check_errors(source) do
+    assert {:error, errors} = check(source)
+    errors
+  end
+
   # ── Lexer ──
 
   describe "Lexer — map tokens" do
@@ -86,8 +91,8 @@ defmodule Cairn.MapTest do
       assert [1] = eval("M[ \"a\" 1 \"b\" 2 ] \"a\" GET")
     end
 
-    test "raises on missing key" do
-      assert_raise KeyError, fn ->
+    test "missing literal key is rejected statically on shaped maps" do
+      assert_raise Cairn.StaticError, ~r/GET missing field 'z'/, fn ->
         eval("M[ \"a\" 1 ] \"z\" GET")
       end
     end
@@ -231,6 +236,16 @@ defmodule Cairn.MapTest do
     test "MERGE type checks" do
       assert :ok = check("M[ \"a\" 1 ] M[ \"b\" 2 ] MERGE")
     end
+
+    test "GET reports missing literal field on shaped maps" do
+      errors = check_errors("M[ \"name\" \"cairn\" ] \"naem\" GET")
+      assert Enum.any?(errors, fn e -> e.message =~ "GET missing field 'naem'" end)
+    end
+
+    test "PUT reports wrong field type on shaped maps" do
+      errors = check_errors("M[ \"port\" 8080 ] \"port\" \"oops\" PUT")
+      assert Enum.any?(errors, fn e -> e.message =~ "PUT field 'port' expects int, got str" end)
+    end
   end
 
   describe "Checker — map in function signatures" do
@@ -263,6 +278,19 @@ defmodule Cairn.MapTest do
 
     test "map does not unify with list" do
       assert :error = Cairn.Checker.Unify.unify({:map, :str, :int}, {:list, :str})
+    end
+
+    test "map shape unifies with plain map using key/value types" do
+      assert {:ok, {:map, :str, :int}} =
+               Cairn.Checker.Unify.unify(
+                 {:map_shape, %{"port" => :int}, :str, :int},
+                 {:map, :str, :int}
+               )
+    end
+
+    test "string literals unify with str" do
+      assert {:ok, :str} = Cairn.Checker.Unify.unify({:lit_str, "port"}, :str)
+      assert {:ok, :str} = Cairn.Checker.Unify.unify(:str, {:lit_str, "host"})
     end
   end
 

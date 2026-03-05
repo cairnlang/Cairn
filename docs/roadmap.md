@@ -14,6 +14,28 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.xix — Pebbles P5: QoL Commands + Filtering/Search + Workflow Reference
+- Expanded Pebbles lifecycle ergonomics with new commands:
+  - `reopen <id>`
+  - `edit <id> <title...>`
+  - `find <text...>`
+- Extended listing command with bounded status filter:
+  - `ls [all|open|doing|blocked|done]`
+  - summary output now reports active status scope
+- Added pure-domain helpers in `tools/pebbles/lib/domain.crn` for:
+  - reopen transitions
+  - title edits
+  - case-insensitive text search across title/reason/notes
+  - status matching
+- Added store-level update operations in `tools/pebbles/lib/store.crn`:
+  - `pebbles_store_mark_reopen`
+  - `pebbles_store_edit_title`
+- Added workflow reference for day-to-day usage:
+  - `tools/pebbles/WORKFLOW.md`
+- Hardened tests:
+  - expanded Cairn-native test suite to cover reopen/edit/search
+  - expanded Elixir integration tests to cover new commands and filtered listing
+
 ### v0.10.xviii — Pebbles P4: Snapshot Export/Import Portability
 - Added snapshot portability commands to Pebbles CLI:
   - `export <path>`

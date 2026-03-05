@@ -347,6 +347,53 @@ DEF pebbles_store_add_note : str int -> result[pebble str] EFFECT db
   END
 END
 
+DEF pebbles_store_mark_reopen : int -> result[pebble str] EFFECT db
+  LET target_id
+
+  target_id pebbles_store_fetch
+  MATCH
+    Ok {
+      pebble_transition_reopen
+      MATCH
+        Ok {
+          DUP pebbles_store_save
+          Ok
+        }
+        Err {
+          Err
+        }
+      END
+    }
+    Err {
+      Err
+    }
+  END
+END
+
+DEF pebbles_store_edit_title : str int -> result[pebble str] EFFECT db
+  LET title
+  LET target_id
+
+  target_id pebbles_store_fetch
+  MATCH
+    Ok {
+      title pebble_sanitize_text pebble_transition_edit_title
+      MATCH
+        Ok {
+          DUP pebbles_store_save
+          Ok
+        }
+        Err {
+          Err
+        }
+      END
+    }
+    Err {
+      Err
+    }
+  END
+END
+
 DEF pebbles_store_delete_rows : pebble_rows -> void EFFECT db
   0 {
     SWAP DROP

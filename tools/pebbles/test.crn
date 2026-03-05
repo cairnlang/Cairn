@@ -8,6 +8,7 @@ TEST "init keeps next id at least one"
 END
 
 TEST "add returns monotonic ids"
+  pebbles_store_clear
   pebbles_store_init
   pebbles_store_next_id LET base
 
@@ -81,12 +82,86 @@ TEST "note transition prepends newest note"
 END
 
 TEST "store note appends through command boundary"
+  pebbles_store_clear
   pebbles_store_init
   "alpha" pebbles_store_add_open LET id
   id "remember migration plan" pebbles_store_add_note
   MATCH
     Ok {
       pebble_notes HEAD "remember migration plan" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+END
+
+TEST "reopen transition moves done pebble to open"
+  1 "done" "ship docs" "" [ ] Pebble
+  pebble_transition_reopen
+  MATCH
+    Ok {
+      pebble_status "open" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+END
+
+TEST "edit transition requires non-empty title"
+  1 "open" "ship docs" "" [ ] Pebble
+  "" pebble_transition_edit_title
+  MATCH
+    Ok {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+    Err {
+      "title required" ASSERT_EQ
+    }
+  END
+END
+
+TEST "text search matches notes and title case-insensitively"
+  1 "blocked" "Ship Docs" "waiting" [ "Follow Up Tomorrow" ] Pebble
+  "follow up" pebble_contains_text ASSERT_TRUE
+  1 "open" "Budget" "" [ ] Pebble
+  "ship docs" pebble_contains_text ASSERT_FALSE
+END
+
+TEST "store reopen and edit persist updated fields"
+  pebbles_store_clear
+  pebbles_store_init
+  "draft docs" pebbles_store_add_open LET id
+  id pebbles_store_mark_done
+  MATCH
+    Ok {
+      DROP
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+
+  id pebbles_store_mark_reopen
+  MATCH
+    Ok {
+      pebble_status "open" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+
+  id "final docs" pebbles_store_edit_title
+  MATCH
+    Ok {
+      pebble_title "final docs" ASSERT_EQ
     }
     Err {
       DROP

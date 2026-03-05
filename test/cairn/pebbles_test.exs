@@ -32,8 +32,11 @@ defmodule Cairn.PebblesTest do
   end
 
   test "shows usage for no args and unknown command" do
-    assert run_pebbles([]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note|export|import> [args]"
-    assert run_pebbles(["wat"]) =~ "usage: pebbles <init|add|ls|next|do|done|block|note|export|import> [args]"
+    assert run_pebbles([]) =~
+             "usage: pebbles <init|add|ls|next|do|done|block|note|reopen|edit|find|export|import> [args]"
+
+    assert run_pebbles(["wat"]) =~
+             "usage: pebbles <init|add|ls|next|do|done|block|note|reopen|edit|find|export|import> [args]"
   end
 
   test "init, add, and ls round-trip through DataStore" do
@@ -49,13 +52,13 @@ defmodule Cairn.PebblesTest do
       |> String.split("\n")
 
     assert lines == [
-             "pebbles: total=2 open=2 doing=0 blocked=0 done=0",
+             "pebbles: status=all total=2 open=2 doing=0 blocked=0 done=0",
              "#1 [open] first task",
              "#2 [open] second"
            ]
   end
 
-  test "next, do, done, and block enforce lifecycle transitions" do
+  test "next, do, done, reopen, edit, and block enforce lifecycle transitions" do
     assert run_pebbles(["add", "first"]) =~ "pebbles: added #1"
     assert run_pebbles(["add", "second"]) =~ "pebbles: added #2"
 
@@ -66,10 +69,35 @@ defmodule Cairn.PebblesTest do
              "#2 [blocked] second -- waiting on deps (notes:1)"
 
     assert run_pebbles(["done", "1"]) =~ "#1 [done] first"
+    assert run_pebbles(["reopen", "1"]) =~ "#1 [open] first"
+    assert run_pebbles(["edit", "1", "first", "renamed"]) =~ "#1 [open] first renamed"
+    assert run_pebbles(["reopen", "1"]) =~ "pebbles: already open"
+    assert run_pebbles(["done", "1"]) =~ "#1 [done] first renamed"
 
-    assert run_pebbles(["do", "1"]) =~ "pebbles: cannot move done pebble to doing"
     assert run_pebbles(["next"]) =~ "pebbles: no open items"
     assert run_pebbles(["done", "404"]) =~ "pebbles: unknown pebble #404"
+  end
+
+  test "ls filters and find search return bounded results" do
+    assert run_pebbles(["add", "ship", "api"]) =~ "pebbles: added #1"
+    assert run_pebbles(["add", "write", "docs"]) =~ "pebbles: added #2"
+    assert run_pebbles(["do", "1"]) =~ "#1 [doing] ship api"
+    assert run_pebbles(["block", "2", "waiting", "on", "qa"]) =~ "#2 [blocked] write docs -- waiting on qa"
+    assert run_pebbles(["note", "2", "needs", "security", "review"]) =~
+             "#2 [blocked] write docs -- waiting on qa (notes:1)"
+
+    filtered =
+      run_pebbles(["ls", "blocked"])
+      |> String.trim()
+      |> String.split("\n")
+
+    assert filtered == [
+             "pebbles: status=blocked total=1 open=0 doing=0 blocked=1 done=0",
+             "#2 [blocked] write docs -- waiting on qa (notes:1)"
+           ]
+
+    assert run_pebbles(["find", "SECURITY"]) =~ "#2 [blocked] write docs -- waiting on qa (notes:1)"
+    assert run_pebbles(["find", "nonexistent"]) =~ "pebbles: no matches for nonexistent"
   end
 
   test "export and import snapshot round-trip state and next id" do
@@ -95,7 +123,7 @@ defmodule Cairn.PebblesTest do
       |> String.split("\n")
 
     assert lines == [
-             "pebbles: total=2 open=0 doing=1 blocked=1 done=0",
+             "pebbles: status=all total=2 open=0 doing=1 blocked=1 done=0",
              "#1 [doing] first",
              "#2 [blocked] second -- waiting on deploy (notes:1)"
            ]
@@ -143,7 +171,11 @@ defmodule Cairn.PebblesTest do
     assert stdout =~ "PASS snapshot line parser preserves key and value"
     assert stdout =~ "PASS import lines rejects invalid header without clearing store"
     assert stdout =~ "PASS snapshot export and import round-trips rows and next id"
-    assert stderr =~ "TEST SUMMARY: total=11 passed=11 failed=0"
+    assert stdout =~ "PASS reopen transition moves done pebble to open"
+    assert stdout =~ "PASS edit transition requires non-empty title"
+    assert stdout =~ "PASS text search matches notes and title case-insensitively"
+    assert stdout =~ "PASS store reopen and edit persist updated fields"
+    assert stderr =~ "TEST SUMMARY: total=15 passed=15 failed=0"
   end
 
   defp run_pebbles(argv) do

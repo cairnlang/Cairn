@@ -196,3 +196,74 @@ DEF pebble_transition_note : str pebble -> result[pebble str] EFFECT pure
     Ok
   END
 END
+
+DEF pebble_transition_reopen : pebble -> result[pebble str] EFFECT pure
+  LET peb
+  peb pebble_status LET status
+
+  status "open" EQ
+  IF
+    "already open" Err
+  ELSE
+    peb pebble_id
+    "open"
+    peb pebble_title
+    ""
+    peb pebble_notes
+    Pebble
+    Ok
+  END
+END
+
+DEF pebble_transition_edit_title : str pebble -> result[pebble str] EFFECT pure
+  LET title
+  LET peb
+
+  title LEN 0 EQ
+  IF
+    "title required" Err
+  ELSE
+    peb pebble_id
+    peb pebble_status
+    title
+    peb pebble_reason
+    peb pebble_notes
+    Pebble
+    Ok
+  END
+END
+
+DEF str_contains_ci : str str -> bool EFFECT pure
+  LET needle
+  LET source
+  source LOWER
+  needle LOWER
+  CONTAINS
+END
+
+DEF pebble_contains_text : str pebble -> bool EFFECT pure
+  LET needle
+  LET peb
+
+  peb pebble_title needle str_contains_ci LET in_title
+  peb pebble_reason needle str_contains_ci LET in_reason
+
+  peb pebble_notes
+  { needle str_contains_ci }
+  FILTER
+  LEN 0 GT LET in_notes
+
+  in_title in_reason OR
+  in_notes OR
+END
+
+DEF pebble_matches_status : str pebble -> bool EFFECT pure
+  LET status
+  LET peb
+  status "all" EQ
+  IF
+    TRUE
+  ELSE
+    peb pebble_status status EQ
+  END
+END

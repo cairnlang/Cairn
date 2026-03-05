@@ -9,6 +9,7 @@ Date: March 5, 2026
 - P2 landed: domain transitions + lifecycle commands (`next/do/done/block`) with transition validation.
 - P3 landed: notes command + improved `ls` formatting + hardened test coverage.
 - P4 landed: snapshot `export/import` portability flow with header validation and id-sync recovery.
+- P5 landed: quality-of-life commands (`reopen/edit/find`) + `ls` status filtering + workflow reference.
 - Implemented files:
   - `tools/pebbles/main.crn`
   - `tools/pebbles/lib/store.crn`
@@ -75,12 +76,17 @@ Fields:
 
 - `pebbles init`
 - `pebbles add <title>`
-- `pebbles ls`
+- `pebbles ls [status]`
 - `pebbles next`
 - `pebbles do <id>`
 - `pebbles done <id>`
+- `pebbles reopen <id>`
 - `pebbles block <id> <reason>`
 - `pebbles note <id> <text>`
+- `pebbles edit <id> <title>`
+- `pebbles find <text>`
+- `pebbles export <path>`
+- `pebbles import <path>`
 
 ## Minimal Architecture
 
@@ -106,6 +112,7 @@ Fields:
 2. Slice P2: transitions (`next/do/done/block`) + validation
 3. Slice P3: notes + better output formatting + tests hardening
 4. Slice P4: export/import command for portability
+5. Slice P5: edit/reopen/find + status-filtered listing + workflow reference
 
 ## Acceptance (v1 usable)
 

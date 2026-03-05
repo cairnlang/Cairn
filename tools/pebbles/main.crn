@@ -8,6 +8,9 @@
 #   ./cairn tools/pebbles/main.crn done <id>
 #   ./cairn tools/pebbles/main.crn block <id> <reason...>
 #   ./cairn tools/pebbles/main.crn note <id> <text...>
+#   ./cairn tools/pebbles/main.crn reopen <id>
+#   ./cairn tools/pebbles/main.crn edit <id> <title...>
+#   ./cairn tools/pebbles/main.crn find <text...>
 #   ./cairn tools/pebbles/main.crn export <path>
 #   ./cairn tools/pebbles/main.crn import <path>
 
@@ -19,12 +22,48 @@ DEF emit_lines : [str] -> void EFFECT io
 END
 
 DEF usage : -> void EFFECT io
-  "usage: pebbles <init|add|ls|next|do|done|block|note|export|import> [args]" SAID
+  "usage: pebbles <init|add|ls|next|do|done|block|note|reopen|edit|find|export|import> [args]" SAID
 END
 
 DEF command_init : -> void EFFECT db
   pebbles_store_init
   "pebbles: initialized" SAID
+END
+
+DEF pebbles_filter_status : str [pebble] -> result[[pebble] str] EFFECT pure
+  LET status
+  LET pebbles
+
+  status "all" EQ
+  status "open" EQ OR
+  status "doing" EQ OR
+  status "blocked" EQ OR
+  status "done" EQ OR
+  IF
+    pebbles { status pebble_matches_status } FILTER
+    Ok
+  ELSE
+    status "invalid status filter: {} (use all|open|doing|blocked|done)" FMT Err
+  END
+END
+
+DEF emit_summary : str [pebble] -> void EFFECT io
+  LET status_filter
+  LET pebbles
+
+  pebbles LEN LET total
+  pebbles { pebble_is_open } FILTER LEN LET open_count
+  pebbles { pebble_is_doing } FILTER LEN LET doing_count
+  pebbles { pebble_is_blocked } FILTER LEN LET blocked_count
+  pebbles { pebble_is_done } FILTER LEN LET done_count
+
+  done_count NUM_STR
+  blocked_count NUM_STR
+  doing_count NUM_STR
+  open_count NUM_STR
+  total NUM_STR
+  status_filter
+  "pebbles: status={} total={} open={} doing={} blocked={} done={}" FMT SAID
 END
 
 DEF command_add : [str] -> void EFFECT db
@@ -40,27 +79,45 @@ DEF command_add : [str] -> void EFFECT db
   END
 END
 
-DEF command_ls : -> void EFFECT db
-  pebbles_store_all LET pebbles
+DEF command_ls : [str] -> void EFFECT db
+  LET args
 
-  pebbles LEN 0 EQ
+  args LEN 1 EQ
+  args LEN 2 EQ OR
   IF
-    "pebbles: no items" SAID
+    args LEN 1 EQ
+    IF
+      "all"
+    ELSE
+      args TAIL HEAD
+    END
+    LET status_filter
+
+    pebbles_store_all
+    status_filter pebbles_filter_status
+    MATCH
+      Ok {
+        LET pebbles
+
+        pebbles LEN 0 EQ
+        IF
+          status_filter "all" EQ
+          IF
+            "pebbles: no items" SAID
+          ELSE
+            status_filter "pebbles: no items with status={}" FMT SAID
+          END
+        ELSE
+          pebbles status_filter emit_summary
+          pebbles { pebble_line } MAP emit_lines
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
   ELSE
-    pebbles LEN LET total
-    pebbles { pebble_is_open } FILTER LEN LET open_count
-    pebbles { pebble_is_doing } FILTER LEN LET doing_count
-    pebbles { pebble_is_blocked } FILTER LEN LET blocked_count
-    pebbles { pebble_is_done } FILTER LEN LET done_count
-
-    done_count NUM_STR
-    blocked_count NUM_STR
-    doing_count NUM_STR
-    open_count NUM_STR
-    total NUM_STR
-    "pebbles: total={} open={} doing={} blocked={} done={}" FMT SAID
-
-    pebbles { pebble_line } MAP emit_lines
+    "usage: pebbles ls [all|open|doing|blocked|done]" SAID
   END
 END
 
@@ -189,6 +246,84 @@ DEF command_note : [str] -> void EFFECT db
   END
 END
 
+DEF command_reopen : [str] -> void EFFECT db
+  LET args
+
+  args LEN 2 EQ
+  IF
+    args TAIL HEAD TO_INT
+    MATCH
+      Ok {
+        pebbles_store_mark_reopen
+        MATCH
+          Ok {
+            pebble_line SAID
+          }
+          Err {
+            "pebbles: {}" FMT SAID
+          }
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles reopen <id>" SAID
+  END
+END
+
+DEF command_edit : [str] -> void EFFECT db
+  LET args
+
+  args LEN 3 GTE
+  IF
+    args TAIL HEAD TO_INT
+    MATCH
+      Ok {
+        LET target_id
+        args TAIL TAIL " " JOIN LET title
+        target_id title pebbles_store_edit_title
+        MATCH
+          Ok {
+            pebble_line SAID
+          }
+          Err {
+            "pebbles: {}" FMT SAID
+          }
+        END
+      }
+      Err {
+        "pebbles: {}" FMT SAID
+      }
+    END
+  ELSE
+    "usage: pebbles edit <id> <title>" SAID
+  END
+END
+
+DEF command_find : [str] -> void EFFECT db
+  LET args
+
+  args LEN 2 GTE
+  IF
+    args TAIL " " JOIN LET query
+    pebbles_store_all
+    { query pebble_contains_text }
+    FILTER LET matches
+
+    matches LEN 0 EQ
+    IF
+      query "pebbles: no matches for {}" FMT SAID
+    ELSE
+      matches "search" emit_summary
+      matches { pebble_line } MAP emit_lines
+    END
+  ELSE
+    "usage: pebbles find <text>" SAID
+  END
+END
+
 DEF command_export : [str] -> void EFFECT db
   LET args
 
@@ -254,7 +389,7 @@ ELSE
     ELSE
       cmd "ls" EQ
       IF
-        command_ls
+        ARGV command_ls
       ELSE
         cmd "next" EQ
         IF
@@ -276,15 +411,30 @@ ELSE
                 IF
                   ARGV command_note
                 ELSE
-                  cmd "export" EQ
+                  cmd "reopen" EQ
                   IF
-                    ARGV command_export
+                    ARGV command_reopen
                   ELSE
-                    cmd "import" EQ
+                    cmd "edit" EQ
                     IF
-                      ARGV command_import
+                      ARGV command_edit
                     ELSE
-                      usage
+                      cmd "find" EQ
+                      IF
+                        ARGV command_find
+                      ELSE
+                        cmd "export" EQ
+                        IF
+                          ARGV command_export
+                        ELSE
+                          cmd "import" EQ
+                          IF
+                            ARGV command_import
+                          ELSE
+                            usage
+                          END
+                        END
+                      END
                     END
                   END
                 END

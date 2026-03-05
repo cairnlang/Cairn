@@ -150,14 +150,14 @@ END
 - Kept safe fallback behavior:
   - default remains `mnesia` unless backend is explicitly set to `postgres`.
 
-## Slice H Verification + Regression Matrix (In Progress)
+## Slice H Verification + Regression Matrix (Completed)
 
 - Added gated Postgres integration coverage in `test/cairn/db_test.exs`:
   - `CAIRN_PG_TEST=1` enables real Postgres round-trip tests for `DB_*`.
   - default runs remain clean (tests skip when Postgres is not requested).
+- Added gated todo-app parity coverage in `test/cairn/http_test.exs`:
+  - same add/mark-done/restart flow is exercised on Postgres backend.
 - Kept existing fake-backend delegation tests as fast guardrails.
-- Remaining work:
-  - parity checks at todo-domain behavior level across backends.
 
 ## Postgres Discipline Rules
 

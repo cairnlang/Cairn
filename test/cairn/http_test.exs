@@ -372,6 +372,48 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(restarted_task, :brutal_kill)
   end
 
+  test "web todo app parity flow works on Postgres backend when enabled" do
+    if System.get_env("CAIRN_PG_TEST") == "1" do
+      case clear_postgres_kv_table() do
+        :ok ->
+          with_postgres_backend(fn ->
+            port = free_port()
+            task = start_todo_app(port)
+
+            add_response = http_post_form(port, "/add", %{"title" => "book flight"})
+            done_response = http_post_form(port, "/done", %{"id" => "1"})
+
+            assert add_response =~ "HTTP/1.1 200 OK"
+            assert add_response =~ "book flight"
+            assert done_response =~ "HTTP/1.1 200 OK"
+            assert done_response =~ "todo-item-done"
+            assert done_response =~ "<span class=\"todo-status\">done</span>"
+            assert done_response =~ "<span class=\"todo-title\">book flight</span>"
+            assert done_response =~ "Open: 0 | Done: 1 | Total: 1"
+
+            assert nil == Task.shutdown(task, :brutal_kill)
+
+            next_port = free_port()
+            restarted_task = start_todo_app(next_port)
+            persisted_response = http_get(next_port, "/")
+
+            assert persisted_response =~ "todo-item-done"
+            assert persisted_response =~ "<span class=\"todo-title\">book flight</span>"
+            assert persisted_response =~ "Open: 0 | Done: 1 | Total: 1"
+
+            assert nil == Task.shutdown(restarted_task, :brutal_kill)
+          end)
+
+          _ = clear_postgres_kv_table()
+
+        {:error, _reason} ->
+          :ok
+      end
+    else
+      :ok
+    end
+  end
+
   test "web affordability app renders the input form on GET /" do
     port = free_port()
     task = start_afford_app(port)
@@ -497,7 +539,10 @@ defmodule Cairn.HTTPTest do
 
     assert logout_response =~ "HTTP/1.1 200 OK"
     assert logout_response =~ "Remember me"
-    assert logout_response =~ "Set-Cookie: cairn_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+
+    assert logout_response =~
+             "Set-Cookie: cairn_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+
     assert Cairn.SessionStore.load(session_id) == :error
 
     assert nil == Task.shutdown(task, :brutal_kill)
@@ -635,7 +680,10 @@ defmodule Cairn.HTTPTest do
 
     assert logout_response =~ "HTTP/1.1 200 OK"
     assert logout_response =~ "Login Demo"
-    assert logout_response =~ "Set-Cookie: cairn_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+
+    assert logout_response =~
+             "Set-Cookie: cairn_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+
     assert Cairn.SessionStore.load(session_id) == :error
 
     assert nil == Task.shutdown(task, :brutal_kill)
@@ -647,7 +695,14 @@ defmodule Cairn.HTTPTest do
 
   defp http_post_form(port, path, fields) do
     body = URI.encode_query(fields)
-    http_request(port, "POST", path, [{"Content-Type", "application/x-www-form-urlencoded"}], body)
+
+    http_request(
+      port,
+      "POST",
+      path,
+      [{"Content-Type", "application/x-www-form-urlencoded"}],
+      body
+    )
   end
 
   defp http_request(port, method, path) do
@@ -677,8 +732,7 @@ defmodule Cairn.HTTPTest do
   defp connect_and_request(port, method, path, headers, body, attempts) do
     case :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, packet: :raw, active: false], 100) do
       {:ok, socket} ->
-        header_lines =
-          Enum.map(headers, fn {name, value} -> [name, ": ", value, "\r\n"] end)
+        header_lines = Enum.map(headers, fn {name, value} -> [name, ": ", value, "\r\n"] end)
 
         content_length_line =
           if body == "" do
@@ -917,5 +971,57 @@ defmodule Cairn.HTTPTest do
   defp temp_db_dir do
     dir = System.tmp_dir!()
     Path.join(dir, "cairn_http_db_#{System.unique_integer([:positive])}")
+  end
+
+  defp with_postgres_backend(fun) when is_function(fun, 0) do
+    previous_backend = Application.get_env(:cairn, :data_store_backend)
+    previous_backend_env = System.get_env("CAIRN_DATA_STORE_BACKEND")
+
+    Application.put_env(:cairn, :data_store_backend, Cairn.DataStore.Backend.Postgres)
+    System.put_env("CAIRN_DATA_STORE_BACKEND", "postgres")
+
+    try do
+      fun.()
+    after
+      if previous_backend do
+        Application.put_env(:cairn, :data_store_backend, previous_backend)
+      else
+        Application.delete_env(:cairn, :data_store_backend)
+      end
+
+      if previous_backend_env do
+        System.put_env("CAIRN_DATA_STORE_BACKEND", previous_backend_env)
+      else
+        System.delete_env("CAIRN_DATA_STORE_BACKEND")
+      end
+    end
+  end
+
+  defp clear_postgres_kv_table do
+    case Postgrex.start_link(postgres_options()) do
+      {:ok, conn} ->
+        result = Postgrex.query(conn, "DROP TABLE IF EXISTS cairn_kv", [])
+        GenServer.stop(conn)
+
+        case result do
+          {:ok, _} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp postgres_options do
+    [
+      hostname: System.get_env("CAIRN_PG_HOST", "127.0.0.1"),
+      port: String.to_integer(System.get_env("CAIRN_PG_PORT", "5432")),
+      database: System.get_env("CAIRN_PG_DATABASE", "cairn"),
+      username: System.get_env("CAIRN_PG_USER", "postgres"),
+      password: System.get_env("CAIRN_PG_PASSWORD", "postgres"),
+      ssl: System.get_env("CAIRN_PG_SSLMODE", "disable") == "require",
+      timeout: String.to_integer(System.get_env("CAIRN_PG_TIMEOUT_MS", "5000"))
+    ]
   end
 end

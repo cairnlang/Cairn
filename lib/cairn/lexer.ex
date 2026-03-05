@@ -149,6 +149,7 @@ defmodule Cairn.Lexer do
   defp classify("TEST"), do: {:ok, {:test_kw, "TEST"}}
   defp classify("IMPORT"), do: {:ok, {:import_kw, "IMPORT"}}
   defp classify("TYPE"), do: {:ok, {:type_kw, "TYPE"}}
+  defp classify("TYPEALIAS"), do: {:ok, {:type_alias_kw, "TYPEALIAS"}}
   defp classify("MATCH"), do: {:ok, {:match_kw, "MATCH"}}
   defp classify("RECEIVE"), do: {:ok, {:receive_kw, "RECEIVE"}}
   defp classify("SPAWN"), do: {:ok, {:spawn_kw, "SPAWN"}}

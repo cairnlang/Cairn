@@ -8,6 +8,8 @@ defmodule Cairn.Loader do
   @type parsed_item ::
           Cairn.Types.Function.t()
           | Cairn.Types.TypeDef.t()
+          | Cairn.Types.TypeAlias.t()
+          | Cairn.Types.ProtocolDef.t()
           | {:expr, [Cairn.Types.token()]}
           | {:verify, String.t(), pos_integer()}
           | {:prove, String.t()}
@@ -74,6 +76,7 @@ defmodule Cairn.Loader do
   defp collect_imported_type_names(items) do
     Enum.reduce(items, MapSet.new(), fn
       %Cairn.Types.TypeDef{name: name}, acc -> MapSet.put(acc, name)
+      %Cairn.Types.TypeAlias{name: name}, acc -> MapSet.put(acc, name)
       _, acc -> acc
     end)
   end

@@ -44,48 +44,64 @@ defmodule Cairn.Checker do
   The `env` parameter provides previously-defined function signatures
   for cross-expression checking (e.g., in the REPL).
   """
-  @spec check([Cairn.Types.Function.t() | Cairn.Types.TypeDef.t() | Cairn.Types.ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}], map()) ::
+  @spec check([Cairn.Types.Function.t() | Cairn.Types.TypeDef.t() | Cairn.Types.TypeAlias.t() | Cairn.Types.ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}], map()) ::
           :ok | {:error, [Error.t()]}
   def check(items, env \\ %{}) do
-    {type_env, types, protocols} = build_checker_env(env)
+    {type_env, types, type_aliases, protocols} = build_checker_env(env)
     actor_required = compute_actor_required_functions(items, type_env)
     raw_protocol_effects = compute_protocol_effect_functions(items)
 
+    local_aliases =
+      Enum.reduce(items, %{}, fn
+        %Cairn.Types.TypeAlias{} = alias_def, acc -> Map.put(acc, alias_def.name, alias_def)
+        _, acc -> acc
+      end)
+
+    type_aliases = Map.merge(type_aliases, local_aliases)
+
     # Pre-register all type definitions and function signatures upfront so that
     # mutually recursive functions can see each other regardless of source order.
-    {type_env, types, protocols} =
-      Enum.reduce(items, {type_env, types, protocols}, fn
-        %Cairn.Types.TypeDef{} = typedef, {te, tys, protos} ->
+    {type_env, types, type_aliases, protocols} =
+      Enum.reduce(items, {type_env, types, type_aliases, protocols}, fn
+        %Cairn.Types.TypeDef{} = typedef, {te, tys, aliases, protos} ->
           type_params = typedef.type_params || []
           return_type = {:user_type, typedef.name, Enum.map(type_params, &{:type_var, &1})}
 
           te =
             Enum.reduce(typedef.variants, te, fn {ctor_name, field_types}, acc ->
+              resolved_field_types = resolve_type_aliases(field_types, aliases, type_params)
+
               Map.put(acc, ctor_name, %{
                 type_params: type_params,
-                param_types: field_types,
+                param_types: resolved_field_types,
                 return_types: [return_type]
               })
             end)
 
-          {te, Map.put(tys, typedef.name, typedef), protos}
+          {te, Map.put(tys, typedef.name, typedef), aliases, protos}
 
-        %Cairn.Types.Function{} = func, {te, tys, protos} ->
+        %Cairn.Types.TypeAlias{} = alias_def, {te, tys, aliases, protos} ->
+          {te, tys, Map.put(aliases, alias_def.name, alias_def), protos}
+
+        %Cairn.Types.Function{} = func, {te, tys, aliases, protos} ->
+          resolved_params = resolve_type_aliases(func.param_types, aliases, func.type_params || [])
+          resolved_returns = resolve_type_aliases(func.return_types, aliases, func.type_params || [])
           protocol_effect_steps = protocol_helper_effect_for(func, actor_required, raw_protocol_effects)
 
           {Map.put(te, func.name, %{
              type_params: func.type_params,
-             param_types: func.param_types,
-             return_types: func.return_types,
+             param_types: resolved_params,
+             return_types: resolved_returns,
              effect: func.effect || :io,
              actor_required: MapSet.member?(actor_required, func.name),
              protocol_effect_steps: protocol_effect_steps
            }),
            tys,
+           aliases,
            protos}
 
-        %Cairn.Types.ProtocolDef{} = protocol, {te, tys, protos} ->
-          {te, tys, Map.put(protos, protocol.name, protocol)}
+        %Cairn.Types.ProtocolDef{} = protocol, {te, tys, aliases, protos} ->
+          {te, tys, aliases, Map.put(protos, protocol.name, protocol)}
 
         _, acc ->
           acc
@@ -97,6 +113,7 @@ defmodule Cairn.Checker do
       errors: [],
       next_tvar: 0,
       types: types,
+      type_aliases: type_aliases,
       protocols: protocols,
       current_actor_type: nil,
       current_protocol_steps: nil,
@@ -115,7 +132,7 @@ defmodule Cairn.Checker do
 
   # Build type environment and type map from runtime env
   defp build_checker_env(env) do
-    {type_env, types} = prelude_checker_env()
+    {type_env, types, type_aliases} = prelude_checker_env()
 
     # Convert Function entries to checker signatures
     type_env =
@@ -156,8 +173,10 @@ defmodule Cairn.Checker do
 
     env_types = Map.get(env, "__types__", %{})
     types = Map.merge(types, env_types)
+    env_aliases = Map.get(env, "__type_aliases__", %{})
+    type_aliases = Map.merge(type_aliases, env_aliases)
     protocols = Map.get(env, "__protocols__", %{})
-    {type_env, types, protocols}
+    {type_env, types, type_aliases, protocols}
   end
 
   defp prelude_checker_env do
@@ -182,24 +201,26 @@ defmodule Cairn.Checker do
       }
     }
 
-    {type_env, types}
+    {type_env, types, %{}}
   end
 
   defp check_item(%Cairn.Types.Function{} = func, state) do
     state = validate_type_params(state, func)
+    resolved_param_types = resolve_type_aliases(func.param_types, state.type_aliases, func.type_params || [])
+    resolved_return_types = resolve_type_aliases(func.return_types, state.type_aliases, func.type_params || [])
 
     state =
       state
-      |> validate_declared_types(func.param_types, "function '#{func.name}' parameter", func.type_params)
-      |> validate_declared_types(func.return_types, "function '#{func.name}' return", func.type_params)
+      |> validate_declared_types(resolved_param_types, "function '#{func.name}' parameter", func.type_params)
+      |> validate_declared_types(resolved_return_types, "function '#{func.name}' return", func.type_params)
 
     # Register function in type env
     protocol_effect_steps = protocol_helper_effect_for(func, state.actor_required, compute_protocol_effect_functions([func]))
 
     state = put_in(state.env[func.name], %{
       type_params: func.type_params,
-      param_types: func.param_types,
-      return_types: func.return_types,
+      param_types: resolved_param_types,
+      return_types: resolved_return_types,
       effect: func.effect || :io,
       actor_required: MapSet.member?(state.actor_required, func.name),
       protocol_effect_steps:
@@ -248,7 +269,7 @@ defmodule Cairn.Checker do
     # Check function body: start with param types on stack
     # param_types[0] is on top (matches runtime's Enum.split behavior)
     body_stack =
-      func.param_types
+      resolved_param_types
       |> Enum.reverse()
       |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
@@ -264,13 +285,14 @@ defmodule Cairn.Checker do
     body_state = check_tokens(func.body, body_state)
 
     # Check return types
-    body_state = check_return_shape(func, body_state)
+    checked_func = %{func | param_types: resolved_param_types, return_types: resolved_return_types}
+    body_state = check_return_shape(checked_func, body_state)
 
     # Check PRE condition if present
     body_state =
       if func.pre_condition do
         pre_stack =
-          func.param_types
+          resolved_param_types
           |> Enum.reverse()
           |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
 
@@ -285,10 +307,10 @@ defmodule Cairn.Checker do
     body_state =
       if func.post_condition do
         post_stack =
-          if func.return_types == [:void] do
+          if resolved_return_types == [:void] do
             Stack.new()
           else
-            func.return_types
+            resolved_return_types
             |> Enum.reverse()
             |> Enum.reduce(Stack.new(), fn type, stack -> Stack.push(stack, type) end)
           end
@@ -307,6 +329,7 @@ defmodule Cairn.Checker do
         current_actor_type: state.current_actor_type,
         current_protocol_steps: state.current_protocol_steps,
         types: state.types,
+        type_aliases: state.type_aliases,
         env: state.env,
         current_effect: state.current_effect
     }
@@ -319,15 +342,18 @@ defmodule Cairn.Checker do
 
     state =
       Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
-        validate_declared_types(st, field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field", type_params)
+        resolved_field_types = resolve_type_aliases(field_types, st.type_aliases, type_params)
+        validate_declared_types(st, resolved_field_types, "TYPE #{typedef.name} constructor '#{ctor_name}' field", type_params)
       end)
 
     # Register each constructor as a pseudo-function in the checker env
     state =
       Enum.reduce(typedef.variants, state, fn {ctor_name, field_types}, st ->
+        resolved_field_types = resolve_type_aliases(field_types, st.type_aliases, type_params)
+
         put_in(st.env[ctor_name], %{
           type_params: type_params,
-          param_types: field_types,
+          param_types: resolved_field_types,
           return_types: [return_type]
         })
       end)
@@ -338,6 +364,26 @@ defmodule Cairn.Checker do
 
   defp check_item(%Cairn.Types.ProtocolDef{} = protocol, state) do
     %{state | protocols: Map.put(state.protocols, protocol.name, protocol)}
+  end
+
+  defp check_item(%Cairn.Types.TypeAlias{} = type_alias, state) do
+    state =
+      case duplicates(type_alias.type_params || []) do
+        [] -> state
+        dupes -> add_error(state, nil, "TYPEALIAS '#{type_alias.name}' declares duplicate type params #{Enum.join(dupes, ", ")}")
+      end
+
+    resolved_target = resolve_type_alias(type_alias.target_type, state.type_aliases, type_alias.type_params || [])
+
+    state =
+      validate_declared_type(
+        state,
+        resolved_target,
+        "TYPEALIAS '#{type_alias.name}' target",
+        type_alias.type_params || []
+      )
+
+    %{state | type_aliases: Map.put(state.type_aliases, type_alias.name, type_alias)}
   end
 
   defp check_item({:expr, tokens}, state) do
@@ -2601,25 +2647,8 @@ defmodule Cairn.Checker do
   defp validate_declared_type(state, type, _context, _type_params) when type in [:int, :float, :bool, :str, :any, :void],
     do: state
 
-  defp validate_declared_type(state, type_name, context, _type_params) when is_binary(type_name) do
-    case Map.get(state.types, type_name) do
-      nil ->
-        add_error(state, nil, "#{context} references unknown type #{type_name}")
-
-      typedef ->
-        expected_arity = length(typedef.type_params || [])
-
-        if expected_arity == 0 do
-          state
-        else
-          add_error(
-            state,
-            nil,
-            "#{context} references type #{type_name} with 0 argument(s); expected #{expected_arity}"
-          )
-        end
-    end
-  end
+  defp validate_declared_type(state, type_name, context, _type_params) when is_binary(type_name),
+    do: validate_named_type_arity(state, type_name, 0, context)
 
   defp validate_declared_type(state, {:type_var, name}, context, type_params) do
     if name in type_params do
@@ -2629,70 +2658,15 @@ defmodule Cairn.Checker do
     end
   end
 
-  defp validate_declared_type(state, name, context, _type_params) when is_binary(name) do
-    case Map.get(state.types, name) do
-      nil ->
-        add_error(state, nil, "#{context} references unknown type #{name}")
-
-      typedef ->
-        expected_arity = length(typedef.type_params || [])
-
-        if expected_arity == 0 do
-          state
-        else
-          add_error(
-            state,
-            nil,
-            "#{context} references type #{name} with 0 argument(s); expected #{expected_arity}"
-          )
-        end
-    end
-  end
-
-  defp validate_declared_type(state, {:user_type, name}, context, _type_params) do
-    case Map.get(state.types, name) do
-      nil ->
-        add_error(state, nil, "#{context} references unknown type #{name}")
-
-      typedef ->
-        expected_arity = length(typedef.type_params || [])
-
-        if expected_arity == 0 do
-          state
-        else
-          add_error(
-            state,
-            nil,
-            "#{context} references type #{name} with 0 argument(s); expected #{expected_arity}"
-          )
-        end
-    end
-  end
+  defp validate_declared_type(state, {:user_type, name}, context, _type_params),
+    do: validate_named_type_arity(state, name, 0, context)
 
   defp validate_declared_type(state, {:user_type, name, args}, context, type_params) do
-    case Map.get(state.types, name) do
-      nil ->
-        add_error(state, nil, "#{context} references unknown type #{name}")
+    state = validate_named_type_arity(state, name, length(args), context)
 
-      typedef ->
-        expected_arity = length(typedef.type_params || [])
-        actual_arity = length(args)
-
-        state =
-          if expected_arity == actual_arity do
-            state
-          else
-            add_error(
-              state,
-              nil,
-              "#{context} references type #{name} with #{actual_arity} argument(s); expected #{expected_arity}"
-            )
-          end
-
-        Enum.reduce(args, state, fn arg_type, st ->
-          validate_declared_type(st, arg_type, context, type_params)
-        end)
-    end
+    Enum.reduce(args, state, fn arg_type, st ->
+      validate_declared_type(st, arg_type, context, type_params)
+    end)
   end
 
   defp validate_declared_type(state, {:list, inner}, context, type_params),
@@ -2724,6 +2698,30 @@ defmodule Cairn.Checker do
 
   defp validate_declared_type(state, other, context, _type_params) do
     add_error(state, nil, "#{context} uses unsupported declared type #{format_type(other)}")
+  end
+
+  defp validate_named_type_arity(state, name, actual_arity, context) do
+    case lookup_named_declared_type(state, name) do
+      nil ->
+        add_error(state, nil, "#{context} references unknown type #{name}")
+
+      %{type_params: type_params} ->
+        expected_arity = length(type_params || [])
+
+        if expected_arity == actual_arity do
+          state
+        else
+          add_error(
+            state,
+            nil,
+            "#{context} references type #{name} with #{actual_arity} argument(s); expected #{expected_arity}"
+          )
+        end
+    end
+  end
+
+  defp lookup_named_declared_type(state, name) do
+    Map.get(state.types, name) || Map.get(state.type_aliases, name)
   end
 
   defp pure_context?(%{current_effect: :pure}), do: true
@@ -2883,6 +2881,90 @@ defmodule Cairn.Checker do
     do: {:block, {:returns, substitute_type_vars(inner, bindings)}}
 
   defp substitute_type_vars(other, _bindings), do: other
+
+  defp resolve_type_aliases(types, type_aliases, type_params) when is_list(types),
+    do: Enum.map(types, &resolve_type_alias(&1, type_aliases, type_params))
+
+  defp resolve_type_alias(type, type_aliases, type_params),
+    do: do_resolve_type_alias(type, type_aliases, type_params, MapSet.new())
+
+  defp do_resolve_type_alias(type, _type_aliases, _type_params, _visiting)
+       when type in [:int, :float, :bool, :str, :any, :void, :num],
+       do: type
+
+  defp do_resolve_type_alias({:type_var, _name} = type, _type_aliases, _type_params, _visiting), do: type
+
+  defp do_resolve_type_alias(type_name, type_aliases, type_params, visiting) when is_binary(type_name) do
+    cond do
+      type_name in type_params ->
+        {:type_var, type_name}
+
+      true ->
+        maybe_expand_alias({:user_type, type_name, []}, type_aliases, type_params, visiting)
+    end
+  end
+
+  defp do_resolve_type_alias({:user_type, type_name}, type_aliases, type_params, visiting),
+    do: maybe_expand_alias({:user_type, type_name, []}, type_aliases, type_params, visiting)
+
+  defp do_resolve_type_alias({:user_type, type_name, args}, type_aliases, type_params, visiting) do
+    resolved_args = Enum.map(args, &do_resolve_type_alias(&1, type_aliases, type_params, visiting))
+    maybe_expand_alias({:user_type, type_name, resolved_args}, type_aliases, type_params, visiting)
+  end
+
+  defp do_resolve_type_alias({:list, inner}, type_aliases, type_params, visiting),
+    do: {:list, do_resolve_type_alias(inner, type_aliases, type_params, visiting)}
+
+  defp do_resolve_type_alias({:tuple, elems}, type_aliases, type_params, visiting),
+    do: {:tuple, Enum.map(elems, &do_resolve_type_alias(&1, type_aliases, type_params, visiting))}
+
+  defp do_resolve_type_alias({:map, key_type, value_type}, type_aliases, type_params, visiting) do
+    {:map,
+     do_resolve_type_alias(key_type, type_aliases, type_params, visiting),
+     do_resolve_type_alias(value_type, type_aliases, type_params, visiting)}
+  end
+
+  defp do_resolve_type_alias({:pid, inner}, type_aliases, type_params, visiting),
+    do: {:pid, do_resolve_type_alias(inner, type_aliases, type_params, visiting)}
+
+  defp do_resolve_type_alias({:monitor, inner}, type_aliases, type_params, visiting),
+    do: {:monitor, do_resolve_type_alias(inner, type_aliases, type_params, visiting)}
+
+  defp do_resolve_type_alias({:block, {:returns, inner}}, type_aliases, type_params, visiting),
+    do: {:block, {:returns, do_resolve_type_alias(inner, type_aliases, type_params, visiting)}}
+
+  defp do_resolve_type_alias(other, _type_aliases, _type_params, _visiting), do: other
+
+  defp maybe_expand_alias({:user_type, type_name, args}, type_aliases, type_params, visiting) do
+    case Map.get(type_aliases, type_name) do
+      nil ->
+        if args == [] do
+          type_name
+        else
+          {:user_type, type_name, args}
+        end
+
+      %Cairn.Types.TypeAlias{} = alias_def ->
+        expected_arity = length(alias_def.type_params || [])
+        actual_arity = length(args)
+        key = {type_name, actual_arity}
+
+        cond do
+          actual_arity != expected_arity ->
+            {:user_type, type_name, args}
+
+          MapSet.member?(visiting, key) ->
+            {:user_type, type_name, args}
+
+          true ->
+            bindings = Enum.zip(alias_def.type_params || [], args) |> Map.new()
+
+            alias_def.target_type
+            |> substitute_type_vars(bindings)
+            |> do_resolve_type_alias(type_aliases, type_params, MapSet.put(visiting, key))
+        end
+    end
+  end
 
   defp check_match_arms(type_name, type_args, base_stack, arms, state, pos) do
     typedef = Map.get(state.types, type_name)

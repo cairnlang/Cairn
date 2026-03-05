@@ -801,8 +801,8 @@ defmodule Cairn.Evaluator do
   """
   def eval_function_call(%Cairn.Types.Function{} = func, stack, env) do
     {args, rest} = pop_args(stack, length(func.param_types))
-    param_types = erase_type_vars(func.param_types)
-    return_types = erase_type_vars(func.return_types)
+    param_types = resolve_runtime_aliases(func.param_types, env, func.type_params || []) |> erase_type_vars()
+    return_types = resolve_runtime_aliases(func.return_types, env, func.type_params || []) |> erase_type_vars()
 
     # Check arg types against declared param_types
     check_arg_types(func.name, param_types, args)
@@ -992,6 +992,94 @@ defmodule Cairn.Evaluator do
   end
 
   defp format_return_types(types), do: Enum.map_join(types, " ", &format_type/1)
+
+  defp resolve_runtime_aliases(types, env, type_params) when is_list(types) do
+    aliases = Map.get(env, "__type_aliases__", %{})
+    Enum.map(types, &resolve_runtime_alias(&1, aliases, type_params, MapSet.new()))
+  end
+
+  defp resolve_runtime_alias(type, _aliases, _type_params, _visiting)
+       when type in [:int, :float, :bool, :str, :any, :void, :num],
+       do: type
+
+  defp resolve_runtime_alias({:type_var, _name} = type, _aliases, _type_params, _visiting), do: type
+
+  defp resolve_runtime_alias(type_name, aliases, type_params, visiting) when is_binary(type_name) do
+    if type_name in type_params do
+      {:type_var, type_name}
+    else
+      resolve_runtime_alias({:user_type, type_name, []}, aliases, type_params, visiting)
+    end
+  end
+
+  defp resolve_runtime_alias({:user_type, type_name}, aliases, type_params, visiting),
+    do: resolve_runtime_alias({:user_type, type_name, []}, aliases, type_params, visiting)
+
+  defp resolve_runtime_alias({:user_type, type_name, args}, aliases, type_params, visiting) do
+    resolved_args = Enum.map(args, &resolve_runtime_alias(&1, aliases, type_params, visiting))
+
+    case Map.get(aliases, type_name) do
+      nil ->
+        if resolved_args == [], do: type_name, else: {:user_type, type_name, resolved_args}
+
+      %Cairn.Types.TypeAlias{} = alias_def ->
+        expected_arity = length(alias_def.type_params || [])
+        actual_arity = length(resolved_args)
+        key = {type_name, actual_arity}
+
+        cond do
+          expected_arity != actual_arity ->
+            {:user_type, type_name, resolved_args}
+
+          MapSet.member?(visiting, key) ->
+            {:user_type, type_name, resolved_args}
+
+          true ->
+            bindings = Enum.zip(alias_def.type_params || [], resolved_args) |> Map.new()
+
+            alias_def.target_type
+            |> substitute_runtime_type_vars(bindings)
+            |> resolve_runtime_alias(aliases, type_params, MapSet.put(visiting, key))
+        end
+    end
+  end
+
+  defp resolve_runtime_alias({:list, inner}, aliases, type_params, visiting),
+    do: {:list, resolve_runtime_alias(inner, aliases, type_params, visiting)}
+
+  defp resolve_runtime_alias({:tuple, elems}, aliases, type_params, visiting),
+    do: {:tuple, Enum.map(elems, &resolve_runtime_alias(&1, aliases, type_params, visiting))}
+
+  defp resolve_runtime_alias({:map, key_type, value_type}, aliases, type_params, visiting) do
+    {:map,
+     resolve_runtime_alias(key_type, aliases, type_params, visiting),
+     resolve_runtime_alias(value_type, aliases, type_params, visiting)}
+  end
+
+  defp resolve_runtime_alias({:pid, inner}, aliases, type_params, visiting),
+    do: {:pid, resolve_runtime_alias(inner, aliases, type_params, visiting)}
+
+  defp resolve_runtime_alias({:monitor, inner}, aliases, type_params, visiting),
+    do: {:monitor, resolve_runtime_alias(inner, aliases, type_params, visiting)}
+
+  defp resolve_runtime_alias({:block, {:returns, inner}}, aliases, type_params, visiting),
+    do: {:block, {:returns, resolve_runtime_alias(inner, aliases, type_params, visiting)}}
+
+  defp resolve_runtime_alias(other, _aliases, _type_params, _visiting), do: other
+
+  defp substitute_runtime_type_vars({:type_var, name}, bindings), do: Map.get(bindings, name, :any)
+  defp substitute_runtime_type_vars({:user_type, name, args}, bindings),
+    do: {:user_type, name, Enum.map(args, &substitute_runtime_type_vars(&1, bindings))}
+  defp substitute_runtime_type_vars({:list, inner}, bindings), do: {:list, substitute_runtime_type_vars(inner, bindings)}
+  defp substitute_runtime_type_vars({:tuple, elems}, bindings),
+    do: {:tuple, Enum.map(elems, &substitute_runtime_type_vars(&1, bindings))}
+  defp substitute_runtime_type_vars({:map, key_type, value_type}, bindings),
+    do: {:map, substitute_runtime_type_vars(key_type, bindings), substitute_runtime_type_vars(value_type, bindings)}
+  defp substitute_runtime_type_vars({:pid, inner}, bindings), do: {:pid, substitute_runtime_type_vars(inner, bindings)}
+  defp substitute_runtime_type_vars({:monitor, inner}, bindings), do: {:monitor, substitute_runtime_type_vars(inner, bindings)}
+  defp substitute_runtime_type_vars({:block, {:returns, inner}}, bindings),
+    do: {:block, {:returns, substitute_runtime_type_vars(inner, bindings)}}
+  defp substitute_runtime_type_vars(other, _bindings), do: other
 
   defp erase_type_vars(types) when is_list(types), do: Enum.map(types, &erase_type_vars/1)
   defp erase_type_vars({:type_var, _}), do: :any

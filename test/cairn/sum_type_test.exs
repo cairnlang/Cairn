@@ -17,7 +17,10 @@ defmodule Cairn.SumTypeTest do
 
   defp check(source, env) do
     {:ok, tokens} = Cairn.Lexer.tokenize(source)
-    {:ok, items} = Cairn.Parser.parse(tokens)
+    known_types =
+      MapSet.new(Map.keys(Map.get(env, "__types__", %{})) ++ Map.keys(Map.get(env, "__type_aliases__", %{})))
+
+    {:ok, items} = Cairn.Parser.parse(tokens, known_types)
     Cairn.Checker.check(items, env)
   end
 
@@ -78,6 +81,11 @@ defmodule Cairn.SumTypeTest do
     test "TYPE and DEF and END remain keywords" do
       tokens = lex("TYPE DEF END")
       assert [{:type_kw, _, _}, {:fn_def, _, _}, {:fn_end, _, _}] = tokens
+    end
+
+    test "TYPEALIAS tokenized as :type_alias_kw" do
+      tokens = lex("TYPEALIAS")
+      assert [{:type_alias_kw, "TYPEALIAS", 0}] = tokens
     end
 
     test "lowercase identifiers still work" do
@@ -149,6 +157,20 @@ defmodule Cairn.SumTypeTest do
       items = parse("TYPE option = None | Some int TYPE result = Ok int | Err str")
       assert length(items) == 2
       assert Enum.all?(items, fn i -> match?(%Cairn.Types.TypeDef{}, i) end)
+    end
+
+    test "TYPEALIAS declarations parse" do
+      items = parse("TYPEALIAS headers = map[str str] TYPEALIAS maybe[T] = result[T str]")
+      assert [%Cairn.Types.TypeAlias{}, %Cairn.Types.TypeAlias{}] = items
+
+      [headers, maybe] = items
+      assert headers.name == "headers"
+      assert headers.type_params == []
+      assert headers.target_type == {:map, :str, :str}
+
+      assert maybe.name == "maybe"
+      assert maybe.type_params == ["T"]
+      assert maybe.target_type == {:user_type, "result", [{:type_var, "T"}, :str]}
     end
   end
 
@@ -402,6 +424,37 @@ defmodule Cairn.SumTypeTest do
     test "nullary constructor pushes user_type" do
       env = define("TYPE option = None | Some int")
       check_ok("None DROP", env)
+    end
+
+    test "TYPEALIAS can be used in function signatures" do
+      env =
+        define("""
+        TYPEALIAS headers = map[str str]
+        """)
+
+      check_ok("""
+      DEF touch_headers : headers -> headers
+        DUP DROP
+      END
+
+      M[ "Content-Type" "text/plain" ] touch_headers
+      """, env)
+    end
+
+    test "TYPEALIAS arity mismatch is reported" do
+      env = define("TYPEALIAS pair[T U] = tuple[T U]")
+
+      errors =
+        check_errors("""
+        DEF bad : pair[int] -> int
+          DROP
+          0
+        END
+        """, env)
+
+      assert Enum.any?(errors, fn e ->
+               String.contains?(e.message, "references type pair with 1 argument(s); expected 2")
+             end)
     end
   end
 

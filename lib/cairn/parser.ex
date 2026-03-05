@@ -6,20 +6,21 @@ defmodule Cairn.Parser do
   1. Expressions — postfix sequences of literals, identifiers, and operators.
   2. Function definitions — `DEF name : type -> type [EFFECT kind] body [POST condition] END`
   3. TYPE declarations — `TYPE name = Ctor1 [types...] | Ctor2 [types...] ...`
-  4. VERIFY/PROVE statements
-  5. TEST blocks — `TEST "name" ... END`
+  4. TYPEALIAS declarations — `TYPEALIAS alias_name = type_expr`
+  5. VERIFY/PROVE statements
+  6. TEST blocks — `TEST "name" ... END`
 
   POST comes after the body, before END.
   """
 
-  alias Cairn.Types.{Function, ProtocolDef, TypeDef}
+  alias Cairn.Types.{Function, ProtocolDef, TypeAlias, TypeDef}
 
   @doc """
   Parses a token list into a list of parsed items.
-  Returns `{:ok, items}` where each item is a `%Function{}`, `%TypeDef{}`, or `{:expr, tokens}`.
+  Returns `{:ok, items}` where each item is a `%Function{}`, `%TypeDef{}`, `%TypeAlias{}`, or `{:expr, tokens}`.
   """
   @spec parse([Cairn.Types.token()], MapSet.t(String.t())) ::
-          {:ok, [Function.t() | TypeDef.t() | ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}]}
+          {:ok, [Function.t() | TypeDef.t() | TypeAlias.t() | ProtocolDef.t() | {:expr, [Cairn.Types.token()]} | {:test, String.t(), [Cairn.Types.token()]}]}
           | {:error, String.t()}
   def parse(tokens, external_known_types \\ MapSet.new()) do
     known_types =
@@ -78,6 +79,13 @@ defmodule Cairn.Parser do
     end
   end
 
+  defp parse_top([{:type_alias_kw, _, _} | rest], acc, known_types) do
+    case parse_type_alias(rest, known_types) do
+      {:ok, typealias, remaining} -> parse_top(remaining, [typealias | acc], known_types)
+      {:error, _} = err -> err
+    end
+  end
+
   defp parse_top([{:protocol_kw, _, _} | rest], acc, known_types) do
     case parse_protocol_def(rest) do
       {:ok, protocol, remaining} -> parse_top(remaining, [protocol | acc], known_types)
@@ -87,7 +95,7 @@ defmodule Cairn.Parser do
 
   defp parse_top(tokens, acc, known_types) do
     {expr_tokens, remaining} = Enum.split_while(tokens, fn {type, _, _} ->
-      type not in [:fn_def, :verify_kw, :prove_kw, :test_kw, :import_kw, :type_kw, :protocol_kw]
+      type not in [:fn_def, :verify_kw, :prove_kw, :test_kw, :import_kw, :type_kw, :type_alias_kw, :protocol_kw]
     end)
 
     if expr_tokens == [] do
@@ -167,6 +175,36 @@ defmodule Cairn.Parser do
 
   defp parse_type_def(_) do
     {:error, "TYPE requires: TYPE name = Constructor [types...] | ..."}
+  end
+
+  # TYPEALIAS name = type_expr
+  defp parse_type_alias([type_name_tok, {:equals, _, _} | rest], known_types)
+       when elem(type_name_tok, 0) in [:ident, :generic_ident] do
+    {name, type_params} =
+      case type_name_tok do
+        {:ident, alias_name, _} -> {alias_name, []}
+        {:generic_ident, {alias_name, alias_type_params}, _} -> {alias_name, alias_type_params}
+      end
+
+    cond do
+      not Enum.all?(type_params, &simple_type_param_name?/1) ->
+        {:error, "TYPEALIAS parameters must be simple identifiers"}
+
+      true ->
+        {type_tokens, remaining} = collect_alias_type_tokens(rest, [], known_types, MapSet.new(type_params))
+
+        case parse_alias_target(type_tokens, MapSet.new(type_params)) do
+          {:ok, target_type} ->
+            {:ok, %TypeAlias{name: name, type_params: type_params, target_type: target_type}, remaining}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+    end
+  end
+
+  defp parse_type_alias(_, _known_types) do
+    {:error, "TYPEALIAS requires: TYPEALIAS name = type_expr"}
   end
 
   # PROTOCOL name = SEND Ctor RECV Ctor ... END
@@ -250,7 +288,7 @@ defmodule Cairn.Parser do
 
   # Stop at any top-level boundary token
   defp collect_variants([{type, _, _} | _] = rest, variants, current_ctor, current_types, _type_params)
-       when type in [:fn_def, :verify_kw, :prove_kw, :test_kw, :type_kw, :protocol_kw] do
+       when type in [:fn_def, :verify_kw, :prove_kw, :test_kw, :type_kw, :type_alias_kw, :protocol_kw] do
     variants = finish_variant(variants, current_ctor, current_types)
     {:ok, variants, rest}
   end
@@ -263,6 +301,66 @@ defmodule Cairn.Parser do
 
   defp finish_variant(variants, nil, _types), do: variants
   defp finish_variant(variants, ctor_name, types), do: Map.put(variants, ctor_name, types)
+
+  defp collect_alias_type_tokens([], acc, _known_types, _type_params), do: {Enum.reverse(acc), []}
+
+  defp collect_alias_type_tokens([{:type, type_val, _} | rest], acc, known_types, type_params) do
+    collect_alias_type_tokens(rest, [type_val | acc], known_types, type_params)
+  end
+
+  defp collect_alias_type_tokens([{:ident, name, _} | rest], acc, known_types, type_params) do
+    type_val =
+      cond do
+        MapSet.member?(type_params, name) -> {:type_var, name}
+        MapSet.member?(known_types, name) -> {:user_type, name}
+        true -> {:user_type, name}
+      end
+
+    collect_alias_type_tokens(rest, [type_val | acc], known_types, type_params)
+  end
+
+  defp collect_alias_type_tokens([{:constructor, name, _} | rest], acc, known_types, type_params) do
+    type_val =
+      cond do
+        MapSet.member?(type_params, name) -> {:type_var, name}
+        MapSet.member?(known_types, name) -> {:user_type, name}
+        true -> {:user_type, name}
+      end
+
+    collect_alias_type_tokens(rest, [type_val | acc], known_types, type_params)
+  end
+
+  defp collect_alias_type_tokens([{:generic_ident, {name, args}, _} | rest], acc, known_types, type_params) do
+    type_val =
+      cond do
+        name == "tuple" ->
+          {:tuple, Enum.map(args, &normalize_signature_type(&1, type_params))}
+
+        MapSet.member?(type_params, name) ->
+          {:type_var, name}
+
+        MapSet.member?(known_types, name) ->
+          {:user_type, name, Enum.map(args, &normalize_signature_type(&1, type_params))}
+
+        true ->
+          {:user_type, name, Enum.map(args, &normalize_signature_type(&1, type_params))}
+      end
+
+    collect_alias_type_tokens(rest, [type_val | acc], known_types, type_params)
+  end
+
+  defp collect_alias_type_tokens([{type, _, _} | _] = tokens, acc, _known_types, _type_params)
+       when type in [:fn_def, :verify_kw, :prove_kw, :test_kw, :import_kw, :type_kw, :type_alias_kw, :protocol_kw] do
+    {Enum.reverse(acc), tokens}
+  end
+
+  defp collect_alias_type_tokens(tokens, acc, _known_types, _type_params) do
+    {Enum.reverse(acc), tokens}
+  end
+
+  defp parse_alias_target([target], type_params), do: {:ok, normalize_signature_type(target, type_params)}
+  defp parse_alias_target([], _type_params), do: {:error, "TYPEALIAS requires a target type after ="}
+  defp parse_alias_target(_targets, _type_params), do: {:error, "TYPEALIAS target must be a single type expression"}
 
   defp simple_type_param_name?(name) do
     String.match?(name, ~r/^[A-Za-z_][A-Za-z0-9_]*$/)
@@ -461,6 +559,9 @@ defmodule Cairn.Parser do
 
   defp normalize_signature_type(name, type_params) when is_binary(name) do
     cond do
+      name == "result" ->
+        {:user_type, "result", [:any, :any]}
+
       name in ["int", "float", "bool", "str", "any", "void"] ->
         String.to_atom(name)
 
@@ -505,10 +606,10 @@ defmodule Cairn.Parser do
   end
 
   defp normalize_signature_type({:user_type, name}, type_params) do
-    if MapSet.member?(type_params, name) do
-      {:type_var, name}
-    else
-      name
+    cond do
+      name == "result" -> {:user_type, "result", [:any, :any]}
+      MapSet.member?(type_params, name) -> {:type_var, name}
+      true -> name
     end
   end
 
@@ -703,10 +804,12 @@ defmodule Cairn.Parser do
   defp collect_declared_type_names(tokens) do
     tokens
     |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.reduce(MapSet.new(["result"]), fn
-      [{:type_kw, _, _}, {:ident, name, _}], acc -> MapSet.put(acc, name)
-      [{:type_kw, _, _}, {:generic_ident, {name, _}, _}], acc -> MapSet.put(acc, name)
-      _, acc -> acc
-    end)
+      |> Enum.reduce(MapSet.new(["result"]), fn
+        [{:type_kw, _, _}, {:ident, name, _}], acc -> MapSet.put(acc, name)
+        [{:type_kw, _, _}, {:generic_ident, {name, _}, _}], acc -> MapSet.put(acc, name)
+        [{:type_alias_kw, _, _}, {:ident, name, _}], acc -> MapSet.put(acc, name)
+        [{:type_alias_kw, _, _}, {:generic_ident, {name, _}, _}], acc -> MapSet.put(acc, name)
+        _, acc -> acc
+      end)
   end
 end

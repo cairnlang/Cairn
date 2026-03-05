@@ -1,49 +1,54 @@
 # Prelude: small web response helpers for HTTP_SERVE handlers.
 
+TYPEALIAS headers = map[str str]
+TYPEALIAS session = map[str str]
+TYPEALIAS http_response = tuple[str headers int]
+TYPEALIAS route_result = result[http_response str]
+
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
-DEF http_html_ok : str -> str map[str str] int EFFECT pure
+DEF http_html_ok : str -> str headers int EFFECT pure
   200
   M[ "Content-Type" "text/html; charset=utf-8" ]
   ROT
 END
 
 # Convert a plain-text body into the stack shape HTTP_SERVE expects.
-DEF http_text_ok : str -> str map[str str] int EFFECT pure
+DEF http_text_ok : str -> str headers int EFFECT pure
   200
   M[ "Content-Type" "text/plain; charset=utf-8" ]
   ROT
 END
 
 # Convert a plain-text body into a simple 404 response.
-DEF http_text_not_found : str -> str map[str str] int EFFECT pure
+DEF http_text_not_found : str -> str headers int EFFECT pure
   404
   M[ "Content-Type" "text/plain; charset=utf-8" ]
   ROT
 END
 
 # Convert a plain-text body into a simple 405 response.
-DEF http_text_method_not_allowed : str -> str map[str str] int EFFECT pure
+DEF http_text_method_not_allowed : str -> str headers int EFFECT pure
   405
   M[ "Content-Type" "text/plain; charset=utf-8" ]
   ROT
 END
 
 # Convert a plain-text body into a simple 401 response.
-DEF http_text_unauthorized : str -> str map[str str] int EFFECT pure
+DEF http_text_unauthorized : str -> str headers int EFFECT pure
   401
   M[ "Content-Type" "text/plain; charset=utf-8" ]
   ROT
 END
 
 # Convert a plain-text body into a simple 403 response.
-DEF http_text_forbidden : str -> str map[str str] int EFFECT pure
+DEF http_text_forbidden : str -> str headers int EFFECT pure
   403
   M[ "Content-Type" "text/plain; charset=utf-8" ]
   ROT
 END
 
 # Convenience wrapper for serving a known HTML file.
-DEF http_html_file_ok : str -> str map[str str] int EFFECT http
+DEF http_html_file_ok : str -> str headers int EFFECT http
   READ_FILE!
   http_html_ok
 END
@@ -59,7 +64,7 @@ DEF html_escape : str -> str EFFECT pure
 END
 
 # Pack an HTTP_SERVE response stack into one value for route chaining.
-DEF http_pack_response : str map[str str] int -> tuple[str map[str str] int] EFFECT pure
+DEF http_pack_response : str headers int -> http_response EFFECT pure
   LET body
   LET headers
   LET status
@@ -67,7 +72,7 @@ DEF http_pack_response : str map[str str] int -> tuple[str map[str str] int] EFF
 END
 
 # Unpack a response produced by http_pack_response.
-DEF http_unpack_response : tuple[str map[str str] int] -> str map[str str] int EFFECT pure
+DEF http_unpack_response : http_response -> str headers int EFFECT pure
   DUP FST LET body
   DUP SND LET headers
   TRD LET status
@@ -76,7 +81,7 @@ END
 
 # Add or replace one response header while preserving the HTTP_SERVE stack shape.
 # Signature: value key body headers status -> body headers status
-DEF http_add_header : str str str map[str str] int -> str map[str str] int EFFECT pure
+DEF http_add_header : str str str headers int -> str headers int EFFECT pure
   LET value
   LET key
   LET body
@@ -89,7 +94,7 @@ END
 
 # Update the session map in a response while preserving the HTTP_SERVE stack shape.
 # Signature: value key body headers session status -> body headers session status
-DEF session_put : str str str map[str str] map[str str] int -> str map[str str] map[str str] int EFFECT pure
+DEF session_put : str str str headers session int -> str headers session int EFFECT pure
   LET value
   LET key
   LET body
@@ -103,7 +108,7 @@ END
 
 # Clear the current session in a response.
 # Signature: body headers session status -> body headers session status
-DEF session_clear : str map[str str] map[str str] int -> str map[str str] map[str str] int EFFECT pure
+DEF session_clear : str headers session int -> str headers session int EFFECT pure
   LET body
   LET headers
   LET session
@@ -114,12 +119,12 @@ DEF session_clear : str map[str str] map[str str] int -> str map[str str] map[st
 END
 
 # Check whether a session currently has a logged-in user.
-DEF session_has_user : map[str str] -> bool EFFECT pure
+DEF session_has_user : session -> bool EFFECT pure
   "user" SWAP "" map_get_or LEN 0 GT
 END
 
 # Check whether the current session role matches the required role.
-DEF session_has_role : str map[str str] -> bool EFFECT pure
+DEF session_has_role : str session -> bool EFFECT pure
   LET required_role
   LET session
 
@@ -127,12 +132,12 @@ DEF session_has_role : str map[str str] -> bool EFFECT pure
 END
 
 # Guard predicate: require a logged-in user.
-DEF guard_require_login : map[str str] -> bool EFFECT pure
+DEF guard_require_login : session -> bool EFFECT pure
   session_has_user
 END
 
 # Guard predicate: require a specific role on an already-present session.
-DEF guard_require_role : str map[str str] -> bool EFFECT pure
+DEF guard_require_role : str session -> bool EFFECT pure
   LET required_role
   LET session
 
@@ -145,8 +150,8 @@ DEF guard_require_role : str map[str str] -> bool EFFECT pure
 END
 
 # Exact-path route: serve a known HTML file on match.
-# Signature: file route path -> result[tuple[str map[str str] int] str]
-DEF route_html_file : str str str -> result[tuple[str map[str str] int] str] EFFECT http
+# Signature: file route path -> route_result
+DEF route_html_file : str str str -> route_result EFFECT http
   LET file
   LET route
   LET path
@@ -160,8 +165,8 @@ DEF route_html_file : str str str -> result[tuple[str map[str str] int] str] EFF
 END
 
 # Exact GET route: serve a known HTML file on match.
-# Signature: file route method path -> result[tuple[str map[str str] int] str]
-DEF route_get_html_file : str str str str -> result[tuple[str map[str str] int] str] EFFECT http
+# Signature: file route method path -> route_result
+DEF route_get_html_file : str str str str -> route_result EFFECT http
   LET file
   LET route
   LET method
@@ -181,8 +186,8 @@ DEF route_get_html_file : str str str str -> result[tuple[str map[str str] int] 
 END
 
 # Exact-path route: serve a plain-text body on match.
-# Signature: body route path -> result[tuple[str map[str str] int] str]
-DEF route_text_ok : str str str -> result[tuple[str map[str str] int] str] EFFECT pure
+# Signature: body route path -> route_result
+DEF route_text_ok : str str str -> route_result EFFECT pure
   LET body
   LET route
   LET path
@@ -196,8 +201,8 @@ DEF route_text_ok : str str str -> result[tuple[str map[str str] int] str] EFFEC
 END
 
 # Exact GET route: serve a plain-text body on match.
-# Signature: body route method path -> result[tuple[str map[str str] int] str]
-DEF route_get_text : str str str str -> result[tuple[str map[str str] int] str] EFFECT pure
+# Signature: body route method path -> route_result
+DEF route_get_text : str str str str -> route_result EFFECT pure
   LET body
   LET route
   LET method
@@ -217,8 +222,8 @@ DEF route_get_text : str str str str -> result[tuple[str map[str str] int] str] 
 END
 
 # Prefer the earlier candidate if it matched; otherwise keep the fallback.
-# Signature: fallback preferred -> result[tuple[str map[str str] int] str]
-DEF route_or : result[tuple[str map[str str] int] str] result[tuple[str map[str str] int] str] -> result[tuple[str map[str str] int] str] EFFECT pure
+# Signature: fallback preferred -> route_result
+DEF route_or : route_result route_result -> route_result EFFECT pure
   LET fallback
   LET preferred
 
@@ -232,7 +237,7 @@ DEF route_or : result[tuple[str map[str str] int] str] result[tuple[str map[str 
 END
 
 # Finalize a route chain into the stack shape HTTP_SERVE expects.
-DEF route_finish : result[tuple[str map[str str] int] str] -> str map[str str] int EFFECT pure
+DEF route_finish : route_result -> str headers int EFFECT pure
   "not found\n" http_text_not_found http_pack_response
   SWAP
   result_unwrap_or
@@ -243,7 +248,7 @@ END
 # - matching route => use it
 # - no route + GET => 404
 # - no route + non-GET => 405
-DEF route_finish_get : str result[tuple[str map[str str] int] str] -> str map[str str] int EFFECT pure
+DEF route_finish_get : str route_result -> str headers int EFFECT pure
   LET method
   LET candidate
 

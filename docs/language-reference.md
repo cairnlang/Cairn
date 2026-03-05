@@ -450,6 +450,25 @@ None           # pushes None — no fields
 
 `result` is built in as `TYPE result = Ok any | Err str`.
 
+### Type Aliases
+
+`TYPEALIAS` names a type expression so signatures stay readable.
+
+```
+TYPEALIAS headers = map[str str]
+TYPEALIAS http_response = tuple[str headers int]
+TYPEALIAS route_result = result[http_response str]
+```
+
+Aliases can be generic:
+
+```
+TYPEALIAS pair[T U] = tuple[T U]
+TYPEALIAS maybe[T] = result[T str]
+```
+
+Aliases are compile-time only. They do not create constructors and are fully expanded by the checker.
+
 **Stack convention**: `param_types[0]` is the TOP of stack. To call a function that takes `option int`, push the `int` default first, then the `option` last:
 
 ```

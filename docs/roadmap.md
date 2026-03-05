@@ -8,6 +8,13 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 
 ## Completed
 
+### v0.10.x — Type Alias Ergonomics (Bounded)
+- Added `TYPEALIAS name = type_expr` and `TYPEALIAS name[T ...] = type_expr`
+- Aliases now participate in parser pre-scan/imported known-type resolution, so signatures can use them before declaration order
+- Checker resolves aliases (including generic aliases) when validating and checking function/type signatures
+- Runtime env now persists aliases under `__type_aliases__` for REPL/file workflows
+- Prelude web helpers migrated to aliases (`headers`, `session`, `http_response`, `route_result`) to reduce signature noise
+
 ### v0.0.1 — Interpreter Core
 - Stack-based postfix interpreter on the BEAM
 - PRE/POST runtime contracts, `Cairn.ContractError`

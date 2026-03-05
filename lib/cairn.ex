@@ -6,7 +6,7 @@ defmodule Cairn do
   """
 
   alias Cairn.{Lexer, Parser, Evaluator, Checker, Verify, Loader}
-  alias Cairn.Types.{ProtocolDef, TypeDef}
+  alias Cairn.Types.{ProtocolDef, TypeAlias, TypeDef}
   alias Cairn.Solver.Prove
 
   @doc """
@@ -33,9 +33,10 @@ defmodule Cairn do
   @spec eval_with_env(String.t(), map(), list()) :: {list(), map()}
   def eval_with_env(source, env \\ %{}, stack \\ []) do
     env = with_prelude(env)
+    known_types = known_type_names_from_env(env)
 
     with {:ok, tokens} <- Lexer.tokenize(source),
-         {:ok, items} <- Parser.parse(tokens) do
+         {:ok, items} <- Parser.parse(tokens, known_types) do
       if Enum.any?(items, &match?({:import, _}, &1)) do
         raise Cairn.RuntimeError, "IMPORT requires file mode; use Cairn.eval_file/3 or mix cairn.run"
       end
@@ -236,6 +237,10 @@ defmodule Cairn do
 
           {stack, env}
 
+        %TypeAlias{} = type_alias, {stack, env} ->
+          type_aliases = Map.get(env, "__type_aliases__", %{})
+          {stack, Map.put(env, "__type_aliases__", Map.put(type_aliases, type_alias.name, type_alias))}
+
         %ProtocolDef{} = protocol, {stack, env} ->
           protocols = Map.get(env, "__protocols__", %{})
           {stack, Map.put(env, "__protocols__", Map.put(protocols, protocol.name, protocol))}
@@ -276,6 +281,7 @@ defmodule Cairn do
   defp with_prelude(env) do
     types = Map.get(env, "__types__", %{})
     ctors = Map.get(env, "__constructors__", %{})
+    type_aliases = Map.get(env, "__type_aliases__", %{})
 
     types =
       Map.put_new(types, "result", %TypeDef{
@@ -292,6 +298,13 @@ defmodule Cairn do
     env
     |> Map.put("__types__", types)
     |> Map.put("__constructors__", ctors)
+    |> Map.put("__type_aliases__", type_aliases)
+  end
+
+  defp known_type_names_from_env(env) do
+    type_names = env |> Map.get("__types__", %{}) |> Map.keys()
+    alias_names = env |> Map.get("__type_aliases__", %{}) |> Map.keys()
+    MapSet.new(type_names ++ alias_names)
   end
 
   @doc """

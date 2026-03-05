@@ -46,6 +46,7 @@ defmodule Cairn.Types do
           | :else_kw
           | :import_kw
           | :type_kw
+          | :type_alias_kw
           | :protocol_kw
           | :using_kw
           | :recv_kw
@@ -84,6 +85,19 @@ defmodule Cairn.Types do
             name: String.t(),
             type_params: [String.t()],
             variants: %{String.t() => [Cairn.Types.cairn_type()]}
+          }
+  end
+
+  defmodule TypeAlias do
+    @moduledoc """
+    A named alias for a type expression.
+    """
+    defstruct [:name, :type_params, :target_type]
+
+    @type t :: %__MODULE__{
+            name: String.t(),
+            type_params: [String.t()],
+            target_type: Cairn.Types.cairn_type()
           }
   end
 

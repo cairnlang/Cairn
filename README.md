@@ -73,9 +73,11 @@ The current intended pattern is:
 That lets Cairn make purity visible in production code without forcing a full effect calculus yet.
 
 Cairn also now supports explicit generic functions such as `DEF id[T] : T -> T`.
-This is a bounded, explicit first version: generic functions and call-site
-instantiation are supported; generic `TYPE` declarations and full inference are
-not.
+This is a bounded, explicit first version: generic functions, generic `TYPE`
+declarations, and call-site instantiation are supported.
+
+For signature ergonomics, Cairn also supports `TYPEALIAS` (including generic aliases),
+which is useful for large web/actor shape signatures.
 
 Run native Cairn test files with:
 

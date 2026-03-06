@@ -325,6 +325,39 @@ defmodule CairnTest do
              ]
     end
 
+    test "template sections support if and each in the same template" do
+      path =
+        Path.join(System.tmp_dir!(), "cairn_t3_sections_#{System.unique_integer([:positive])}.ctpl")
+
+      File.write!(
+        path,
+        "<h1>Items</h1>{{#if show}}<ul>{{#each items as item}}<li>{{item}}</li>{{/each}}</ul>{{/if}}"
+      )
+
+      assert {:ok, template} = Cairn.Template.load(path)
+
+      assert {:ok, rendered} =
+               Cairn.Template.render(template, %{
+                 "show" => true,
+                 "items" => ["<ore>", "coal"]
+               })
+
+      assert rendered == "<h1>Items</h1><ul><li>&lt;ore&gt;</li><li>coal</li></ul>"
+    end
+
+    test "template load returns Err on malformed section nesting" do
+      path =
+        Path.join(
+          System.tmp_dir!(),
+          "cairn_t3_bad_sections_#{System.unique_integer([:positive])}.ctpl"
+        )
+
+      File.write!(path, "{{#if show}}ok{{/each}}")
+
+      assert [{:variant, "result", "Err", [message]}] = Cairn.eval(~s|"#{path}" TPL_LOAD|)
+      assert message =~ "mismatched closing tag '/each'"
+    end
+
     test "comparison" do
       assert Cairn.eval("3 4 EQ") == [false]
       assert Cairn.eval("3 3 EQ") == [true]

@@ -600,16 +600,16 @@ defmodule Cairn.CheckerTest do
              end)
     end
 
-    test "TPL_RENDER enforces map[str str] context types" do
+    test "TPL_RENDER enforces string-keyed context maps" do
       errors =
         check_errors("""
         DEF bad_render : template -> result[str str] EFFECT pure
-          M[ "name" 1 ] TPL_RENDER
+          M[ 1 "name" ] TPL_RENDER
         END
         """)
 
       assert Enum.any?(errors, fn e ->
-               e.message =~ "TPL_RENDER" and e.message =~ "map[str str]"
+               e.message =~ "TPL_RENDER" and e.message =~ "map[str any]"
              end)
     end
 

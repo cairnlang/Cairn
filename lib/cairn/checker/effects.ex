@@ -110,7 +110,7 @@ defmodule Cairn.Checker.Effects do
     write_file!: %{pops: [:str, :str], pushes: []},
     tpl_load: %{pops: [:str], pushes: [{:user_type, "result", [:template, :str]}]},
     tpl_render: %{
-      pops: [{:map, :str, :str}, :template],
+      pops: [{:map, :str, :any}, :template],
       pushes: [{:user_type, "result", [:str, :str]}]
     },
     http_serve: %{pops: [{:block, :opaque}, :int], pushes: []},

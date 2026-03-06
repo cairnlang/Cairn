@@ -2,12 +2,20 @@ defmodule Cairn.Template do
   @moduledoc """
   Bounded template loader and renderer for Cairn template v1.
 
-  T1 scope:
+  Supported constructs:
   - text literals
   - escaped placeholders: {{name}}
+  - raw placeholders: {{{name}}}
+  - if sections: {{#if cond}}...{{/if}}
+  - each sections: {{#each items as item}}...{{/each}}
   """
 
-  @type segment :: {:text, String.t()} | {:esc, String.t()} | {:raw, String.t()}
+  @type segment ::
+          {:text, String.t()}
+          | {:esc, String.t()}
+          | {:raw, String.t()}
+          | {:if, String.t(), [segment]}
+          | {:each, String.t(), String.t(), [segment]}
   @type template :: {:template, [segment]}
 
   @spec load(String.t()) :: {:ok, template()} | {:error, String.t()}
@@ -27,7 +35,9 @@ defmodule Cairn.Template do
   @spec render(template(), map()) :: {:ok, String.t()} | {:error, String.t()}
   def render({:template, segments}, context) when is_list(segments) and is_map(context) do
     with :ok <- validate_context(context) do
-      render_segments(segments, context, [])
+      with {:ok, chunks} <- render_segments(segments, context, %{}) do
+        {:ok, IO.iodata_to_binary(chunks)}
+      end
     end
   end
 
@@ -37,59 +47,116 @@ defmodule Cairn.Template do
 
   @spec parse(String.t()) :: {:ok, template()} | {:error, String.t()}
   def parse(source) when is_binary(source) do
-    case parse_segments(source, []) do
-      {:ok, segments} -> {:ok, {:template, segments}}
+    case parse_segments(source, nil, []) do
+      {:ok, segments, ""} ->
+        {:ok, {:template, segments}}
+
       {:error, _reason} = err -> err
     end
   end
 
-  defp parse_segments("", acc), do: {:ok, Enum.reverse(acc)}
+  defp parse_segments("", nil, acc), do: {:ok, Enum.reverse(acc), ""}
 
-  defp parse_segments(source, acc) do
+  defp parse_segments("", stop_tag, _acc), do: {:error, "unclosed section '#{stop_tag}'"}
+
+  defp parse_segments(source, stop_tag, acc) do
     case :binary.match(source, "{{") do
       :nomatch ->
-        {:ok, Enum.reverse([{:text, source} | acc])}
+        if stop_tag == nil do
+          {:ok, Enum.reverse(add_text(acc, source)), ""}
+        else
+          {:error, "unclosed section '#{stop_tag}'"}
+        end
 
       {idx, 2} ->
         {prefix, rest} = split_binary(source, idx)
         rest = binary_part(rest, 2, byte_size(rest) - 2)
+        acc = add_text(acc, prefix)
 
         if String.starts_with?(rest, "{") do
           rest = binary_part(rest, 1, byte_size(rest) - 1)
 
           with {:ok, key, tail} <- parse_raw_placeholder(rest),
-               {:ok, next} <- parse_segments(tail, [{:raw, key}, {:text, prefix} | acc]) do
-            {:ok, next}
+               {:ok, next, tail} <- parse_segments(tail, stop_tag, [{:raw, key} | acc]) do
+            {:ok, next, tail}
           end
         else
-          with {:ok, key, tail} <- parse_placeholder(rest),
-               {:ok, next} <- parse_segments(tail, [{:esc, key}, {:text, prefix} | acc]) do
-            {:ok, next}
-          end
+          parse_regular_tag(rest, stop_tag, acc)
         end
     end
   end
 
-  defp parse_placeholder(rest) do
+  defp parse_regular_tag(rest, stop_tag, acc) do
     case :binary.match(rest, "}}") do
       :nomatch ->
-        {:error, "unclosed placeholder"}
+        {:error, "unclosed tag"}
 
       {idx, 2} ->
-        {raw_name, tail} = split_binary(rest, idx)
+        {raw_tag, tail} = split_binary(rest, idx)
         tail = binary_part(tail, 2, byte_size(tail) - 2)
-        name = String.trim(raw_name)
+        tag = String.trim(raw_tag)
 
         cond do
-          name == "" ->
-            {:error, "empty placeholder is not allowed"}
+          tag == "" ->
+            {:error, "empty tag is not allowed"}
 
-          not valid_name?(name) ->
-            {:error, "invalid placeholder name '#{name}'"}
+          String.starts_with?(tag, "/") ->
+            close_tag = String.trim_leading(tag, "/")
+            parse_close_tag(close_tag, stop_tag, acc, tail)
+
+          String.starts_with?(tag, "#if ") ->
+            key = String.trim_leading(tag, "#if ")
+
+            with {:ok, normalized_key} <- parse_name(key, "if condition name"),
+                 {:ok, inner, inner_tail} <- parse_segments(tail, "if", []),
+                 {:ok, next, tail} <-
+                   parse_segments(inner_tail, stop_tag, [{:if, normalized_key, inner} | acc]) do
+              {:ok, next, tail}
+            end
+
+          String.starts_with?(tag, "#each ") ->
+            parse_each_tag(tag, tail, stop_tag, acc)
+
+          String.starts_with?(tag, "#") ->
+            {:error, "unknown section tag '#{tag}'"}
 
           true ->
-            {:ok, name, tail}
+            with {:ok, key} <- parse_name(tag, "placeholder name"),
+                 {:ok, next, tail} <- parse_segments(tail, stop_tag, [{:esc, key} | acc]) do
+              {:ok, next, tail}
+            end
         end
+    end
+  end
+
+  defp parse_each_tag(tag, tail, stop_tag, acc) do
+    case Regex.run(~r/^#each\s+([a-z_][a-z0-9_]*)\s+as\s+([a-z_][a-z0-9_]*)$/, tag) do
+      [_, list_key, item_name] ->
+        with {:ok, inner, inner_tail} <- parse_segments(tail, "each", []),
+             {:ok, next, tail} <-
+               parse_segments(
+                 inner_tail,
+                 stop_tag,
+                 [{:each, list_key, item_name, inner} | acc]
+               ) do
+          {:ok, next, tail}
+        end
+
+      _ ->
+        {:error, "invalid each tag '#{tag}' (expected '#each items as item')"}
+    end
+  end
+
+  defp parse_close_tag(close_tag, stop_tag, acc, tail) do
+    cond do
+      stop_tag == nil ->
+        {:error, "unexpected closing tag '/#{close_tag}'"}
+
+      close_tag == stop_tag ->
+        {:ok, Enum.reverse(acc), tail}
+
+      true ->
+        {:error, "mismatched closing tag '/#{close_tag}' for section '#{stop_tag}'"}
     end
   end
 
@@ -103,15 +170,8 @@ defmodule Cairn.Template do
         tail = binary_part(tail, 3, byte_size(tail) - 3)
         name = String.trim(raw_name)
 
-        cond do
-          name == "" ->
-            {:error, "empty raw placeholder is not allowed"}
-
-          not valid_name?(name) ->
-            {:error, "invalid raw placeholder name '#{name}'"}
-
-          true ->
-            {:ok, name, tail}
+        with {:ok, normalized} <- parse_name(name, "raw placeholder name") do
+          {:ok, normalized, tail}
         end
     end
   end
@@ -127,44 +187,113 @@ defmodule Cairn.Template do
     Regex.match?(~r/^[a-z_][a-z0-9_]*$/, name)
   end
 
+  defp parse_name(name, context) do
+    cond do
+      name == "" ->
+        {:error, "empty #{context} is not allowed"}
+
+      not valid_name?(name) ->
+        {:error, "invalid #{context} '#{name}'"}
+
+      true ->
+        {:ok, name}
+    end
+  end
+
+  defp add_text(acc, ""), do: acc
+  defp add_text(acc, text), do: [{:text, text} | acc]
+
   defp validate_context(context) do
     if Enum.all?(context, fn
-         {k, v} when is_binary(k) and is_binary(v) -> true
+         {k, _v} when is_binary(k) -> true
          _ -> false
        end) do
       :ok
     else
-      {:error, "TPL_RENDER expected map[str str] context"}
+      {:error, "TPL_RENDER expected map with string keys"}
     end
   end
 
-  defp render_segments([], _context, acc) do
-    {:ok, acc |> Enum.reverse() |> IO.iodata_to_binary()}
+  defp render_segments(segments, context, locals) do
+    segments
+    |> Enum.reduce_while({:ok, []}, fn segment, {:ok, acc} ->
+      case render_segment(segment, context, locals) do
+        {:ok, chunk} -> {:cont, {:ok, [chunk | acc]}}
+        {:error, _reason} = err -> {:halt, err}
+      end
+    end)
+    |> case do
+      {:ok, chunks} -> {:ok, Enum.reverse(chunks)}
+      {:error, _reason} = err -> err
+    end
   end
 
-  defp render_segments([{:text, text} | rest], context, acc) do
-    render_segments(rest, context, [text | acc])
+  defp render_segment({:text, text}, _context, _locals), do: {:ok, text}
+
+  defp render_segment({:esc, key}, context, locals) do
+    with {:ok, value} <- resolve_value(key, context, locals) do
+      {:ok, escape_html(to_template_text(value))}
+    end
   end
 
-  defp render_segments([{:esc, key} | rest], context, acc) do
-    case Map.fetch(context, key) do
-      {:ok, value} ->
-        render_segments(rest, context, [escape_html(value) | acc])
+  defp render_segment({:raw, key}, context, locals) do
+    with {:ok, value} <- resolve_value(key, context, locals) do
+      {:ok, to_template_text(value)}
+    end
+  end
 
-      :error ->
+  defp render_segment({:if, key, inner}, context, locals) do
+    with {:ok, value} <- resolve_value(key, context, locals) do
+      if is_boolean(value) do
+        if value do
+          render_segments(inner, context, locals)
+        else
+          {:ok, []}
+        end
+      else
+        {:error, "if section '#{key}' expects bool, got #{inspect(value)}"}
+      end
+    end
+  end
+
+  defp render_segment({:each, list_key, item_name, inner}, context, locals) do
+    with {:ok, value} <- resolve_value(list_key, context, locals) do
+      if is_list(value) do
+        Enum.reduce_while(value, {:ok, []}, fn item, {:ok, acc} ->
+          case render_segments(inner, context, Map.put(locals, item_name, item)) do
+            {:ok, chunks} -> {:cont, {:ok, [chunks | acc]}}
+            {:error, _reason} = err -> {:halt, err}
+          end
+        end)
+        |> case do
+          {:ok, chunks} -> {:ok, Enum.reverse(chunks)}
+          {:error, _reason} = err -> err
+        end
+      else
+        {:error, "each section '#{list_key}' expects list, got #{inspect(value)}"}
+      end
+    end
+  end
+
+  defp resolve_value(key, context, locals) do
+    cond do
+      Map.has_key?(locals, key) ->
+        {:ok, Map.fetch!(locals, key)}
+
+      Map.has_key?(context, key) ->
+        {:ok, Map.fetch!(context, key)}
+
+      true ->
         {:error, "missing placeholder '#{key}'"}
     end
   end
 
-  defp render_segments([{:raw, key} | rest], context, acc) do
-    case Map.fetch(context, key) do
-      {:ok, value} ->
-        render_segments(rest, context, [value | acc])
-
-      :error ->
-        {:error, "missing placeholder '#{key}'"}
-    end
-  end
+  defp to_template_text(value) when is_binary(value), do: value
+  defp to_template_text(value) when is_integer(value), do: Integer.to_string(value)
+  defp to_template_text(value) when is_float(value), do: Float.to_string(value)
+  defp to_template_text(true), do: "TRUE"
+  defp to_template_text(false), do: "FALSE"
+  defp to_template_text(value), do: inspect(value)
 
   defp escape_html(text) do
     text

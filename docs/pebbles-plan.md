@@ -106,6 +106,12 @@ Fields:
 - invalid transitions are rejected (example: `done -> do` without reopen command)
 - command handlers do not call `DB_*` directly (store boundary only)
 
+## Operational Policy
+
+- Track at Pebble granularity, deliver at slice granularity.
+- A slice is a dependency-respecting set of Pebbles that yields user-visible value.
+- Default commit unit is one coherent slice (implementation + tests + docs), not one commit per Pebble.
+
 ## Delivery Slices
 
 1. Slice P1: scaffold + storage boundary + `init/add/ls`

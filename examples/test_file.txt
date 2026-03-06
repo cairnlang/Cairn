@@ -1,0 +1,6 @@
+apple
+banana
+orange
+grape
+pineapple
+apple pie

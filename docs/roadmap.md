@@ -9,6 +9,31 @@ Cairn bridges two philosophies: the BEAM's **"Let It Crash"** resilience and for
 ## Active Plan Artifacts
 
 - Pebbles (single-agent CLI tracker): `docs/pebbles-plan.md`
+- Template engine v1 (bounded spec): `docs/template-engine-v1.md`
+
+---
+
+## Queued (Specified, Not Started)
+
+### v0.10.xx — Native Template Engine v1 (Bounded)
+
+Goal: add a Cairn-owned HTML template path that improves web ergonomics without sacrificing effect discipline or safety defaults.
+
+Planned shape:
+
+- mustache-like syntax with strict bounds:
+  - `{{name}}` (escaped)
+  - `{{{name}}}` (raw, explicit)
+  - `{{#if cond}}...{{/if}}`
+  - `{{#each items as item}}...{{/each}}`
+- effect split:
+  - load/parse is `io`
+  - render path remains pure once template + context are prepared
+- typed wrapper pattern in Cairn app code so route boundaries remain statically checked
+
+Acceptance slices and detailed criteria are tracked in:
+
+- `docs/template-engine-v1.md`
 
 ---
 

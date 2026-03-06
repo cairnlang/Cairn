@@ -1,0 +1,51 @@
+# Project Euler Problem 67: Maximum Path Sum II
+#
+# Find the maximum sum path from top to bottom of a 100-row triangle.
+# Brute force (2^99 paths) is impossible; bottom-up DP is O(N^2).
+#
+# Algorithm:
+#   Start with the last row as the "best reachable sum" accumulator.
+#   For each row above (bottom to top), replace element i with:
+#     row[i] + max(acc[i], acc[i+1])
+#   After folding all rows, the single remaining value is the answer.
+#
+# Usage:
+#   Download the triangle file from Project Euler, then:
+#   mix cairn.run examples/euler67.crn p067_triangle.txt
+
+# --- Parse the triangle from the file ---
+ARGV HEAD READ_FILE!
+LINES
+{ TRIM } MAP
+{ LEN 0 GT } FILTER
+{ WORDS { TO_INT! } MAP } MAP
+LET triangle
+
+# --- Bottom-up DP ---
+# Reverse so index 0 = last (bottom) row
+triangle REVERSE
+
+# Bind last row as initial accumulator; remaining rows are the fold list
+DUP TAIL LET remaining_rows
+HEAD LET last_row
+
+# REDUCE: for each row (bottom to top), merge with the best-sum row below
+remaining_rows last_row
+{
+  LET current_row
+  # acc = best-reachable-sum row from below (on stack)
+
+  # Build [max(acc[0],acc[1]), max(acc[1],acc[2]), ...] using adjacent-pair ZIP
+  # DUP TAIL SWAP ZIP produces pairs [[acc[0],acc[1]], [acc[1],acc[2]], ...]
+  DUP TAIL SWAP ZIP
+  { DUP HEAD SWAP TAIL HEAD MAX } MAP
+  LET adj_max
+
+  # Element-wise add: current_row[i] + adj_max[i]
+  # ZIP produces pairs [[current[0],adj[0]], ...]; SUM adds each pair
+  current_row adj_max ZIP
+  { SUM } MAP
+} REDUCE
+
+# The result is a single-element list containing the answer
+HEAD SAID

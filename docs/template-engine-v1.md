@@ -57,7 +57,7 @@ Planned split:
 1. Effectful loading/parsing
    - `TPL_LOAD : str -> result[template str] EFFECT io`
 2. Pure rendering (given compiled template + prepared context map)
-   - `TPL_RENDER : template map[str str] -> result[str str]`
+   - `TPL_RENDER : template map[str any] -> result[str str]`
 
 To keep usage type-safe in app code, each template should have a typed Cairn wrapper:
 
@@ -66,6 +66,30 @@ To keep usage type-safe in app code, each template should have a typed Cairn wra
 - wrapper is where compile-time type checking happens.
 
 This keeps runtime generic while keeping application boundaries typed.
+
+Cookbook wrapper pattern (bounded, practical):
+
+```cairn
+TYPE hello_view = HelloView str
+
+DEF hello_view_new : str -> hello_view EFFECT pure
+  HelloView
+END
+
+DEF hello_view_ctx : hello_view -> template_ctx EFFECT pure
+  MATCH
+    HelloView {
+      M[] "name" ROT PUT
+    }
+  END
+END
+
+DEF render_hello : hello_view -> template_result EFFECT io
+  hello_view_ctx
+  "examples/web/templates/hello_name.ctpl"
+  template_render_file
+END
+```
 
 ## Security Baseline
 

@@ -12,6 +12,8 @@ TYPEALIAS request_ctx = request_envelope
 TYPEALIAS response_ctx = http_response
 TYPEALIAS session_response_ctx = tuple[str headers tuple[session int]]
 TYPEALIAS session_route_result = result[session_response_ctx str]
+TYPEALIAS template_ctx = map[str any]
+TYPEALIAS template_result = result[str str]
 
 # Convert an HTML body into the stack shape HTTP_SERVE expects.
 DEF http_html_ok : str -> str headers int EFFECT pure
@@ -69,6 +71,22 @@ DEF html_escape : str -> str EFFECT pure
   ">" "&gt;" REPLACE
   "\"" "&quot;" REPLACE
   "'" "&#39;" REPLACE
+END
+
+# Cookbook helper: keep template loading/rendering in one boundary function.
+# Typical wrapper flow:
+#   1) define a typed view alias (tuple/record-like shape)
+#   2) map it to template_ctx in one function
+#   3) call template_render_file for the concrete .ctpl path
+DEF template_render_file : str template_ctx -> template_result EFFECT io
+  LET path
+  LET ctx
+
+  path TPL_LOAD
+  MATCH
+    Ok { ctx TPL_RENDER }
+    Err { Err }
+  END
 END
 
 # Pack an HTTP_SERVE response stack into one value for route chaining.

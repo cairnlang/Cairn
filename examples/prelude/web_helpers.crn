@@ -11,6 +11,13 @@ html_body "html_body={}" FMT SAID
 LET escaped_html
 escaped_html "escaped_html={}" FMT SAID
 
+M[] "name" "<b>Alice</b>" PUT LET demo_tpl_ctx
+demo_tpl_ctx "examples/web/templates/hello_name.ctpl" template_render_file
+MATCH
+  Ok { "template_file_ok={}" FMT SAID }
+  Err { "template_file_err={}" FMT SAID }
+END
+
 "missing\n" http_text_not_found
 LET missing_body
 LET missing_headers

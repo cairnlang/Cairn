@@ -22,6 +22,26 @@ DEF route_get_echo : query str str -> route_result EFFECT pure
   END
 END
 
+TYPE hello_name_view = HelloName str
+
+DEF hello_name_view_new : str -> hello_name_view EFFECT pure
+  HelloName
+END
+
+DEF hello_name_view_ctx : hello_name_view -> template_ctx EFFECT pure
+  MATCH
+    HelloName {
+      M[] "name" ROT PUT
+    }
+  END
+END
+
+DEF render_hello_name_template : hello_name_view -> template_result EFFECT io
+  hello_name_view_ctx
+  "examples/web/templates/hello_name.ctpl"
+  template_render_file
+END
+
 DEF route_get_hello_html : query str str -> route_result EFFECT io
   LET query
   LET method
@@ -29,28 +49,17 @@ DEF route_get_hello_html : query str str -> route_result EFFECT io
 
   path method "/hello" route_is_get
   IF
-    "name" query "friend" map_get_or LET name
-    "examples/web/templates/hello_name.ctpl" TPL_LOAD
+    "name" query "friend" map_get_or
+    hello_name_view_new
+    render_hello_name_template
     MATCH
       Ok {
-        LET tmpl
-        tmpl M[] "name" name PUT TPL_RENDER
-        MATCH
-          Ok {
-            http_html_ok
-            http_pack_response
-            Ok
-          }
-          Err {
-            "template render error: {}\n" FMT
-            http_text_ok
-            http_pack_response
-            Ok
-          }
-        END
+        http_html_ok
+        http_pack_response
+        Ok
       }
       Err {
-        "template load error: {}\n" FMT
+        "template error: {}\n" FMT
         http_text_ok
         http_pack_response
         Ok

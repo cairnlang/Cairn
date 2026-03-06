@@ -9,6 +9,7 @@ DEF route_get_dashboard_ctx : request_ctx -> route_result EFFECT db
   IF
     ctx request_ctx_query dashboard_query_status LET status_filter
     ctx request_ctx_query dashboard_query_text LET query_text
+    data_refresh
     pebbles_store_all LET all_pebbles
 
     all_pebbles query_text status_filter dashboard_apply_filters

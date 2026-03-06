@@ -66,6 +66,18 @@ defmodule Cairn.DB do
     end
   end
 
+  def refresh do
+    # Mnesia keeps an in-memory copy; restarting reloads persisted state
+    # produced by other short-lived Cairn processes using the same DB dir.
+    if mnesia_running?() do
+      :mnesia.stop()
+      wait_until_stopped()
+    end
+
+    ensure_started()
+    :ok
+  end
+
   def reset_for_tests! do
     dir = data_dir()
 

@@ -20,3 +20,7 @@ END
 DEF data_pairs : -> data_rows EFFECT db
   DB_PAIRS
 END
+
+DEF data_refresh : -> void EFFECT db
+  DB_REFRESH
+END

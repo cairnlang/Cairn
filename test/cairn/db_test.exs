@@ -44,6 +44,7 @@ defmodule Cairn.DBTest do
     assert [] = Cairn.eval("\"alpha\" DB_DEL")
     assert [{:variant, "result", "Err", ["missing key 'alpha'"]}] = Cairn.eval("\"alpha\" DB_GET")
     assert [[{:tuple, ["beta", "value two"]}]] = Cairn.eval("DB_PAIRS")
+    assert [] = Cairn.eval("DB_REFRESH")
   end
 
   test "DB data survives a Mnesia restart in the same directory" do
@@ -107,6 +108,9 @@ defmodule Cairn.TestDataStoreFake do
     |> Enum.map(fn {key, value} -> {:tuple, [key, value]} end)
     |> Enum.sort_by(fn {:tuple, [key, _]} -> key end)
   end
+
+  @impl true
+  def refresh, do: :ok
 end
 
 defmodule Cairn.DBPostgresIntegrationTest do

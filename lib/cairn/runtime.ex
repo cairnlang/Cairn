@@ -471,6 +471,11 @@ defmodule Cairn.Runtime do
     [Cairn.DataStore.pairs() | stack]
   end
 
+  def execute(:db_refresh, stack) do
+    Cairn.DataStore.refresh()
+    stack
+  end
+
   def execute(:auth_check, [password, username | rest])
       when is_binary(password) and is_binary(username) do
     case Cairn.UserStore.authenticate(username, password) do

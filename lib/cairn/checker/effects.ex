@@ -118,6 +118,7 @@ defmodule Cairn.Checker.Effects do
     db_get: %{pops: [:str], pushes: [{:user_type, "result", [:str, :str]}]},
     db_del: %{pops: [:str], pushes: []},
     db_pairs: %{pops: [], pushes: [{:list, {:tuple, [:str, :str]}}]},
+    db_refresh: %{pops: [], pushes: []},
     auth_check: %{
       pops: [:str, :str],
       pushes: [{:user_type, "result", [{:map, :str, :str}, :str]}]

@@ -46,6 +46,7 @@ defmodule CairnTest do
       assert {:ok, [{:op, :db_get, 0}]} = Cairn.Lexer.tokenize("DB_GET")
       assert {:ok, [{:op, :db_del, 0}]} = Cairn.Lexer.tokenize("DB_DEL")
       assert {:ok, [{:op, :db_pairs, 0}]} = Cairn.Lexer.tokenize("DB_PAIRS")
+      assert {:ok, [{:op, :db_refresh, 0}]} = Cairn.Lexer.tokenize("DB_REFRESH")
       assert {:ok, [{:op, :with_state, 0}]} = Cairn.Lexer.tokenize("WITH_STATE")
       assert {:ok, [{:op, :repeat, 0}]} = Cairn.Lexer.tokenize("REPEAT")
       assert {:ok, [{:op, :step, 0}]} = Cairn.Lexer.tokenize("STEP")

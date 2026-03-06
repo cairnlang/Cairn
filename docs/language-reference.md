@@ -290,6 +290,7 @@ DB_PUT                         # pop key, pop value, persist a string record
 DB_GET                         # pop key, push result (Ok str | Err str)
 DB_DEL                         # pop key, delete record
 DB_PAIRS                       # push list of #(key value) string pairs
+DB_REFRESH                     # refresh backend view (useful for long-lived readers with external writers)
 ```
 
 ### Common Before/After Stack Shapes
@@ -897,6 +898,11 @@ before: []
 after:  [pairs:[tuple[str str]]]
 note: each entry is a tuple #(key value)
 
+DB_REFRESH
+before: []
+after:  []
+note: forces datastore refresh for long-lived processes (for example, a web dashboard watching CLI writes)
+
 READ_FILE
 before: [path:str]
 after:  [result[str str]]
@@ -1000,6 +1006,7 @@ LET session
 "open|buy milk" "todo:1" DB_PUT
 "todo:1" DB_GET
 DB_PAIRS
+DB_REFRESH
 # Set CAIRN_DB_DIR to use a different on-disk Mnesia directory
 ```
 

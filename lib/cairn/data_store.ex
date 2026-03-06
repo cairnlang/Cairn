@@ -12,6 +12,7 @@ defmodule Cairn.DataStore do
   @callback get(String.t()) :: {:ok, String.t()} | :error
   @callback delete(String.t()) :: :ok
   @callback pairs() :: [kv_pair()]
+  @callback refresh() :: :ok
 
   @spec put(String.t(), String.t()) :: :ok
   def put(key, value) when is_binary(key) and is_binary(value) do
@@ -31,6 +32,11 @@ defmodule Cairn.DataStore do
   @spec pairs() :: [kv_pair()]
   def pairs do
     backend_module().pairs()
+  end
+
+  @spec refresh() :: :ok
+  def refresh do
+    backend_module().refresh()
   end
 
   @spec backend_module() :: module()
@@ -66,6 +72,9 @@ defmodule Cairn.DataStore.Backend.Mnesia do
 
   @impl true
   def pairs, do: Cairn.DB.pairs()
+
+  @impl true
+  def refresh, do: Cairn.DB.refresh()
 end
 
 defmodule Cairn.DataStore.Backend.Postgres do
@@ -121,6 +130,9 @@ defmodule Cairn.DataStore.Backend.Postgres do
       |> Enum.map(fn [key, value] -> {:tuple, [key, value]} end)
     end)
   end
+
+  @impl true
+  def refresh, do: :ok
 
   defp with_conn(fun) when is_function(fun, 1) do
     ensure_postgrex!()

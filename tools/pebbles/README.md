@@ -32,6 +32,7 @@ Query params:
 
 - `status=all|open|doing|blocked|done`
 - `q=<text>` (case-insensitive match in title/reason/notes)
+- dashboard re-reads datastore on each request, including Pebbles changes made by separate CLI invocations while the server is running
 
 ## Notes
 

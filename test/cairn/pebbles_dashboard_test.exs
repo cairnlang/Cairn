@@ -131,6 +131,31 @@ defmodule Cairn.PebblesDashboardTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "dashboard reflects pebbles changed by a separate CLI process without restart" do
+    port = free_port()
+    task = start_dashboard(port)
+
+    initial = http_get(port, "/")
+    assert initial =~ "showing 0 of 0 items"
+
+    db_dir = System.get_env("CAIRN_DB_DIR")
+    assert is_binary(db_dir)
+
+    {output, 0} =
+      System.cmd("mix", ["cairn.run", "tools/pebbles/main.crn", "add", "live", "update"],
+        stderr_to_stdout: true,
+        env: [{"CAIRN_DB_DIR", db_dir}, {"CAIRN_DATA_STORE_BACKEND", "mnesia"}]
+      )
+
+    assert output =~ "pebbles: added #1"
+
+    updated = http_get(port, "/")
+    assert updated =~ "showing 1 of 1 items"
+    assert updated =~ "live update"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   defp seed_pebble(id, status, title, reason, notes) do
     key = "pebble/" <> id_text(id)
     notes_blob = Enum.join(notes, "~")

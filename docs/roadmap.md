@@ -52,6 +52,9 @@ Acceptance slices and detailed criteria are tracked in:
   - page, summary, filter, section, blockers view/context helpers in `tools/pebbles/lib/dashboard/model.crn`
 - Switched dashboard route rendering to template-backed page assembly (with bounded fallback to legacy string assembly on template error):
   - `tools/pebbles/lib/dashboard/web.crn`
+- Added explicit datastore refresh support for long-lived readers:
+  - new `DB_REFRESH` runtime op + `data_refresh` prelude helper
+  - dashboard route calls `data_refresh` before reading Pebbles so CLI changes appear without server restart
 - Hardened assurance coverage for templated dashboard paths:
   - new native tests in `tools/pebbles/test_dashboard.crn`
   - updated integration assertions in `test/cairn/pebbles_dashboard_test.exs`

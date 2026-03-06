@@ -39,6 +39,23 @@ Acceptance slices and detailed criteria are tracked in:
 
 ## Completed
 
+### v0.10.xxa — Pebbles D1: Read-Only Web Dashboard
+- Added a Pebbles web launcher:
+  - `tools/pebbles/dashboard.crn` (`./cairn tools/pebbles/dashboard.crn [host] [port]`)
+- Added a split dashboard implementation under `tools/pebbles/lib/dashboard/`:
+  - `model.crn` (pure read-model helpers, counts, grouping, search/status filtering, HTML rendering helpers)
+  - `web.crn` (request routing + DB-backed page assembly for `GET /`)
+- Added dashboard features:
+  - summary tiles (`total/open/doing/blocked/done`)
+  - grouped sections for `open/doing/blocked/done`
+  - blockers panel listing blocked items with explicit reasons
+  - query filtering via `status` and `q`
+  - strict HTML escaping for rendered user-provided fields
+- Added tests:
+  - Cairn-native projection/render tests in `tools/pebbles/test_dashboard.crn`
+  - HTTP integration coverage in `test/cairn/pebbles_dashboard_test.exs`
+- Updated Pebbles docs (`tools/pebbles/README.md`, `docs/pebbles-plan.md`) with run instructions and scope.
+
 ### v0.10.xix — Pebbles P5: QoL Commands + Filtering/Search + Workflow Reference
 - Expanded Pebbles lifecycle ergonomics with new commands:
   - `reopen <id>`

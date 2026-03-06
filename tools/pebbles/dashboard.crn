@@ -1,0 +1,30 @@
+IMPORT "lib/dashboard/web.crn"
+
+DEF dashboard_bind_host : str -> str EFFECT io
+  LET fallback
+  ARGV LEN 0 GT
+  IF
+    ARGV HEAD
+  ELSE
+    fallback
+  END
+END
+
+DEF dashboard_bind_port : int -> int EFFECT io
+  LET fallback
+  ARGV LEN 1 GT
+  IF
+    fallback ARGV TAIL HEAD to_int_or
+  ELSE
+    fallback
+  END
+END
+
+"127.0.0.1" dashboard_bind_host LET bind_host
+8094 dashboard_bind_port LET port
+
+port bind_host "pebbles: dashboard at http://{}:{}/" FMT SAID
+bind_host port {
+  request_pack
+  handle_dashboard_request_env
+} HTTP_SERVE

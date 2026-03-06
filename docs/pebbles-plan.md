@@ -10,12 +10,17 @@ Date: March 5, 2026
 - P3 landed: notes command + improved `ls` formatting + hardened test coverage.
 - P4 landed: snapshot `export/import` portability flow with header validation and id-sync recovery.
 - P5 landed: quality-of-life commands (`reopen/edit/find`) + `ls` status filtering + workflow reference.
+- D1 landed: read-only web dashboard (`tools/pebbles/dashboard.crn`) with grouped status sections, blockers panel, and query filtering (`status`, `q`).
 - Implemented files:
   - `tools/pebbles/main.crn`
   - `tools/pebbles/lib/store.crn`
   - `tools/pebbles/lib/domain.crn`
+  - `tools/pebbles/lib/dashboard/model.crn`
+  - `tools/pebbles/lib/dashboard/web.crn`
+  - `tools/pebbles/dashboard.crn`
   - `tools/pebbles/README.md`
   - `tools/pebbles/test.crn`
+  - `tools/pebbles/test_dashboard.crn`
   - `test/cairn/pebbles_test.exs`
 
 ## Goal
@@ -23,8 +28,8 @@ Date: March 5, 2026
 Build a small Cairn-native task tracker inspired by Yegge-style beads:
 
 - single agent
-- command line only
-- no web UI
+- CLI-first
+- optional read-only web dashboard
 - practical daily planning/flow tracking
 
 This is intended to replace ad-hoc roadmap accretion with a lightweight operational tool.
@@ -119,6 +124,7 @@ Fields:
 3. Slice P3: notes + better output formatting + tests hardening
 4. Slice P4: export/import command for portability
 5. Slice P5: edit/reopen/find + status-filtered listing + workflow reference
+6. Slice D1: read-model projection helpers + dashboard HTTP view
 
 ## Acceptance (v1 usable)
 

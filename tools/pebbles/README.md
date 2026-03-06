@@ -21,6 +21,18 @@ Single-agent local task tracker in Cairn.
 ./cairn tools/pebbles/main.crn import pebbles.snapshot
 ```
 
+## Read-Only Dashboard
+
+```bash
+./cairn tools/pebbles/dashboard.crn
+./cairn tools/pebbles/dashboard.crn 0.0.0.0 8094
+```
+
+Query params:
+
+- `status=all|open|doing|blocked|done`
+- `q=<text>` (case-insensitive match in title/reason/notes)
+
 ## Notes
 
 - `ls` prints a summary line plus sorted pebble rows.
@@ -29,6 +41,7 @@ Single-agent local task tracker in Cairn.
 - `find <text>` matches title, reason, and notes (case-insensitive).
 - `export/import` uses a plain text `pebbles-v1` snapshot format for portability.
 - v1 now supports lifecycle transitions, edits, search, and snapshots.
+- dashboard is read-only and shares the same underlying Pebbles store.
 - Storage uses Cairn `DB_*` via prelude `data_*` helpers (default backend: Mnesia).
 - Data location follows existing runtime configuration (`CAIRN_DB_DIR`, backend settings).
 - Workflow conventions are in `tools/pebbles/WORKFLOW.md`.

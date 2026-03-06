@@ -1,0 +1,80 @@
+IMPORT "lib/dashboard/model.crn"
+
+DEF sample_dashboard_pebbles : -> [pebble] EFFECT pure
+  [ ]
+  4 "done" "Release prep" "" [ ] "cut tag" SWAP CONS Pebble SWAP CONS
+  3 "blocked" "Auth flow" "waiting on review" [ ] "ping reviewer" SWAP CONS Pebble SWAP CONS
+  2 "doing" "Parser cleanup" "" [ ] Pebble SWAP CONS
+  1 "open" "Ship docs" "" [ ] Pebble SWAP CONS
+END
+
+TEST "dashboard summary projects total and per-status counts"
+  sample_dashboard_pebbles dashboard_summary_from LET summary
+  summary dashboard_summary_total 4 ASSERT_EQ
+  summary dashboard_summary_open 1 ASSERT_EQ
+  summary dashboard_summary_doing 1 ASSERT_EQ
+  summary dashboard_summary_blocked 1 ASSERT_EQ
+  summary dashboard_summary_done 1 ASSERT_EQ
+END
+
+TEST "dashboard status filter returns only matching rows"
+  sample_dashboard_pebbles "blocked" dashboard_filter_status
+  MATCH
+    Ok {
+      DUP LEN 1 ASSERT_EQ
+      HEAD pebble_status "blocked" ASSERT_EQ
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+END
+
+TEST "dashboard status filter rejects unknown values"
+  sample_dashboard_pebbles "wat" dashboard_filter_status
+  MATCH
+    Ok {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+    Err {
+      "invalid status filter: wat (use all|open|doing|blocked|done)" ASSERT_EQ
+    }
+  END
+END
+
+TEST "dashboard text filter matches title reason and notes"
+  sample_dashboard_pebbles "review" dashboard_filter_search
+  DUP LEN 1 ASSERT_EQ
+  HEAD pebble_id 3 ASSERT_EQ
+
+  sample_dashboard_pebbles "ship" dashboard_filter_search
+  DUP LEN 1 ASSERT_EQ
+  HEAD pebble_id 1 ASSERT_EQ
+END
+
+TEST "dashboard blockers keeps only blocked rows with a reason"
+  [ ]
+  3 "open" "Unblocked" "" [ ] Pebble SWAP CONS
+  2 "blocked" "No reason" "" [ ] Pebble SWAP CONS
+  1 "blocked" "Needs QA" "waiting on qa" [ ] Pebble SWAP CONS
+  dashboard_blockers
+  DUP LEN 1 ASSERT_EQ
+  HEAD pebble_id 1 ASSERT_EQ
+END
+
+TEST "dashboard row rendering escapes unsafe text"
+  1 "open" "<script>alert('x')</script>" "" [ ] Pebble
+  dashboard_render_pebble_row LET html
+
+  html "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;" CONTAINS ASSERT_TRUE
+  html "<script>alert('x')</script>" CONTAINS ASSERT_FALSE
+END
+
+TEST "dashboard filter bar escapes user input"
+  10 2 "<svg onload=alert('x')>" "all<script>" dashboard_render_filter_bar LET html
+  html "&lt;svg onload=alert(&#39;x&#39;)&gt;" CONTAINS ASSERT_TRUE
+  html "all&lt;script&gt;" CONTAINS ASSERT_TRUE
+  html "<svg onload=alert('x')>" CONTAINS ASSERT_FALSE
+END

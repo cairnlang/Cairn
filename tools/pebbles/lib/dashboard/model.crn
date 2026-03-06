@@ -1,0 +1,268 @@
+IMPORT "../store.crn"
+
+TYPE dashboard_summary = DashboardSummary int int int int int
+
+DEF dashboard_summary_total : dashboard_summary -> int EFFECT pure
+  MATCH
+    DashboardSummary {
+      LET total
+      DROP
+      DROP
+      DROP
+      DROP
+      total
+    }
+  END
+END
+
+DEF dashboard_summary_open : dashboard_summary -> int EFFECT pure
+  MATCH
+    DashboardSummary {
+      DROP
+      LET count
+      DROP
+      DROP
+      DROP
+      count
+    }
+  END
+END
+
+DEF dashboard_summary_doing : dashboard_summary -> int EFFECT pure
+  MATCH
+    DashboardSummary {
+      DROP
+      DROP
+      LET count
+      DROP
+      DROP
+      count
+    }
+  END
+END
+
+DEF dashboard_summary_blocked : dashboard_summary -> int EFFECT pure
+  MATCH
+    DashboardSummary {
+      DROP
+      DROP
+      DROP
+      LET count
+      DROP
+      count
+    }
+  END
+END
+
+DEF dashboard_summary_done : dashboard_summary -> int EFFECT pure
+  MATCH
+    DashboardSummary {
+      DROP
+      DROP
+      DROP
+      DROP
+      LET count
+      count
+    }
+  END
+END
+
+DEF dashboard_query_status : map[str str] -> str EFFECT pure
+  "status" SWAP "all" map_get_or
+  LOWER
+  TRIM
+END
+
+DEF dashboard_query_text : map[str str] -> str EFFECT pure
+  "q" SWAP "" map_get_or
+  TRIM
+END
+
+DEF dashboard_status_valid : str -> bool EFFECT pure
+  LET status
+
+  status "all" EQ
+  status "open" EQ OR
+  status "doing" EQ OR
+  status "blocked" EQ OR
+  status "done" EQ OR
+END
+
+DEF dashboard_filter_status : str [pebble] -> result[[pebble] str] EFFECT pure
+  LET status
+  LET pebbles
+
+  status dashboard_status_valid
+  IF
+    pebbles { status pebble_matches_status } FILTER
+    Ok
+  ELSE
+    status "invalid status filter: {} (use all|open|doing|blocked|done)" FMT
+    Err
+  END
+END
+
+DEF dashboard_filter_search : str [pebble] -> [pebble] EFFECT pure
+  LET query_text
+  LET pebbles
+
+  query_text LEN 0 EQ
+  IF
+    pebbles
+  ELSE
+    pebbles { query_text pebble_contains_text } FILTER
+  END
+END
+
+DEF dashboard_apply_filters : str str [pebble] -> result[[pebble] str] EFFECT pure
+  LET status
+  LET query_text
+  LET pebbles
+
+  pebbles query_text dashboard_filter_search LET searched
+  searched status dashboard_filter_status
+END
+
+DEF dashboard_summary_from : [pebble] -> dashboard_summary EFFECT pure
+  LET pebbles
+
+  pebbles LEN LET total_count
+  pebbles { pebble_is_open } FILTER LEN LET open_count
+  pebbles { pebble_is_doing } FILTER LEN LET doing_count
+  pebbles { pebble_is_blocked } FILTER LEN LET blocked_count
+  pebbles { pebble_is_done } FILTER LEN LET done_count
+
+  total_count open_count doing_count blocked_count done_count DashboardSummary
+END
+
+DEF dashboard_group_open : [pebble] -> [pebble] EFFECT pure
+  { pebble_is_open } FILTER
+END
+
+DEF dashboard_group_doing : [pebble] -> [pebble] EFFECT pure
+  { pebble_is_doing } FILTER
+END
+
+DEF dashboard_group_blocked : [pebble] -> [pebble] EFFECT pure
+  { pebble_is_blocked } FILTER
+END
+
+DEF dashboard_group_done : [pebble] -> [pebble] EFFECT pure
+  { pebble_is_done } FILTER
+END
+
+DEF dashboard_blockers : [pebble] -> [pebble] EFFECT pure
+  {
+    DUP pebble_is_blocked
+    SWAP pebble_reason LEN 0 GT
+    AND
+  } FILTER
+END
+
+DEF dashboard_render_pebble_row : pebble -> str EFFECT pure
+  pebble_line
+  html_escape
+  "<li><code>{}</code></li>" FMT
+END
+
+DEF dashboard_render_pebble_rows : [pebble] -> str EFFECT pure
+  DUP LEN 0 EQ
+  IF
+    DROP
+    "<li class=\"empty\">none</li>"
+  ELSE
+    { dashboard_render_pebble_row } MAP
+    "\n" JOIN
+  END
+END
+
+DEF dashboard_render_section : str [pebble] -> str EFFECT pure
+  LET title
+  LET pebbles
+
+  pebbles dashboard_render_pebble_rows LET rows_html
+  pebbles LEN NUM_STR LET count_text
+  title html_escape LET safe_title
+
+  rows_html count_text safe_title "<section class=\"card\"><h2>{} ({})</h2><ul>{}</ul></section>" FMT
+END
+
+DEF dashboard_render_blocker_row : pebble -> str EFFECT pure
+  LET peb
+
+  peb pebble_id NUM_STR LET id_text
+  peb pebble_title html_escape LET safe_title
+  peb pebble_reason html_escape LET safe_reason
+
+  safe_reason safe_title id_text "<li><strong>#{} {}</strong> - {}</li>" FMT
+END
+
+DEF dashboard_render_blockers : [pebble] -> str EFFECT pure
+  dashboard_blockers
+  DUP LEN 0 EQ
+  IF
+    DROP
+    "<section class=\"card\"><h2>Blockers</h2><p>none</p></section>"
+  ELSE
+    { dashboard_render_blocker_row } MAP
+    "\n" JOIN
+    "<section class=\"card\"><h2>Blockers</h2><ul>{}</ul></section>" FMT
+  END
+END
+
+DEF dashboard_render_summary_tiles : dashboard_summary -> str EFFECT pure
+  LET summary
+
+  summary dashboard_summary_total NUM_STR LET total_text
+  summary dashboard_summary_open NUM_STR LET open_text
+  summary dashboard_summary_doing NUM_STR LET doing_text
+  summary dashboard_summary_blocked NUM_STR LET blocked_text
+  summary dashboard_summary_done NUM_STR LET done_text
+
+  done_text blocked_text doing_text open_text total_text "<section class=\"tiles\"><article><h3>Total</h3><p>{}</p></article><article><h3>Open</h3><p>{}</p></article><article><h3>Doing</h3><p>{}</p></article><article><h3>Blocked</h3><p>{}</p></article><article><h3>Done</h3><p>{}</p></article></section>" FMT
+END
+
+DEF dashboard_render_filter_bar : str str int int -> str EFFECT pure
+  LET status_filter
+  LET query_text
+  LET visible_count
+  LET total_count
+
+  status_filter html_escape LET safe_status
+  query_text html_escape LET safe_query
+
+  total_count NUM_STR LET total_text
+  visible_count NUM_STR LET visible_text
+
+  total_text visible_text safe_status safe_query "<section class=\"card\"><form method=\"get\" action=\"/\"><label>Search <input name=\"q\" value=\"{}\" placeholder=\"find text in title, reason, notes\"></label><label>Status <input name=\"status\" value=\"{}\" placeholder=\"all|open|doing|blocked|done\"></label><button type=\"submit\">Apply</button></form><p>showing {} of {} items</p><p><a href=\"/?status=all\">all</a> | <a href=\"/?status=open\">open</a> | <a href=\"/?status=doing\">doing</a> | <a href=\"/?status=blocked\">blocked</a> | <a href=\"/?status=done\">done</a></p></section>" FMT
+END
+
+DEF dashboard_render_page : str str str [pebble] [pebble] -> str EFFECT pure
+  LET error_message
+  LET query_text
+  LET status_filter
+  LET visible
+  LET all_pebbles
+
+  all_pebbles dashboard_summary_from dashboard_render_summary_tiles LET summary_html
+
+  visible LEN LET visible_count
+  all_pebbles LEN LET total_count
+  total_count visible_count query_text status_filter dashboard_render_filter_bar LET filter_html
+
+  visible dashboard_group_open "Open" dashboard_render_section LET open_html
+  visible dashboard_group_doing "Doing" dashboard_render_section LET doing_html
+  visible dashboard_group_blocked "Blocked" dashboard_render_section LET blocked_html
+  visible dashboard_group_done "Done" dashboard_render_section LET done_html
+  visible dashboard_render_blockers LET blockers_html
+
+  error_message LEN 0 GT
+  IF
+    error_message html_escape "<p class=\"notice\">{}</p>" FMT
+  ELSE
+    ""
+  END
+  LET notice_html
+
+  blockers_html done_html blocked_html doing_html open_html notice_html filter_html summary_html "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Pebbles Dashboard</title>\n    <style>\n      :root { color-scheme: light; }\n      body { font-family: \"Iosevka\", \"Fira Code\", monospace; margin: 0; background: #f3f0e8; color: #1f2933; }\n      main { max-width: 1080px; margin: 0 auto; padding: 1.5rem; }\n      h1 { margin-top: 0; }\n      .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }\n      .tiles article, .card { background: #fff; border: 1px solid #d4c6a1; border-radius: 8px; padding: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }\n      .sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin-top: 1rem; }\n      ul { margin: 0.4rem 0 0 1rem; padding: 0; }\n      li { margin: 0.2rem 0; }\n      code { font-family: inherit; font-size: 0.9rem; }\n      .empty { color: #64748b; }\n      .notice { background: #fff6d8; border: 1px solid #eab308; border-radius: 8px; padding: 0.7rem; }\n      label { display: block; margin-bottom: 0.6rem; }\n      input { width: 100%; box-sizing: border-box; padding: 0.4rem; margin-top: 0.25rem; }\n      button { padding: 0.45rem 0.9rem; }\n    </style>\n  </head>\n  <body>\n    <main>\n      <h1>Pebbles Dashboard</h1>\n      <p>Read-only view over your local Pebbles queue.</p>\n      {}\n      {}\n      {}\n      <section class=\"sections\">\n        {}\n        {}\n        {}\n        {}\n      </section>\n      <section style=\"margin-top: 0.75rem;\">\n        {}\n      </section>\n    </main>\n  </body>\n</html>\n" FMT
+END

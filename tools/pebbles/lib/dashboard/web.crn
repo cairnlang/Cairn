@@ -1,0 +1,45 @@
+IMPORT "model.crn"
+
+DEF route_get_dashboard_ctx : request_ctx -> route_result EFFECT db
+  LET ctx
+
+  ctx request_ctx_path
+  ctx request_ctx_method
+  "/" route_is_get
+  IF
+    ctx request_ctx_query dashboard_query_status LET status_filter
+    ctx request_ctx_query dashboard_query_text LET query_text
+    pebbles_store_all LET all_pebbles
+
+    all_pebbles query_text status_filter dashboard_apply_filters
+    MATCH
+      Ok {
+        LET visible
+        all_pebbles visible status_filter query_text "" dashboard_render_page
+        http_html_ok
+        http_pack_response
+        Ok
+      }
+      Err {
+        LET message
+        all_pebbles all_pebbles status_filter query_text message dashboard_render_page
+        http_html_ok
+        http_pack_response
+        Ok
+      }
+    END
+  ELSE
+    "no_match" Err
+  END
+END
+
+DEF handle_dashboard_request_ctx : request_ctx -> str headers int EFFECT db
+  LET ctx
+
+  ctx route_get_dashboard_ctx LET candidate
+  [ "GET" ] ctx request_ctx_method candidate route_finish_allowed
+END
+
+DEF handle_dashboard_request_env : request_envelope -> str headers int EFFECT db
+  handle_dashboard_request_ctx
+END

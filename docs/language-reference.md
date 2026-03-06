@@ -327,6 +327,7 @@ FMT
 before: [format:str, value_n, ..., value_1]
 after:  [formatted:str]
 note: the format string is on top; placeholder values sit underneath it
+note: the first `{}` consumes `value_1` (the value immediately under the format string)
 note: push placeholder values from right to left, then push the format string
 note: for `"#{} [{}] {}"` push `third`, then `second`, then `first`, then the format string
 
@@ -409,6 +410,7 @@ END
 "postgres" "/tmp/seed.txt" 8133 "127.0.0.1" "http://{}:{}/ source={} backend={}" FMT
 # => "http://127.0.0.1:8133/ source=/tmp/seed.txt backend=postgres"
 # stack reminder: push values right-to-left, then push format string last
+# first `{}` always binds to the value closest to the format string
 ```
 
 Values are auto-converted: integers and floats become their string representation, booleans become `"TRUE"` / `"FALSE"`, and everything else uses `inspect`.

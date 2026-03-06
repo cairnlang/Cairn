@@ -313,6 +313,18 @@ defmodule CairnTest do
       assert message =~ "template parse error"
     end
 
+    test "template raw placeholders keep trusted HTML while escaped placeholders still escape" do
+      path = Path.join(System.tmp_dir!(), "cairn_t2_raw_#{System.unique_integer([:positive])}.ctpl")
+      File.write!(path, "<p>{{name}}</p><p>{{{name}}}</p>")
+
+      source =
+        ~s|"#{path}" TPL_LOAD MATCH Ok { M[ "name" "<em>ok</em>" ] TPL_RENDER } Err { Err } END|
+
+      assert Cairn.eval(source) == [
+               {:variant, "result", "Ok", ["<p>&lt;em&gt;ok&lt;/em&gt;</p><p><em>ok</em></p>"]}
+             ]
+    end
+
     test "comparison" do
       assert Cairn.eval("3 4 EQ") == [false]
       assert Cairn.eval("3 3 EQ") == [true]

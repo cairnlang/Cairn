@@ -46,6 +46,8 @@ Bounded rules:
 - `each` accepts a list field only
 - Sections cannot call functions; compute values before rendering
 
+Warning: `{{{...}}}` must be treated as trusted HTML only. Untrusted user input must use `{{...}}`.
+
 ## Type and Effect Story
 
 v1 keeps runtime parsing/rendering in the web/runtime boundary, but keeps template-facing usage typed in Cairn code.
@@ -139,4 +141,3 @@ Accept when:
 3. Should we expose a tiny template linter command in CLI?
 
 These are intentionally deferred until v1 usage feedback lands.
-

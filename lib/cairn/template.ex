@@ -7,7 +7,7 @@ defmodule Cairn.Template do
   - escaped placeholders: {{name}}
   """
 
-  @type segment :: {:text, String.t()} | {:esc, String.t()}
+  @type segment :: {:text, String.t()} | {:esc, String.t()} | {:raw, String.t()}
   @type template :: {:template, [segment]}
 
   @spec load(String.t()) :: {:ok, template()} | {:error, String.t()}
@@ -54,9 +54,18 @@ defmodule Cairn.Template do
         {prefix, rest} = split_binary(source, idx)
         rest = binary_part(rest, 2, byte_size(rest) - 2)
 
-        with {:ok, key, tail} <- parse_placeholder(rest),
-             {:ok, next} <- parse_segments(tail, [{:esc, key}, {:text, prefix} | acc]) do
-          {:ok, next}
+        if String.starts_with?(rest, "{") do
+          rest = binary_part(rest, 1, byte_size(rest) - 1)
+
+          with {:ok, key, tail} <- parse_raw_placeholder(rest),
+               {:ok, next} <- parse_segments(tail, [{:raw, key}, {:text, prefix} | acc]) do
+            {:ok, next}
+          end
+        else
+          with {:ok, key, tail} <- parse_placeholder(rest),
+               {:ok, next} <- parse_segments(tail, [{:esc, key}, {:text, prefix} | acc]) do
+            {:ok, next}
+          end
         end
     end
   end
@@ -77,6 +86,29 @@ defmodule Cairn.Template do
 
           not valid_name?(name) ->
             {:error, "invalid placeholder name '#{name}'"}
+
+          true ->
+            {:ok, name, tail}
+        end
+    end
+  end
+
+  defp parse_raw_placeholder(rest) do
+    case :binary.match(rest, "}}}") do
+      :nomatch ->
+        {:error, "unclosed raw placeholder"}
+
+      {idx, 3} ->
+        {raw_name, tail} = split_binary(rest, idx)
+        tail = binary_part(tail, 3, byte_size(tail) - 3)
+        name = String.trim(raw_name)
+
+        cond do
+          name == "" ->
+            {:error, "empty raw placeholder is not allowed"}
+
+          not valid_name?(name) ->
+            {:error, "invalid raw placeholder name '#{name}'"}
 
           true ->
             {:ok, name, tail}
@@ -118,6 +150,16 @@ defmodule Cairn.Template do
     case Map.fetch(context, key) do
       {:ok, value} ->
         render_segments(rest, context, [escape_html(value) | acc])
+
+      :error ->
+        {:error, "missing placeholder '#{key}'"}
+    end
+  end
+
+  defp render_segments([{:raw, key} | rest], context, acc) do
+    case Map.fetch(context, key) do
+      {:ok, value} ->
+        render_segments(rest, context, [value | acc])
 
       :error ->
         {:error, "missing placeholder '#{key}'"}

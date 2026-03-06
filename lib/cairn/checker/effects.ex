@@ -75,22 +75,22 @@ defmodule Cairn.Checker.Effects do
     # String operations
     words: %{pops: [:str], pushes: [{:list, :str}]},
     lines: %{pops: [:str], pushes: [{:list, :str}]},
-    contains:    %{pops: [:str, :str],       pushes: [:bool]},
-    chars:       %{pops: [:str],             pushes: [{:list, :str}]},
-    split:       %{pops: [:str, :str],       pushes: [{:list, :str}]},
-    trim:        %{pops: [:str],             pushes: [:str]},
-    lower:       %{pops: [:str],             pushes: [:str]},
-    upper:       %{pops: [:str],             pushes: [:str]},
-    starts_with: %{pops: [:str, :str],       pushes: [:bool]},
-    ends_with:   %{pops: [:str, :str],       pushes: [:bool]},
-    replace:     %{pops: [:str, :str, :str], pushes: [:str]},
-    reverse_str: %{pops: [:str],             pushes: [:str]},
-    slice:       %{pops: [:int, :int, :str], pushes: [:str]},
-    to_int:      %{pops: [:str],             pushes: [{:user_type, "result", [:int, :str]}]},
-    to_float:    %{pops: [:str],             pushes: [{:user_type, "result", [:float, :str]}]},
-    to_int!:  %{pops: [:str],             pushes: [:int]},
-    to_float!: %{pops: [:str],            pushes: [:float]},
-    join:        %{pops: [:str, {:list, :str}], pushes: [:str]},
+    contains: %{pops: [:str, :str], pushes: [:bool]},
+    chars: %{pops: [:str], pushes: [{:list, :str}]},
+    split: %{pops: [:str, :str], pushes: [{:list, :str}]},
+    trim: %{pops: [:str], pushes: [:str]},
+    lower: %{pops: [:str], pushes: [:str]},
+    upper: %{pops: [:str], pushes: [:str]},
+    starts_with: %{pops: [:str, :str], pushes: [:bool]},
+    ends_with: %{pops: [:str, :str], pushes: [:bool]},
+    replace: %{pops: [:str, :str, :str], pushes: [:str]},
+    reverse_str: %{pops: [:str], pushes: [:str]},
+    slice: %{pops: [:int, :int, :str], pushes: [:str]},
+    to_int: %{pops: [:str], pushes: [{:user_type, "result", [:int, :str]}]},
+    to_float: %{pops: [:str], pushes: [{:user_type, "result", [:float, :str]}]},
+    to_int!: %{pops: [:str], pushes: [:int]},
+    to_float!: %{pops: [:str], pushes: [:float]},
+    join: %{pops: [:str, {:list, :str}], pushes: [:str]},
 
     # I/O — non-destructive (pop any, push same)
     say: %{pops: [:any], pushes: [:any]},
@@ -108,12 +108,20 @@ defmodule Cairn.Checker.Effects do
     write_file: %{pops: [:str, :str], pushes: [{:user_type, "result", [:void, :str]}]},
     read_file!: %{pops: [:str], pushes: [:str]},
     write_file!: %{pops: [:str, :str], pushes: []},
+    tpl_load: %{pops: [:str], pushes: [{:user_type, "result", [:template, :str]}]},
+    tpl_render: %{
+      pops: [{:map, :str, :str}, :template],
+      pushes: [{:user_type, "result", [:str, :str]}]
+    },
     http_serve: %{pops: [{:block, :opaque}, :int], pushes: []},
     db_put: %{pops: [:str, :str], pushes: []},
     db_get: %{pops: [:str], pushes: [{:user_type, "result", [:str, :str]}]},
     db_del: %{pops: [:str], pushes: []},
     db_pairs: %{pops: [], pushes: [{:list, {:tuple, [:str, :str]}}]},
-    auth_check: %{pops: [:str, :str], pushes: [{:user_type, "result", [{:map, :str, :str}, :str]}]},
+    auth_check: %{
+      pops: [:str, :str],
+      pushes: [{:user_type, "result", [{:map, :str, :str}, :str]}]
+    },
 
     # Map operations
     get: %{pops: [:any, {:map, :any, :any}], pushes: [:any]},
@@ -123,8 +131,8 @@ defmodule Cairn.Checker.Effects do
     values: %{pops: [{:map, :any, :any}], pushes: [{:list, :any}]},
     has: %{pops: [:any, {:map, :any, :any}], pushes: [:bool]},
     mlen: %{pops: [{:map, :any, :any}], pushes: [:int]},
-    merge:   %{pops: [{:map, :any, :any}, {:map, :any, :any}], pushes: [{:map, :any, :any}]},
-    pairs:   %{pops: [{:map, :any, :any}], pushes: [{:list, {:tuple, [:any, :any]}}]},
+    merge: %{pops: [{:map, :any, :any}, {:map, :any, :any}], pushes: [{:map, :any, :any}]},
+    pairs: %{pops: [{:map, :any, :any}], pushes: [{:list, {:tuple, [:any, :any]}}]},
     num_str: %{pops: [:num], pushes: [:str]},
 
     # ASK: pop prompt string, push input string

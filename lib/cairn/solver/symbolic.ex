@@ -421,6 +421,8 @@ defmodule Cairn.Solver.Symbolic do
               :ceil,
               :round,
               :host_call,
+              :tpl_load,
+              :tpl_render,
               :argv,
               :read_file,
               :write_file,

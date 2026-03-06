@@ -579,6 +579,40 @@ defmodule Cairn.CheckerTest do
       check_ok("[ \"CAIRN_DB_DIR\" ] HOST_CALL env_get")
     end
 
+    test "template type and render operator type-check in pure code" do
+      check_ok("""
+      DEF render_one : template -> result[str str] EFFECT pure
+        M[ "name" "cairn" ] TPL_RENDER
+      END
+      """)
+    end
+
+    test "TPL_LOAD is effectful and rejected in pure functions" do
+      errors =
+        check_errors("""
+        DEF bad : str -> result[template str] EFFECT pure
+          TPL_LOAD
+        END
+        """)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "pure function cannot use effectful operator 'TPL_LOAD'"
+             end)
+    end
+
+    test "TPL_RENDER enforces map[str str] context types" do
+      errors =
+        check_errors("""
+        DEF bad_render : template -> result[str str] EFFECT pure
+          M[ "name" 1 ] TPL_RENDER
+        END
+        """)
+
+      assert Enum.any?(errors, fn e ->
+               e.message =~ "TPL_RENDER" and e.message =~ "map[str str]"
+             end)
+    end
+
     test "HOST_CALL rejects unknown helper names" do
       errors = check_errors("[ \"hello\" ] HOST_CALL nope")
 

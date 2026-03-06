@@ -19,6 +19,7 @@ defmodule Cairn.Checker do
                    :read_file!,
                    :write_file!,
                    :http_serve,
+                   :tpl_load,
                    :db_put,
                    :db_get,
                    :db_del,
@@ -606,7 +607,12 @@ defmodule Cairn.Checker do
     {elem_tokens, remaining} = collect_map_elements(rest, [], 0)
     {key_type, val_type, state} = infer_map_types(elem_tokens, state)
     fields = infer_map_shape(elem_tokens)
-    map_type = if map_size(fields) == 0, do: {:map, key_type, val_type}, else: {:map_shape, fields, key_type, val_type}
+
+    map_type =
+      if map_size(fields) == 0,
+        do: {:map, key_type, val_type},
+        else: {:map_shape, fields, key_type, val_type}
+
     walk(remaining, %{state | stack: Stack.push(state.stack, map_type)})
   end
 
@@ -1473,7 +1479,9 @@ defmodule Cairn.Checker do
         walk(rest, %{state | stack: Stack.push(base, result_map)})
 
       :underflow ->
-        state = add_error(state, pos, "PUT requires value, key, and map on the stack (stack underflow)")
+        state =
+          add_error(state, pos, "PUT requires value, key, and map on the stack (stack underflow)")
+
         walk(rest, %{state | stack: Stack.push(state.stack, {:map, :any, :any})})
     end
   end
@@ -2422,7 +2430,12 @@ defmodule Cairn.Checker do
       end
     else
       :error ->
-        {:any, add_error(state, pos, "#{format_op(op)} requires map[_, _], got #{format_type(map_type)}")}
+        {:any,
+         add_error(
+           state,
+           pos,
+           "#{format_op(op)} requires map[_, _], got #{format_type(map_type)}"
+         )}
     end
   end
 
@@ -2446,18 +2459,21 @@ defmodule Cairn.Checker do
           {:lit_str, key} when strict_fields? ->
             {:map_shape, Map.delete(fields, key), key_expected, value_type}
 
-          _ -> {:map, key_expected, value_type}
+          _ ->
+            {:map, key_expected, value_type}
         end
 
       {result_type, state}
     else
       :error ->
-        {{:map, :any, :any}, add_error(state, pos, "DEL requires map[_, _], got #{format_type(map_type)}")}
+        {{:map, :any, :any},
+         add_error(state, pos, "DEL requires map[_, _], got #{format_type(map_type)}")}
     end
   end
 
   defp check_map_put(state, pos, value_type, key_type, map_type) do
-    with {:ok, key_expected, current_value_type, fields, strict_fields?} <- map_type_components(map_type) do
+    with {:ok, key_expected, current_value_type, fields, strict_fields?} <-
+           map_type_components(map_type) do
       {next_key_type, state} =
         case Unify.unify(key_type, key_expected) do
           {:ok, unified} ->
@@ -2524,7 +2540,8 @@ defmodule Cairn.Checker do
       {result_type, state}
     else
       :error ->
-        {{:map, :any, :any}, add_error(state, pos, "PUT requires map[_, _], got #{format_type(map_type)}")}
+        {{:map, :any, :any},
+         add_error(state, pos, "PUT requires map[_, _], got #{format_type(map_type)}")}
     end
   end
 
@@ -2900,6 +2917,7 @@ defmodule Cairn.Checker do
   defp format_type(:str), do: "str"
   defp format_type(:any), do: "any"
   defp format_type(:void), do: "void"
+  defp format_type(:template), do: "template"
   defp format_type(:num), do: "num"
   defp format_type({:lit_str, value}), do: ~s|str("#{value}")|
   defp format_type({:list, inner}), do: "[#{format_type(inner)}]"
@@ -3453,7 +3471,7 @@ defmodule Cairn.Checker do
   end
 
   defp validate_declared_type(state, type, _context, _type_params)
-       when type in [:int, :float, :bool, :str, :any, :void],
+       when type in [:int, :float, :bool, :str, :template, :any, :void],
        do: state
 
   defp validate_declared_type(state, type_name, context, _type_params) when is_binary(type_name),
@@ -3604,7 +3622,7 @@ defmodule Cairn.Checker do
   end
 
   defp bind_type_vars_in_type(expected, _actual, bindings)
-       when expected in [:int, :float, :bool, :str, :any, :void, :num],
+       when expected in [:int, :float, :bool, :str, :template, :any, :void, :num],
        do: {:ok, bindings}
 
   defp bind_type_vars_in_type({:user_type, _name}, _actual, bindings), do: {:ok, bindings}
@@ -3743,7 +3761,7 @@ defmodule Cairn.Checker do
     do: do_resolve_type_alias(type, type_aliases, type_params, MapSet.new())
 
   defp do_resolve_type_alias(type, _type_aliases, _type_params, _visiting)
-       when type in [:int, :float, :bool, :str, :any, :void, :num],
+       when type in [:int, :float, :bool, :str, :template, :any, :void, :num],
        do: type
 
   defp do_resolve_type_alias({:type_var, _name} = type, _type_aliases, _type_params, _visiting),

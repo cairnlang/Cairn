@@ -15,14 +15,14 @@ defmodule Cairn.Lexer do
                 TIMES REPEAT WHILE APPLY WITH_STATE STATE SET_STATE STEP
                 RANGE PRINT SAY SELF EXIT
                 SEND MONITOR AWAIT
-                HOST_CALL HTTP_SERVE DB_PUT DB_GET DB_DEL DB_PAIRS AUTH_CHECK
+                HOST_CALL HTTP_SERVE TPL_LOAD TPL_RENDER DB_PUT DB_GET DB_DEL DB_PAIRS AUTH_CHECK
                 ARGV READ_FILE WRITE_FILE READ_FILE! WRITE_FILE! READ_LINE
                 WORDS LINES CONTAINS
                 CHARS SPLIT TRIM LOWER UPPER STARTS_WITH ENDS_WITH REPLACE REVERSE_STR SLICE TO_INT TO_FLOAT TO_INT! TO_FLOAT! NUM_STR JOIN
                 GET PUT DEL KEYS VALUES HAS MLEN MERGE PAIRS
                 ASK ASK! RANDOM FMT SAID)
 
-  @type_names ~w(int float bool any void str)
+  @type_names ~w(int float bool any void str template)
 
   @doc """
   Tokenizes a source string into a list of `{type, value, position}` tuples.
@@ -46,13 +46,23 @@ defmodule Cairn.Lexer do
 
   defp strip_line_comment(<<>>, _in_str, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
   # Escaped quote inside a string — not a string boundary
-  defp strip_line_comment(<<?\\, ?", rest::binary>>, true, acc), do: strip_line_comment(rest, true, [?", ?\\ | acc])
-  defp strip_line_comment(<<?", rest::binary>>, false, acc), do: strip_line_comment(rest, true, [?" | acc])
-  defp strip_line_comment(<<?", rest::binary>>, true, acc), do: strip_line_comment(rest, false, [?" | acc])
+  defp strip_line_comment(<<?\\, ?", rest::binary>>, true, acc),
+    do: strip_line_comment(rest, true, [?", ?\\ | acc])
+
+  defp strip_line_comment(<<?", rest::binary>>, false, acc),
+    do: strip_line_comment(rest, true, [?" | acc])
+
+  defp strip_line_comment(<<?", rest::binary>>, true, acc),
+    do: strip_line_comment(rest, false, [?" | acc])
+
   defp strip_line_comment(<<?#, ?(, rest::binary>>, false, acc),
     do: strip_line_comment(rest, false, [?(, ?# | acc])
-  defp strip_line_comment(<<?#, _::binary>>, false, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
-  defp strip_line_comment(<<c, rest::binary>>, in_str, acc), do: strip_line_comment(rest, in_str, [c | acc])
+
+  defp strip_line_comment(<<?#, _::binary>>, false, acc),
+    do: acc |> Enum.reverse() |> IO.iodata_to_binary()
+
+  defp strip_line_comment(<<c, rest::binary>>, in_str, acc),
+    do: strip_line_comment(rest, in_str, [c | acc])
 
   # Scan words respecting quoted strings (with \" escapes) and map types
   defp scan_words(source) do
@@ -229,6 +239,7 @@ defmodule Cairn.Lexer do
       # map type like map[str int]
       Regex.match?(~r/^map\[.+\s+.+\]$/, word) ->
         inner = String.slice(word, 4..-2)
+
         case split_top_level_type_parts(inner) do
           [key_str, val_str] ->
             key_type = parse_map_inner_type(key_str)
@@ -288,6 +299,7 @@ defmodule Cairn.Lexer do
       cond do
         Regex.match?(~r/^\[.+\]$/, s) ->
           inner = String.slice(s, 1..-2)
+
           case parse_map_inner_type(inner) do
             {:ok, t} -> {:ok, {:list, t}}
             :error -> :error
@@ -307,6 +319,7 @@ defmodule Cairn.Lexer do
 
         Regex.match?(~r/^map\[.+\s+.+\]$/, s) ->
           inner = String.slice(s, 4..-2)
+
           case split_top_level_type_parts(inner) do
             [k, v] ->
               case {parse_map_inner_type(k), parse_map_inner_type(v)} do

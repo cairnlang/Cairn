@@ -562,7 +562,7 @@ defmodule Cairn.Parser do
       name == "result" ->
         {:user_type, "result", [:any, :any]}
 
-      name in ["int", "float", "bool", "str", "any", "void"] ->
+      name in ["int", "float", "bool", "str", "template", "any", "void"] ->
         String.to_atom(name)
 
       MapSet.member?(type_params, name) ->

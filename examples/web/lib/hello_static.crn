@@ -22,19 +22,40 @@ DEF route_get_echo : query str str -> route_result EFFECT pure
   END
 END
 
-DEF route_get_hello_html : query str str -> route_result EFFECT pure
+DEF route_get_hello_html : query str str -> route_result EFFECT io
   LET query
   LET method
   LET path
 
   path method "/hello" route_is_get
   IF
-    "name" query "friend" map_get_or
-    html_escape
-    "<h1>Hello, {}</h1>\n<p>This name was HTML-escaped in Cairn.</p>\n" FMT
-    http_html_ok
-    http_pack_response
-    Ok
+    "name" query "friend" map_get_or LET name
+    "examples/web/templates/hello_name.ctpl" TPL_LOAD
+    MATCH
+      Ok {
+        LET tmpl
+        tmpl M[] "name" name PUT TPL_RENDER
+        MATCH
+          Ok {
+            http_html_ok
+            http_pack_response
+            Ok
+          }
+          Err {
+            "template render error: {}\n" FMT
+            http_text_ok
+            http_pack_response
+            Ok
+          }
+        END
+      }
+      Err {
+        "template load error: {}\n" FMT
+        http_text_ok
+        http_pack_response
+        Ok
+      }
+    END
   ELSE
     "no_match" Err
   END

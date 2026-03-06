@@ -861,6 +861,7 @@ defmodule Cairn.Evaluator do
   defp matches_type?(v, :float) when is_float(v), do: true
   defp matches_type?(v, :bool) when is_boolean(v), do: true
   defp matches_type?(v, :str) when is_binary(v), do: true
+  defp matches_type?({:template, _segments}, :template), do: true
   defp matches_type?(v, {:list, _}) when is_list(v), do: true
   defp matches_type?(v, {:map, _, _}) when is_map(v), do: true
   defp matches_type?({:tuple, vals}, {:tuple, elem_types}) when length(vals) == length(elem_types),
@@ -1011,7 +1012,7 @@ defmodule Cairn.Evaluator do
   end
 
   defp resolve_runtime_alias(type, _aliases, _type_params, _visiting)
-       when type in [:int, :float, :bool, :str, :any, :void, :num],
+       when type in [:int, :float, :bool, :str, :template, :any, :void, :num],
        do: type
 
   defp resolve_runtime_alias({:type_var, _name} = type, _aliases, _type_params, _visiting), do: type

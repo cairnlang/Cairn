@@ -413,6 +413,24 @@ defmodule Cairn.Runtime do
     end
   end
 
+  # TPL_LOAD: pop template path, push result[template str]
+  def execute(:tpl_load, [path | rest]) when is_binary(path) do
+    case Cairn.Template.load(path) do
+      {:ok, template} -> [ok(template) | rest]
+      {:error, reason} -> [err(reason) | rest]
+    end
+  end
+
+  # TPL_RENDER: template map[str str] -> result[str str]
+  # Stack order before call: [context_map, template]
+  def execute(:tpl_render, [context, {:template, _segments} = template | rest])
+      when is_map(context) do
+    case Cairn.Template.render(template, context) do
+      {:ok, body} -> [ok(body) | rest]
+      {:error, reason} -> [err(reason) | rest]
+    end
+  end
+
   # WRITE_FILE: pop contents and filename, write file, push result
   def execute(:write_file, [path, contents | rest])
       when is_binary(path) and is_binary(contents) do

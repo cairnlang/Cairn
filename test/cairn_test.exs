@@ -34,6 +34,8 @@ defmodule CairnTest do
       assert {:ok, [{:op, :ceil, 0}]} = Cairn.Lexer.tokenize("CEIL")
       assert {:ok, [{:op, :round, 0}]} = Cairn.Lexer.tokenize("ROUND")
       assert {:ok, [{:op, :host_call, 0}]} = Cairn.Lexer.tokenize("HOST_CALL")
+      assert {:ok, [{:op, :tpl_load, 0}]} = Cairn.Lexer.tokenize("TPL_LOAD")
+      assert {:ok, [{:op, :tpl_render, 0}]} = Cairn.Lexer.tokenize("TPL_RENDER")
       assert {:ok, [{:op, :lower, 0}]} = Cairn.Lexer.tokenize("LOWER")
       assert {:ok, [{:op, :upper, 0}]} = Cairn.Lexer.tokenize("UPPER")
       assert {:ok, [{:op, :ends_with, 0}]} = Cairn.Lexer.tokenize("ENDS_WITH")
@@ -96,6 +98,7 @@ defmodule CairnTest do
     test "tokenizes type annotations" do
       assert {:ok, [{:type, :int, 0}]} = Cairn.Lexer.tokenize("int")
       assert {:ok, [{:type, :float, 0}]} = Cairn.Lexer.tokenize("float")
+      assert {:ok, [{:type, :template, 0}]} = Cairn.Lexer.tokenize("template")
       assert {:ok, [{:type, {:list, :int}, 0}]} = Cairn.Lexer.tokenize("[int]")
     end
 
@@ -110,10 +113,8 @@ defmodule CairnTest do
     test "tokenizes generic identifiers with nested type args" do
       assert {:ok,
               [
-                {:generic_ident,
-                 {"wrap", ["tuple[str map[str str] int]", "result[str int]"]}, 0}
-              ]} =
-               Cairn.Lexer.tokenize("wrap[tuple[str map[str str] int] result[str int]]")
+                {:generic_ident, {"wrap", ["tuple[str map[str str] int]", "result[str int]"]}, 0}
+              ]} = Cairn.Lexer.tokenize("wrap[tuple[str map[str str] int] result[str int]]")
     end
 
     test "tokenizes identifiers" do
@@ -267,6 +268,49 @@ defmodule CairnTest do
       else
         System.delete_env("CAIRN_TEST_ENV_GET")
       end
+    end
+
+    test "template ops render escaped placeholders and return result variants" do
+      path =
+        Path.join(
+          System.tmp_dir!(),
+          "cairn_t1_template_#{System.unique_integer([:positive])}.ctpl"
+        )
+
+      File.write!(path, "<h1>{{name}}</h1>")
+
+      source =
+        ~s|"#{path}" TPL_LOAD MATCH Ok { M[ "name" "<script>alert('x')</script>" ] TPL_RENDER } Err { Err } END|
+
+      assert Cairn.eval(source) == [
+               {:variant, "result", "Ok",
+                ["<h1>&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;</h1>"]}
+             ]
+    end
+
+    test "template render returns Err when a required placeholder is missing" do
+      path =
+        Path.join(
+          System.tmp_dir!(),
+          "cairn_t1_missing_#{System.unique_integer([:positive])}.ctpl"
+        )
+
+      File.write!(path, "<h1>{{name}}</h1>")
+
+      source = ~s|"#{path}" TPL_LOAD MATCH Ok { M[] TPL_RENDER } Err { Err } END|
+
+      assert [{:variant, "result", "Err", [message]}] = Cairn.eval(source)
+      assert message =~ "missing placeholder 'name'"
+    end
+
+    test "template load returns Err on parse errors" do
+      path =
+        Path.join(System.tmp_dir!(), "cairn_t1_parse_#{System.unique_integer([:positive])}.ctpl")
+
+      File.write!(path, "<h1>{{name</h1>")
+
+      assert [{:variant, "result", "Err", [message]}] = Cairn.eval(~s|"#{path}" TPL_LOAD|)
+      assert message =~ "template parse error"
     end
 
     test "comparison" do

@@ -117,6 +117,25 @@ defmodule Cairn.HTTPTest do
     assert nil == Task.shutdown(task, :brutal_kill)
   end
 
+  test "HTTP_SERVE can render template-backed HTML with escaped interpolation" do
+    port = free_port()
+    task = start_hello_static_app(port)
+
+    response =
+      http_request(
+        port,
+        "GET",
+        "/hello?name=%3Cscript%3Ealert(%27hola%27)%3C%2Fscript%3E"
+      )
+
+    assert response =~ "HTTP/1.1 200 OK"
+    assert response =~ "Content-Type: text/html; charset=utf-8"
+    assert response =~ "<h1>Hello, &lt;script&gt;alert(&#39;hola&#39;)&lt;/script&gt;</h1>"
+    refute response =~ "<script>alert('hola')</script>"
+
+    assert nil == Task.shutdown(task, :brutal_kill)
+  end
+
   test "HTTP_SERVE exposes parsed cookies to the handler" do
     index_path = Path.expand("examples/web/static/index.html", File.cwd!())
     about_path = Path.expand("examples/web/static/about.html", File.cwd!())
@@ -928,6 +947,13 @@ defmodule Cairn.HTTPTest do
     Task.async(fn ->
       Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
       Cairn.eval_file("examples/web/todo_app.crn")
+    end)
+  end
+
+  defp start_hello_static_app(port) do
+    Task.async(fn ->
+      Process.put(:cairn_argv, ["127.0.0.1", Integer.to_string(port)])
+      Cairn.eval_file("examples/web/hello_static.crn")
     end)
   end
 

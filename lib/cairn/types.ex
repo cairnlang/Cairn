@@ -19,6 +19,7 @@ defmodule Cairn.Types do
           | :any
           | :void
           | :str
+          | :template
 
   @type function_effect :: :pure | :io | :db | :http
 
@@ -105,7 +106,16 @@ defmodule Cairn.Types do
     @moduledoc """
     An Cairn function definition.
     """
-    defstruct [:name, :type_params, :param_types, :return_types, :effect, :body, :pre_condition, :post_condition]
+    defstruct [
+      :name,
+      :type_params,
+      :param_types,
+      :return_types,
+      :effect,
+      :body,
+      :pre_condition,
+      :post_condition
+    ]
 
     @type t :: %__MODULE__{
             name: String.t(),

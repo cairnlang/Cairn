@@ -18,7 +18,7 @@ M[]                         # empty map
 Functions declare parameter and return types. The type checker enforces these statically before any code runs.
 
 ```
-int float bool str    # concrete types
+int float bool str template    # concrete types
 [int] [str]           # list types
 map[str int]          # map types (key type, value type)
 any                   # accepts any type
@@ -279,6 +279,8 @@ ARGV                           # push command-line args as a list of strings
 READ_FILE                      # pop filename, push result (Ok str | Err str)
 WRITE_FILE                     # pop contents + filename, push result (Ok any | Err str)
 READ_FILE! WRITE_FILE!         # unsafe file ops (raise on failure)
+TPL_LOAD                       # pop template path, push result (Ok template | Err str)
+TPL_RENDER                     # pop context map (string keys), pop template, push result (Ok str | Err str)
 HTTP_SERVE                     # pop port + handler block (or bind addr + port + handler), serve requests until stopped
 READ_LINE                      # read one line from stdin
 RANDOM                         # pop N, push random integer in [1, N]
@@ -912,6 +914,16 @@ WRITE_FILE!
 before: [contents:str, path:str]
 after:  []
 note: unsafe variant that raises on failure
+
+TPL_LOAD
+before: [path:str]
+after:  [result[template str]]
+note: loads and parses a `.ctpl` file into a compiled template value
+
+TPL_RENDER
+before: [context:map[str any], tmpl:template]
+after:  [result[str str]]
+note: `{{...}}` escapes HTML by default; `{{{...}}}` is raw and must be trusted input
 ```
 
 ### Comments

@@ -155,4 +155,29 @@ Expected shape is straightforward: report text on `/`, `ok` on `/health`, alert 
 
 The key gain is compositional routing. Each route is small and local. The chain reads top to bottom in priority order. Fallback behavior is centralized in `route_finish_get` instead of copied into each route.
 
+Template migration aside: once a route starts growing a long `FMT` string, move rendering behind a typed template wrapper. The route keeps its shape, and only the rendering helper changes.
+
+```cairn
+TYPE alert_view = AlertView str int
+
+DEF alert_view_ctx : alert_view -> template_ctx EFFECT pure
+  MATCH
+    AlertView {
+      LET source
+      LET total
+      M[] "source" source PUT
+      "total" total PUT
+    }
+  END
+END
+
+DEF render_alert_template : alert_view -> template_result EFFECT io
+  alert_view_ctx
+  "book/code/runewarden/chapters/ch16_routing_and_html_helpers/templates/alerts.ctpl"
+  template_render_file
+END
+```
+
+That pattern keeps route logic focused on request flow while template wiring stays in one typed boundary.
+
 Chapter 17 will keep this route structure and add form-based mutation so the web app can change state instead of only reporting it.

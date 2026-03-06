@@ -1,0 +1,9 @@
+<section class="card">
+  <form method="get" action="/">
+    <label>Search <input name="q" value="{{query}}" placeholder="find text in title, reason, notes"></label>
+    <label>Status <input name="status" value="{{status}}" placeholder="all|open|doing|blocked|done"></label>
+    <button type="submit">Apply</button>
+  </form>
+  <p>showing {{visible}} of {{total}} items</p>
+  <p><a href="/?status=all">all</a> | <a href="/?status=open">open</a> | <a href="/?status=doing">doing</a> | <a href="/?status=blocked">blocked</a> | <a href="/?status=done">done</a></p>
+</section>

@@ -1,0 +1,4 @@
+<section class="card">
+  <h2>{{title}} ({{count}})</h2>
+  <ul>{{{rows_html}}}</ul>
+</section>

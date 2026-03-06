@@ -78,3 +78,60 @@ TEST "dashboard filter bar escapes user input"
   html "all&lt;script&gt;" CONTAINS ASSERT_TRUE
   html "<svg onload=alert('x')>" CONTAINS ASSERT_FALSE
 END
+
+TEST "dashboard template wrapper renders the ctpl shell"
+  "summary-slot"
+  "filter-slot"
+  "notice-slot"
+  "open-slot"
+  "doing-slot"
+  "blocked-slot"
+  "done-slot"
+  "blockers-slot"
+  dashboard_page_view_new
+  dashboard_render_page_template
+  MATCH
+    Ok {
+      DUP "<!doctype html>" CONTAINS ASSERT_TRUE
+      DUP "summary-slot" CONTAINS ASSERT_TRUE
+      DUP "filter-slot" CONTAINS ASSERT_TRUE
+      DUP "notice-slot" CONTAINS ASSERT_TRUE
+      DUP "open-slot" CONTAINS ASSERT_TRUE
+      DUP "doing-slot" CONTAINS ASSERT_TRUE
+      DUP "blocked-slot" CONTAINS ASSERT_TRUE
+      DUP "done-slot" CONTAINS ASSERT_TRUE
+      "blockers-slot" CONTAINS ASSERT_TRUE
+    }
+    Err {
+      DROP
+      FALSE ASSERT_TRUE
+    }
+  END
+END
+
+TEST "dashboard summary tiles template renders projected counts"
+  sample_dashboard_pebbles
+  dashboard_summary_from
+  dashboard_render_summary_tiles_template LET html
+
+  html "<h3>Total</h3><p>4</p>" CONTAINS ASSERT_TRUE
+  html "<h3>Blocked</h3><p>1</p>" CONTAINS ASSERT_TRUE
+END
+
+TEST "dashboard filter template keeps query and status escaped"
+  12 4 "<svg onload=alert('x')>" "all<script>" dashboard_render_filter_bar_template LET html
+
+  html "&lt;svg onload=alert(&#39;x&#39;)&gt;" CONTAINS ASSERT_TRUE
+  html "all&lt;script&gt;" CONTAINS ASSERT_TRUE
+  html "<svg onload=alert('x')>" CONTAINS ASSERT_FALSE
+END
+
+TEST "dashboard section template renders escaped row payload"
+  [ ]
+  1 "open" "<script>alert('x')</script>" "" [ ] Pebble SWAP CONS
+  "Open"
+  dashboard_render_section_template LET html
+
+  html "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;" CONTAINS ASSERT_TRUE
+  html "<script>alert('x')</script>" CONTAINS ASSERT_FALSE
+END

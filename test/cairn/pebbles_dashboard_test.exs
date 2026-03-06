@@ -58,7 +58,11 @@ defmodule Cairn.PebblesDashboardTest do
     assert stdout =~ "PASS dashboard blockers keeps only blocked rows with a reason"
     assert stdout =~ "PASS dashboard row rendering escapes unsafe text"
     assert stdout =~ "PASS dashboard filter bar escapes user input"
-    assert stderr =~ "TEST SUMMARY: total=7 passed=7 failed=0"
+    assert stdout =~ "PASS dashboard template wrapper renders the ctpl shell"
+    assert stdout =~ "PASS dashboard summary tiles template renders projected counts"
+    assert stdout =~ "PASS dashboard filter template keeps query and status escaped"
+    assert stdout =~ "PASS dashboard section template renders escaped row payload"
+    assert stderr =~ "TEST SUMMARY: total=11 passed=11 failed=0"
   end
 
   test "dashboard renders summary tiles grouped sections and blockers panel" do

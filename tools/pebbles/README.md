@@ -42,6 +42,10 @@ Query params:
 - `export/import` uses a plain text `pebbles-v1` snapshot format for portability.
 - v1 now supports lifecycle transitions, edits, search, and snapshots.
 - dashboard is read-only and shares the same underlying Pebbles store.
+- dashboard HTML is now template-backed (`tools/pebbles/templates/*.ctpl`) with typed view/context wrappers in `tools/pebbles/lib/dashboard/model.crn`.
+- template trust boundary is explicit:
+  - user-provided pebble text stays escaped before interpolation
+  - raw placeholders (`{{{...}}}`) are used only for trusted internal HTML fragments composed by Cairn code
 - Storage uses Cairn `DB_*` via prelude `data_*` helpers (default backend: Mnesia).
 - Data location follows existing runtime configuration (`CAIRN_DB_DIR`, backend settings).
 - Workflow conventions are in `tools/pebbles/WORKFLOW.md`.

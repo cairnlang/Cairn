@@ -1,0 +1,4 @@
+<section class="card">
+  <h2>Blockers</h2>
+  {{{rows_html}}}
+</section>

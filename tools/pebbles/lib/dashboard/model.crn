@@ -1,6 +1,11 @@
 IMPORT "../store.crn"
 
 TYPE dashboard_summary = DashboardSummary int int int int int
+TYPE dashboard_page_view = DashboardPage str str str str str str str str
+TYPE dashboard_summary_view = DashboardSummaryView str str str str str
+TYPE dashboard_filter_view = DashboardFilterView str str str str
+TYPE dashboard_section_view = DashboardSectionView str str str
+TYPE dashboard_blockers_view = DashboardBlockersView str
 
 DEF dashboard_summary_total : dashboard_summary -> int EFFECT pure
   MATCH
@@ -65,6 +70,45 @@ DEF dashboard_summary_done : dashboard_summary -> int EFFECT pure
       count
     }
   END
+END
+
+DEF dashboard_page_view_new : str str str str str str str str -> dashboard_page_view EFFECT pure
+  DashboardPage
+END
+
+DEF dashboard_page_view_ctx : dashboard_page_view -> template_ctx EFFECT pure
+  MATCH
+    DashboardPage {
+      LET summary_html
+      LET filter_html
+      LET notice_html
+      LET open_html
+      LET doing_html
+      LET blocked_html
+      LET done_html
+      LET blockers_html
+
+      M[]
+      "summary_html" summary_html PUT
+      "filter_html" filter_html PUT
+      "notice_html" notice_html PUT
+      "open_html" open_html PUT
+      "doing_html" doing_html PUT
+      "blocked_html" blocked_html PUT
+      "done_html" done_html PUT
+      "blockers_html" blockers_html PUT
+    }
+  END
+END
+
+DEF dashboard_page_template_path : -> str EFFECT pure
+  "tools/pebbles/templates/dashboard_page.ctpl"
+END
+
+DEF dashboard_render_page_template : dashboard_page_view -> template_result EFFECT io
+  dashboard_page_view_ctx
+  dashboard_page_template_path
+  template_render_file
 END
 
 DEF dashboard_query_status : map[str str] -> str EFFECT pure
@@ -265,4 +309,249 @@ DEF dashboard_render_page : str str str [pebble] [pebble] -> str EFFECT pure
   LET notice_html
 
   blockers_html done_html blocked_html doing_html open_html notice_html filter_html summary_html "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Pebbles Dashboard</title>\n    <style>\n      :root { color-scheme: light; }\n      body { font-family: \"Iosevka\", \"Fira Code\", monospace; margin: 0; background: #f3f0e8; color: #1f2933; }\n      main { max-width: 1080px; margin: 0 auto; padding: 1.5rem; }\n      h1 { margin-top: 0; }\n      .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }\n      .tiles article, .card { background: #fff; border: 1px solid #d4c6a1; border-radius: 8px; padding: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }\n      .sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin-top: 1rem; }\n      ul { margin: 0.4rem 0 0 1rem; padding: 0; }\n      li { margin: 0.2rem 0; }\n      code { font-family: inherit; font-size: 0.9rem; }\n      .empty { color: #64748b; }\n      .notice { background: #fff6d8; border: 1px solid #eab308; border-radius: 8px; padding: 0.7rem; }\n      label { display: block; margin-bottom: 0.6rem; }\n      input { width: 100%; box-sizing: border-box; padding: 0.4rem; margin-top: 0.25rem; }\n      button { padding: 0.45rem 0.9rem; }\n    </style>\n  </head>\n  <body>\n    <main>\n      <h1>Pebbles Dashboard</h1>\n      <p>Read-only view over your local Pebbles queue.</p>\n      {}\n      {}\n      {}\n      <section class=\"sections\">\n        {}\n        {}\n        {}\n        {}\n      </section>\n      <section style=\"margin-top: 0.75rem;\">\n        {}\n      </section>\n    </main>\n  </body>\n</html>\n" FMT
+END
+
+DEF dashboard_summary_view_new : str str str str str -> dashboard_summary_view EFFECT pure
+  DashboardSummaryView
+END
+
+DEF dashboard_summary_view_ctx : dashboard_summary_view -> template_ctx EFFECT pure
+  MATCH
+    DashboardSummaryView {
+      LET total_text
+      LET open_text
+      LET doing_text
+      LET blocked_text
+      LET done_text
+
+      M[]
+      "total" total_text PUT
+      "open" open_text PUT
+      "doing" doing_text PUT
+      "blocked" blocked_text PUT
+      "done" done_text PUT
+    }
+  END
+END
+
+DEF dashboard_summary_template_path : -> str EFFECT pure
+  "tools/pebbles/templates/dashboard_summary_tiles.ctpl"
+END
+
+DEF dashboard_render_summary_tiles_template : dashboard_summary -> str EFFECT io
+  LET summary
+
+  summary dashboard_summary_total NUM_STR LET total_text
+  summary dashboard_summary_open NUM_STR LET open_text
+  summary dashboard_summary_doing NUM_STR LET doing_text
+  summary dashboard_summary_blocked NUM_STR LET blocked_text
+  summary dashboard_summary_done NUM_STR LET done_text
+
+  summary dashboard_render_summary_tiles LET fallback_html
+
+  total_text open_text doing_text blocked_text done_text dashboard_summary_view_new
+  dashboard_summary_view_ctx
+  dashboard_summary_template_path
+  template_render_file
+  MATCH
+    Ok {
+      LET rendered
+      rendered
+    }
+    Err {
+      DROP
+      fallback_html
+    }
+  END
+END
+
+DEF dashboard_filter_view_new : str str str str -> dashboard_filter_view EFFECT pure
+  DashboardFilterView
+END
+
+DEF dashboard_filter_view_ctx : dashboard_filter_view -> template_ctx EFFECT pure
+  MATCH
+    DashboardFilterView {
+      LET query_text
+      LET status_filter
+      LET visible_text
+      LET total_text
+
+      M[]
+      "query" query_text PUT
+      "status" status_filter PUT
+      "visible" visible_text PUT
+      "total" total_text PUT
+    }
+  END
+END
+
+DEF dashboard_filter_template_path : -> str EFFECT pure
+  "tools/pebbles/templates/dashboard_filter_bar.ctpl"
+END
+
+DEF dashboard_render_filter_bar_template : str str int int -> str EFFECT io
+  LET status_filter
+  LET query_text
+  LET visible_count
+  LET total_count
+
+  total_count visible_count query_text status_filter dashboard_render_filter_bar LET fallback_html
+
+  visible_count NUM_STR LET visible_text
+  total_count NUM_STR LET total_text
+
+  query_text status_filter visible_text total_text dashboard_filter_view_new
+  dashboard_filter_view_ctx
+  dashboard_filter_template_path
+  template_render_file
+  MATCH
+    Ok {
+      LET rendered
+      rendered
+    }
+    Err {
+      DROP
+      fallback_html
+    }
+  END
+END
+
+DEF dashboard_section_view_new : str str str -> dashboard_section_view EFFECT pure
+  DashboardSectionView
+END
+
+DEF dashboard_section_view_ctx : dashboard_section_view -> template_ctx EFFECT pure
+  MATCH
+    DashboardSectionView {
+      LET title
+      LET count_text
+      LET rows_html
+
+      M[]
+      "title" title PUT
+      "count" count_text PUT
+      "rows_html" rows_html PUT
+    }
+  END
+END
+
+DEF dashboard_section_template_path : -> str EFFECT pure
+  "tools/pebbles/templates/dashboard_section.ctpl"
+END
+
+DEF dashboard_render_section_template : str [pebble] -> str EFFECT io
+  LET title
+  LET pebbles
+
+  pebbles title dashboard_render_section LET fallback_html
+  pebbles dashboard_render_pebble_rows LET rows_html
+  pebbles LEN NUM_STR LET count_text
+
+  title count_text rows_html dashboard_section_view_new
+  dashboard_section_view_ctx
+  dashboard_section_template_path
+  template_render_file
+  MATCH
+    Ok {
+      LET rendered
+      rendered
+    }
+    Err {
+      DROP
+      fallback_html
+    }
+  END
+END
+
+DEF dashboard_blockers_view_new : str -> dashboard_blockers_view EFFECT pure
+  DashboardBlockersView
+END
+
+DEF dashboard_blockers_view_ctx : dashboard_blockers_view -> template_ctx EFFECT pure
+  MATCH
+    DashboardBlockersView {
+      LET rows_html
+      M[] "rows_html" rows_html PUT
+    }
+  END
+END
+
+DEF dashboard_blockers_template_path : -> str EFFECT pure
+  "tools/pebbles/templates/dashboard_blockers.ctpl"
+END
+
+DEF dashboard_render_blockers_template : [pebble] -> str EFFECT io
+  LET pebbles
+
+  pebbles dashboard_render_blockers LET fallback_html
+
+  pebbles dashboard_blockers LET blockers
+  blockers DUP LEN 0 EQ
+  IF
+    DROP
+    "<p>none</p>"
+  ELSE
+    { dashboard_render_blocker_row } MAP
+    "\n" JOIN
+    "<ul>{}</ul>" FMT
+  END
+  LET rows_html
+
+  rows_html dashboard_blockers_view_new
+  dashboard_blockers_view_ctx
+  dashboard_blockers_template_path
+  template_render_file
+  MATCH
+    Ok {
+      LET rendered
+      rendered
+    }
+    Err {
+      DROP
+      fallback_html
+    }
+  END
+END
+
+DEF dashboard_render_page_templated : str str str [pebble] [pebble] -> str EFFECT io
+  LET error_message
+  LET query_text
+  LET status_filter
+  LET visible
+  LET all_pebbles
+
+  all_pebbles visible status_filter query_text error_message dashboard_render_page LET fallback_html
+
+  all_pebbles dashboard_summary_from dashboard_render_summary_tiles_template LET summary_html
+  visible LEN LET visible_count
+  all_pebbles LEN LET total_count
+  total_count visible_count query_text status_filter dashboard_render_filter_bar_template LET filter_html
+
+  visible dashboard_group_open "Open" dashboard_render_section_template LET open_html
+  visible dashboard_group_doing "Doing" dashboard_render_section_template LET doing_html
+  visible dashboard_group_blocked "Blocked" dashboard_render_section_template LET blocked_html
+  visible dashboard_group_done "Done" dashboard_render_section_template LET done_html
+  visible dashboard_render_blockers_template LET blockers_html
+
+  error_message LEN 0 GT
+  IF
+    error_message html_escape "<p class=\"notice\">{}</p>" FMT
+  ELSE
+    ""
+  END
+  LET notice_html
+
+  summary_html filter_html notice_html open_html doing_html blocked_html done_html blockers_html dashboard_page_view_new
+  dashboard_render_page_template
+  MATCH
+    Ok {
+      LET rendered
+      rendered
+    }
+    Err {
+      DROP
+      fallback_html
+    }
+  END
 END

@@ -11,17 +11,24 @@ Date: March 5, 2026
 - P4 landed: snapshot `export/import` portability flow with header validation and id-sync recovery.
 - P5 landed: quality-of-life commands (`reopen/edit/find`) + `ls` status filtering + workflow reference.
 - D1 landed: read-only web dashboard (`tools/pebbles/dashboard.crn`) with grouped status sections, blockers panel, and query filtering (`status`, `q`).
+- D2 landed: dashboard template migration (`.ctpl`) with typed view/context wrappers and template-backed page/section rendering.
 - Implemented files:
   - `tools/pebbles/main.crn`
   - `tools/pebbles/lib/store.crn`
   - `tools/pebbles/lib/domain.crn`
   - `tools/pebbles/lib/dashboard/model.crn`
   - `tools/pebbles/lib/dashboard/web.crn`
+  - `tools/pebbles/templates/dashboard_page.ctpl`
+  - `tools/pebbles/templates/dashboard_summary_tiles.ctpl`
+  - `tools/pebbles/templates/dashboard_filter_bar.ctpl`
+  - `tools/pebbles/templates/dashboard_section.ctpl`
+  - `tools/pebbles/templates/dashboard_blockers.ctpl`
   - `tools/pebbles/dashboard.crn`
   - `tools/pebbles/README.md`
   - `tools/pebbles/test.crn`
   - `tools/pebbles/test_dashboard.crn`
   - `test/cairn/pebbles_test.exs`
+  - `test/cairn/pebbles_dashboard_test.exs`
 
 ## Goal
 
@@ -125,6 +132,7 @@ Fields:
 4. Slice P4: export/import command for portability
 5. Slice P5: edit/reopen/find + status-filtered listing + workflow reference
 6. Slice D1: read-model projection helpers + dashboard HTTP view
+7. Slice D2: template-backed dashboard rendering with typed wrappers + trust-boundary hardening
 
 ## Acceptance (v1 usable)
 

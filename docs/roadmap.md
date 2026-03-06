@@ -39,6 +39,23 @@ Acceptance slices and detailed criteria are tracked in:
 
 ## Completed
 
+### v0.10.xxb — Pebbles D2: Dashboard Template Migration (Bounded)
+- Added a bounded migration spec and acceptance slices:
+  - `docs/pebbles-dashboard-template-plan.md`
+- Added dashboard template assets under:
+  - `tools/pebbles/templates/dashboard_page.ctpl`
+  - `tools/pebbles/templates/dashboard_summary_tiles.ctpl`
+  - `tools/pebbles/templates/dashboard_filter_bar.ctpl`
+  - `tools/pebbles/templates/dashboard_section.ctpl`
+  - `tools/pebbles/templates/dashboard_blockers.ctpl`
+- Extended dashboard model wrappers with typed template view boundaries:
+  - page, summary, filter, section, blockers view/context helpers in `tools/pebbles/lib/dashboard/model.crn`
+- Switched dashboard route rendering to template-backed page assembly (with bounded fallback to legacy string assembly on template error):
+  - `tools/pebbles/lib/dashboard/web.crn`
+- Hardened assurance coverage for templated dashboard paths:
+  - new native tests in `tools/pebbles/test_dashboard.crn`
+  - updated integration assertions in `test/cairn/pebbles_dashboard_test.exs`
+
 ### v0.10.xxa — Pebbles D1: Read-Only Web Dashboard
 - Added a Pebbles web launcher:
   - `tools/pebbles/dashboard.crn` (`./cairn tools/pebbles/dashboard.crn [host] [port]`)

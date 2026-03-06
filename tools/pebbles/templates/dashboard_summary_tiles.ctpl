@@ -1,0 +1,7 @@
+<section class="tiles">
+  <article><h3>Total</h3><p>{{total}}</p></article>
+  <article><h3>Open</h3><p>{{open}}</p></article>
+  <article><h3>Doing</h3><p>{{doing}}</p></article>
+  <article><h3>Blocked</h3><p>{{blocked}}</p></article>
+  <article><h3>Done</h3><p>{{done}}</p></article>
+</section>
